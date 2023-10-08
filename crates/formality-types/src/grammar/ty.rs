@@ -239,6 +239,14 @@ pub enum ScalarId {
     Isize,
 }
 
+/// An *alias type* is a type that can be *normalized* to some other
+/// type. In Rust, these include associated types,
+/// opaque types (`impl Trait`), and explicit aliases (`type Foo = Bar`).
+/// Alias types are normalized by built-in rules that e.g. consult
+/// the declaration in an impl. Aliases are always pure functions of
+/// their name and parameters, so two alias types with the same
+/// alias name and equal parameters are known to be equal even if
+/// they have not been normalized.
 #[term((alias $name $*parameters))]
 pub struct AliasTy {
     pub name: AliasName,
@@ -262,20 +270,27 @@ impl AliasTy {
     }
 }
 
+/// The alias name determines the type of alias this is.
 #[term]
 pub enum AliasName {
     #[cast]
     AssociatedTyId(AssociatedTyName),
 }
 
+/// The name of an associated type: includes the trait and the item name.
 #[term(($trait_id :: $item_id))]
 pub struct AssociatedTyName {
     pub trait_id: TraitId,
     pub item_id: AssociatedItemId,
 }
 
+/// A *predicate type* indicates one of the various types that
+/// can be constructed with richer logical connectives.
 #[term]
 pub enum PredicateTy {
+    /// A *forall* type indicates that the value can have many types,
+    /// one for any value of the bound variables (e.g., `for<'a> fn(&'a u32)`
+    /// can be typed with any lifetime substituted for `'a`).
     ForAll(Binder<Ty>),
 }
 
@@ -292,12 +307,18 @@ pub struct UniversalVar {
     pub var_index: VarIndex,
 }
 
+/// The two kinds of variable quantifiers: forall means that the
+/// given thing must be true (or is true) for all possible variables
+/// of the variable; exists means that it must be true (or is true) for
+/// one single value.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum QuantifierKind {
     ForAll,
     Exists,
 }
 
+/// A parameter is the value of a generic argument. This can be a
+/// type, lifetime, or constant, depending on the kind of the generic.
 #[term]
 pub enum Parameter {
     #[cast]
@@ -357,6 +378,7 @@ pub enum Variance {
     Invariant,
 }
 
+/// A lifetime
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Lt {
     data: Arc<LtData>,
@@ -405,7 +427,10 @@ impl UpcastFrom<LtData> for Parameter {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LtData {
+    /// The static lifetime indicates data that cannot be invalidated
     Static,
+
+    /// A lifetime variable
     Variable(Variable),
 }
 
@@ -449,13 +474,18 @@ impl Visit for LtData {
 /// according to the k
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Variable {
-    /// A free variable that is universally quantified (`forall`) in the environment.
+    /// A variable that appears free in its term (i.e., is not bound)
+    /// and is universally quantified (`forall`) in the environment.
     /// See [`UniversalVar`].
     UniversalVar(UniversalVar),
 
-    /// A free variable that is existentially quantified (`exists`) in the environment.
+    /// A variable that appears free in its term (i.e., is not bound)
+    /// and that is existentially quantified (`exists`) in the environment.
     /// See [`ExistentialVar`].
     ExistentialVar(ExistentialVar),
+
+    /// A *bound* variable is one that is bound within the term.
+    /// See [`BoundVar`].
     BoundVar(BoundVar),
 }
 
@@ -581,14 +611,32 @@ cast_impl!((ExistentialVar) <: (Variable) <: (Parameter));
 cast_impl!((BoundVar) <: (Variable) <: (Parameter));
 cast_impl!((UniversalVar) <: (Variable) <: (Parameter));
 
-/// Identifies a bound variable.
+/// Identifies a variable that is bound within the term that it appears.
+/// For example, given a type like `for<'a> fn(&'a u32, ?T)`,
+/// the `'a` appears bound and would be represented by a `BoundVar`,
+/// but `?T` would be a free variable (an [`ExistentialVar`]).
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BoundVar {
     /// Identifies the binder that contained this variable, counting "outwards".
-    /// When you create a binder with `Binder::new`,
-    /// When you open a Binder, you get back `Bound
+    ///
+    /// When you create a binder with `Binder::new` and a list of variables `[X...]`,
+    /// all the variables `X...` will be replaced with [`BoundVar`] instances
+    /// with an appropriate debruijn index.
+    ///
+    /// When you open a Binder with `Binder::open`, all variables bound by
+    /// binder are replaced with `BoundVar` whose debruijn index is `None`
+    /// and with a fresh (and globally unique) `var_index`.
+    /// **This is a temporary state** in which the variables appear free
+    /// but they are not bound in the enclosing environment. It is used to
+    /// transform the term and then recreate the binder.
     pub debruijn: Option<DebruijnIndex>,
+
+    /// The index within the binder; if `debruijn` is `None`, then this
+    /// will be a globally unique index generated by a call to
+    /// [`fresh_bound_var`](`crate::grammar::binder::fresh_bound_var`).
     pub var_index: VarIndex,
+
+    /// The kind of this variable (type, lifetime, etc).
     pub kind: ParameterKind,
 }
 
@@ -610,6 +658,10 @@ impl BoundVar {
     }
 }
 
+/// Debruijn indices identify the binder in which a bound variable
+/// is bound. An index of 0 represents the innermost binder
+/// (see `Self::INNERMOST`). An index of 1 represents the binder after that,
+/// and so forth.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DebruijnIndex {
     pub index: usize,
@@ -637,6 +689,7 @@ impl DebruijnIndex {
     }
 }
 
+/// The index of a variable within a binder.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarIndex {
     pub index: usize,
@@ -656,6 +709,12 @@ impl std::ops::Add<usize> for VarIndex {
     }
 }
 
+/// A *substitution* maps from free variables to values.
+/// The `apply` method will replace all instances of
+/// those variables with their corresponding values;
+/// the `get` method will look the value for a particular parameter.
+///
+/// The
 #[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Substitution {
     map: Map<Variable, Parameter>,
