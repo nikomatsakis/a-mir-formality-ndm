@@ -146,6 +146,12 @@ impl Visit for ExistentialVar {
     fn assert_valid(&self) {}
 }
 
+/// A *rigid* type is one that is only equal to itself;
+/// in Rust, most types are rigid types -- this includes
+/// structs and enums but also built-in primitive types
+/// like integers. Rigid types act very similarly
+/// to a [`UniversalVar`], except that they also may have
+/// generic parameters (e.g., `Vec<_>`).
 #[term((rigid $name $*parameters))]
 pub struct RigidTy {
     pub name: RigidName,
