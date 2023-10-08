@@ -22,7 +22,7 @@ use super::{constraints::Constraints, env::Env};
 pub fn eq(a: impl Upcast<Parameter>, b: impl Upcast<Parameter>) -> Relation {
     Relation::eq(a, b)
 }
-
+ 
 judgment_fn! {
     pub fn prove_eq(
         decls: Decls,
@@ -48,7 +48,7 @@ judgment_fn! {
             (let RigidTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)
             (prove(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => c)
-            ----------------------------- ("rigid")
+            --------------   --------------- ("rigid")
             (prove_eq(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
         )
 

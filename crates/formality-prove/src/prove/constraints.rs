@@ -8,10 +8,23 @@ use formality_types::{
 
 use super::env::Env;
 
+/// Describe inference constraints on free variables. This is returned
+/// by most of the rules for proving that where-clauses or other goals
+/// are true.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct Constraints {
+    /// The environment in which the constraints must hold.
+    /// This is derived from the input environment to the proof
+    /// rules but may contain additional free variables.
     pub env: Env,
+
+    /// If this is false, then these constraints are
+    /// necessary but not sufficient to show
+    /// that the goal is true.
     pub known_true: bool,
+
+    /// The substitution describes required values for
+    /// (a subset of) the free variables in the term.
     pub substitution: Substitution,
 }
 

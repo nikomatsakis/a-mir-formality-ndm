@@ -19,7 +19,11 @@ use crate::{
 use super::constraints::Constraints;
 
 judgment_fn! {
-    // (Decls, Env) |- Wcs => Goal : Constraints
+    /// Rules to prove that a where clause `goal` is true, assuming `assumptions` are true,
+    /// and given the program declarations `decls` and environment `env`.
+    ///
+    /// Returns constraints that must hold on the free variables in `(assumptions, goal)`
+    /// for `goal` to be true.
     pub fn prove_wc(
         decls: Decls,
         env: Env,
