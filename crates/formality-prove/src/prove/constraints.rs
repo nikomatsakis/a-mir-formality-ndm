@@ -41,11 +41,13 @@ where
 }
 
 impl Constraints {
+    /// Returns an empty set of constraints that are trivially true.
     pub fn none(env: Env) -> Self {
         let v: Vec<(Variable, Parameter)> = vec![];
         Self::from(env, v)
     }
 
+    /// Returns `self` but with an environment with the given coherence mode.
     pub fn with_coherence_mode(self, b: bool) -> Self {
         Self {
             env: self.env.with_coherence_mode(b),
@@ -53,10 +55,13 @@ impl Constraints {
         }
     }
 
+    /// True if these constraints are trivially and unconditionally true.
     pub fn unconditionally_true(&self) -> bool {
         self.known_true && self.substitution.is_empty()
     }
 
+    /// Creates a set of constraints from an environment and a list of variables and their values.
+    /// The constraints will be known to be true.
     pub fn from(
         env: Env,
         iter: impl IntoIterator<Item = (impl Upcast<Variable>, impl Upcast<Parameter>)>,
@@ -73,14 +78,18 @@ impl Constraints {
         c2
     }
 
+    /// Returns the environment from these constraints.
     pub fn env(&self) -> &Env {
         &self.env
     }
 
+    /// Returns the substitution from these constraints.
     pub fn substitution(&self) -> &Substitution {
         &self.substitution
     }
 
+    /// Return a version of `self` where `known_true` is false,
+    /// so the constraints are necessary but not sufficient.
     pub fn ambiguous(self) -> Constraints {
         Self {
             known_true: false,
@@ -88,14 +97,16 @@ impl Constraints {
         }
     }
 
-    /// Given constraings from solving the subparts of `(A /\ B)`, yield combined constraints.
+    /// Combine the constraints `self` and `c_b` that resulted from proving both halves of a
+    /// conjunction goal `A /\ B` into a final set of constraints. The assumption is that `B`
+    /// was proved in the environment of `A` and with the substitution applied.
     ///
     /// # Parameters
     ///
     /// * `self` -- the constraints from solving `A`
-    /// * `c2` -- the constraints from solving `B` (after applying substitution from `self` to `B`)
-    pub fn seq(&self, c2: impl Upcast<Constraints>) -> Constraints {
-        let c2: Constraints = c2.upcast();
+    /// * `c_b` -- the constraints from solving `B` (after applying substitution from `self` to `B`)
+    pub fn seq(&self, c_b: impl Upcast<Constraints>) -> Constraints {
+        let c2: Constraints = c_b.upcast();
 
         self.assert_valid();
         c2.assert_valid();
@@ -127,6 +138,8 @@ impl Constraints {
         }
     }
 
+    /// Removes the variables `v` from the environment and substitution of `self`,
+    /// returning the new set of constraints.
     pub fn pop_subst<V>(mut self, v: &[V]) -> Self
     where
         V: Upcast<Variable> + Copy,
@@ -141,6 +154,8 @@ impl Constraints {
         self
     }
 
+    /// True if the environment `env0` is a valid extension of `self.env`.
+    /// See [`Env::is_valid_extension_of`].
     pub fn is_valid_extension_of(&self, env0: &Env) -> bool {
         self.env.is_valid_extension_of(env0)
     }
