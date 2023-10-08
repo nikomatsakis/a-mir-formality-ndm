@@ -121,6 +121,11 @@ impl UpcastFrom<Ty> for TyData {
     }
 }
 
+/// An *existential variable* is a free variable bound existentially
+/// in the environment. This means that we are trying to find a particular
+/// value for this variable through inference. In our proof rules, when
+/// we encounter an existential variable, we will generate constraints
+/// (e.g., `Vec<?X> = Vec<u32>` is true given the substitution `[?X = u32]`).
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExistentialVar {
     pub kind: ParameterKind,
@@ -250,9 +255,13 @@ pub enum PredicateTy {
     ForAll(Binder<Ty>),
 }
 
-/// A *universal variable* is a dummy variable about which nothing is known except
-/// that which we see in the environment. When we want to prove something
-/// is true for all `T` (`∀T`), we replace `T` with a universal variable.
+/// A *universal variable* is a free variable that is universally quantified
+/// ("forall") in the environment. Essentially, is a dummy variable about
+/// which nothing is known except that which we see in the assumptions.
+///
+/// When we want to prove something is true for all `T` (`∀T`),
+/// we replace `T` with a universal variable. You prove something is
+/// true for all things by proving it is true for an arbitrary thing.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UniversalVar {
     pub kind: ParameterKind,
@@ -299,11 +308,17 @@ impl Parameter {
 
 pub type Parameters = Vec<Parameter>;
 
+/// The "kind" of a generic value (type, lifetime, etc) in Rust.
 #[term]
 #[derive(Copy)]
 pub enum ParameterKind {
+    /// A type
     Ty,
+
+    /// A lifetime (or, in polonius terms, an origin)
     Lt,
+
+    /// A constant
     Const,
 }
 
@@ -405,9 +420,17 @@ impl Visit for LtData {
     }
 }
 
+/// A *variable* is an unknown term; it could represent a
+/// type, lifetime, constant, etc. Variables are classified
+/// according to the k
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Variable {
+    /// A free variable that is universally quantified (`forall`) in the environment.
+    /// See [`UniversalVar`].
     UniversalVar(UniversalVar),
+
+    /// A free variable that is existentially quantified (`exists`) in the environment.
+    /// See [`ExistentialVar`].
     ExistentialVar(ExistentialVar),
     BoundVar(BoundVar),
 }

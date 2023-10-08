@@ -126,7 +126,7 @@ impl VariantId {
     }
 }
 
-#[term(enum $id $binder)]
+#[term(enum $id<X> $binder)]
 pub struct Enum {
     pub id: AdtId,
     pub binder: Binder<AdtBoundData>,

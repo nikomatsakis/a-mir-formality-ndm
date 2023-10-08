@@ -10,6 +10,8 @@ use formality_types::{
     visit::Visit,
 };
 
+/// The "environment" stores the list of variables that are in scope
+/// and the coherence mode.
 #[derive(Default, Debug, Clone, Hash, Ord, Eq, PartialEq, PartialOrd)]
 pub struct Env {
     variables: Vec<Variable>,

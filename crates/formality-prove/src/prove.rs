@@ -1,3 +1,4 @@
+mod combinators;
 mod constraints;
 mod env;
 mod is_local;
@@ -9,7 +10,6 @@ mod prove_via;
 mod prove_wc;
 mod prove_wc_list;
 mod prove_wf;
-mod combinators;
 
 pub use constraints::Constraints;
 use formality_types::{cast::Upcast, collections::Set, grammar::Wcs, set, visit::Visit};
@@ -21,16 +21,18 @@ pub use self::env::Env;
 use self::prove_wc_list::prove_wc_list;
 
 /// Top-level entry point for proving things; other rules recurse to this one.
+///
+/// Prove that all of the `goals` are true given the `assumptions`.
 pub fn prove(
     decls: impl Upcast<Decls>,
     env: impl Upcast<Env>,
     assumptions: impl Upcast<Wcs>,
-    goal: impl Upcast<Wcs>,
+    goals: impl Upcast<Wcs>,
 ) -> Set<Constraints> {
     let decls: Decls = decls.upcast();
     let env: Env = env.upcast();
     let assumptions: Wcs = assumptions.upcast();
-    let goal: Wcs = goal.upcast();
+    let goal: Wcs = goals.upcast();
 
     let (env, (assumptions, goal), min) = minimize::minimize(env, (assumptions, goal));
 

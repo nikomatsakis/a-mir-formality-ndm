@@ -8,15 +8,19 @@ use crate::{
 use super::{env::Env, prove_wc::prove_wc};
 
 judgment_fn! {
+    /// Prove that a list of `goals` is true given the program declarations `decls`,
+    /// the environment `env`, and the list of `assumptions`.
+    ///
+    /// Returns the list of constraints under which the goals are true.
     pub fn prove_wc_list(
         decls: Decls,
         env: Env,
         assumptions: Wcs,
-        goal: Wcs,
+        goals: Wcs,
     ) => Constraints {
-        debug(goal, assumptions, env, decls)
+        debug(goals, assumptions, env, decls)
 
-        assert(env.encloses((&assumptions, &goal)))
+        assert(env.encloses((&assumptions, &goals)))
 
         (
             --- ("none")

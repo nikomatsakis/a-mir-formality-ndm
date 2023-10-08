@@ -19,9 +19,14 @@ pub type Fallible<T> = anyhow::Result<T>;
 #[term]
 pub enum Predicate {
     /// True if a trait is fully implemented (along with all its where clauses).
+    /// 
+    /// Rust syntax: `T: Display`
     #[cast]
     IsImplemented(TraitRef),
 
+    /// True if a type promises to NEVER implement a trait
+    /// 
+    /// Rust syntax: `T: !Display`
     #[grammar(!$v0)]
     NotImplemented(TraitRef),
 

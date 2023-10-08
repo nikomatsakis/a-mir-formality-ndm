@@ -19,6 +19,7 @@ use crate::{
 use super::constraints::Constraints;
 
 judgment_fn! {
+    // (Decls, Env) |- Wcs => Goal : Constraints
     pub fn prove_wc(
         decls: Decls,
         env: Env,
