@@ -202,12 +202,17 @@ pub enum RigidName {
     FnDef(FnId),
 }
 
+/// The kind for a reference -- shared or mutable.
 #[term]
 pub enum RefKind {
+    /// `&`
     Shared,
+
+    /// `&mut`
     Mut,
 }
 
+/// Scalar types declared in Rust.
 #[term]
 pub enum ScalarId {
     #[grammar(u8)]
