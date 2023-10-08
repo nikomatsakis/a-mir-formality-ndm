@@ -173,19 +173,32 @@ impl DowncastTo<ScalarId> for RigidTy {
     }
 }
 
+/// A *rigid name* is the name of a [rigid type](`RigidTy`).
+/// Two rigid types are equal if they have the same name
+/// and their parameters are equal. Names never contain variables or
+/// other types, they can always be compared just through `==`.
 #[term]
 pub enum RigidName {
+    /// An abstract data type (ADT) like a struct, enum, or union.
     #[grammar((adt $v0))]
     #[cast]
     AdtId(AdtId),
+    /// A scalar like `u32`.
     #[grammar((scalar $v0))]
     #[cast]
     ScalarId(ScalarId),
+    /// A reference like `&` or `&mut`; they have two parameters,
+    /// a lifetime and a type.
     #[cast]
     #[grammar(&($v0))]
     Ref(RefKind),
+    /// A tuple of the given arity N; it will have N parameters for its
+    /// element types.
     Tuple(usize),
+    /// A function pointer `fn(...)` with N parameters; it will have N+1
+    /// parameters, where the final parameter is the return type.
     FnPtr(usize),
+    /// The unique zero-size type representing a particular function.
     FnDef(FnId),
 }
 
