@@ -10,6 +10,7 @@ mod prove_via;
 mod prove_wc;
 mod prove_wc_list;
 mod prove_wf;
+mod prove_outlives;
 
 pub use constraints::Constraints;
 use formality_types::{cast::Upcast, collections::Set, grammar::Wcs, set, visit::Visit};

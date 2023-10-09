@@ -30,7 +30,6 @@ impl Wcs {
         a.into_iter()
             .zip(b)
             .map(|(a, b)| Relation::eq(a, b))
-            .upcasted()
             .collect()
     }
 }
@@ -55,10 +54,12 @@ impl IntoIterator for Wcs {
     }
 }
 
-impl FromIterator<Wc> for Wcs {
-    fn from_iter<T: IntoIterator<Item = Wc>>(iter: T) -> Self {
+impl<E> FromIterator<E> for Wcs
+where E: Upcast<Wc>,
+{
+    fn from_iter<T: IntoIterator<Item = E>>(iter: T) -> Self {
         Wcs {
-            set: iter.into_iter().collect(),
+            set: iter.into_iter().upcasted().collect(),
         }
     }
 }

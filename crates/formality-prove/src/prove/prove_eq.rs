@@ -1,5 +1,5 @@
 use formality_types::{
-    cast::{Downcast, Upcast, Upcasted},
+    cast::{Downcast, Upcast},
     collections::{Deduplicate, Set},
     grammar::{
         AliasTy, ExistentialVar, Parameter, Relation, RigidTy, Substitution, TyData, UniversalVar,
@@ -24,6 +24,8 @@ pub fn eq(a: impl Upcast<Parameter>, b: impl Upcast<Parameter>) -> Relation {
 }
  
 judgment_fn! {
+    /// Compute the constraints that make two parameters `a` and `b` equal
+    /// (semantically equivalent), given the `assumptions`.
     pub fn prove_eq(
         decls: Decls,
         env: Env,
@@ -173,7 +175,6 @@ fn equate_variable(
         .iter()
         .filter(|(v, _)| v.is_a::<UniversalVar>())
         .map(|(v, p)| eq(v, p))
-        .upcasted()
         .collect();
 
     tracing::debug!("equated: constraints={:?}, goals={:?}", constraints, goals);

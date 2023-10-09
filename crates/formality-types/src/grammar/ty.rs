@@ -349,6 +349,17 @@ impl Parameter {
             Parameter::Const(v) => v.as_variable(),
         }
     }
+
+    /// Returns true if this is `'static`.
+    pub fn is_static(&self) -> bool {
+        let Parameter::Lt(lt) = self else {
+            return false;
+        };
+        let LtData::Static = lt.data() else {
+            return false;
+        };
+        true
+    }
 }
 
 pub type Parameters = Vec<Parameter>;

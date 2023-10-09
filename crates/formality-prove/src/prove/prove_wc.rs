@@ -11,6 +11,7 @@ use crate::{
         prove,
         prove_after::prove_after,
         prove_eq::prove_eq,
+        prove_outlives::prove_outlives,
         prove_via::prove_via,
         prove_wf::prove_wf,
     },
@@ -103,6 +104,12 @@ judgment_fn! {
             (prove_eq(decls, env, assumptions, a, b) => c)
             ----------------------------- ("eq")
             (prove_wc(decls, env, assumptions, Relation::Equals(a, b)) => c)
+        )
+
+        (
+            (prove_outlives(decls, env, assumptions, a, b) => c)
+            ----------------------------- ("outlives")
+            (prove_wc(decls, env, assumptions, Relation::Outlives(a, b)) => c)
         )
 
         (
