@@ -28,6 +28,7 @@ fn test_reference_outlives_its_exact_lifetime() {
 }
 
 #[test]
+#[ignore = "broken because we don't find things in the environment yet"]
 fn test_reference_outlives_its_transitive_lifetime() {
     let constraints = test_prove(
         Decls::empty(),

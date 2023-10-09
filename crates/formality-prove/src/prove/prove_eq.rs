@@ -22,7 +22,7 @@ use super::{constraints::Constraints, env::Env};
 pub fn eq(a: impl Upcast<Parameter>, b: impl Upcast<Parameter>) -> Relation {
     Relation::eq(a, b)
 }
- 
+
 judgment_fn! {
     /// Compute the constraints that make two parameters `a` and `b` equal
     /// (semantically equivalent), given the `assumptions`.
@@ -40,18 +40,50 @@ judgment_fn! {
         trivial(a == b => Constraints::none(env))
 
         (
-            (prove_eq(decls, env, assumptions, r, l) => env_c)
-            ----------------------------- ("symmetric")
-            (prove_eq(decls, env, assumptions, l, r) => env_c)
+            (prove_syntactically_eq(decls, env, assumptions, a, b) => c)
+            ----------------------------- ("syntactic")
+            (prove_eq(decls, env, assumptions, a, b) => c)
         )
+
+        (
+            (prove_normalize(&decls, env, &assumptions, &a) => (c, a1))
+            (prove_after(&decls, c, &assumptions, eq(a1, &b)) => c)
+            ----------------------------- ("normalize-l")
+            (prove_eq(decls, env, assumptions, a, b) => c)
+        )
+
+        (
+            (prove_normalize(&decls, env, &assumptions, &b) => (c, b1))
+            (prove_after(&decls, c, &assumptions, eq(&a, b1)) => c)
+            ----------------------------- ("normalize-r")
+            (prove_eq(decls, env, assumptions, a, b) => c)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Compute the constraints that make two parameters `a` and `b` equal
+    /// (semantically equivalent), given the `assumptions`.
+    pub fn prove_syntactically_eq(
+        decls: Decls,
+        env: Env,
+        assumptions: Wcs,
+        a: Parameter,
+        b: Parameter,
+    ) => Constraints {
+        debug(a, b, assumptions, env, decls)
+
+        assert(a.kind() == b.kind())
+
+        trivial(a == b => Constraints::none(env))
 
         (
             (let RigidTy { name: a_name, parameters: a_parameters } = a)
             (let RigidTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)
             (prove(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => c)
-            --------------   --------------- ("rigid")
-            (prove_eq(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
+            ----------------------------- ("rigid")
+            (prove_syntactically_eq(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
         )
 
         (
@@ -60,20 +92,19 @@ judgment_fn! {
             (if a_name == b_name)
             (prove(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => env_c)
             ----------------------------- ("alias")
-            (prove_eq(decls, env, assumptions, TyData::AliasTy(a), TyData::AliasTy(b)) => env_c)
+            (prove_syntactically_eq(decls, env, assumptions, TyData::AliasTy(a), TyData::AliasTy(b)) => env_c)
         )
 
         (
             (prove_existential_var_eq(decls, env, assumptions, v, r) => c)
-            ----------------------------- ("existential")
-            (prove_eq(decls, env, assumptions, Variable::ExistentialVar(v), r) => c)
+            ----------------------------- ("existential-l")
+            (prove_syntactically_eq(decls, env, assumptions, Variable::ExistentialVar(v), r) => c)
         )
 
         (
-            (prove_normalize(&decls, env, &assumptions, &x) => (c, y))
-            (prove_after(&decls, c, &assumptions, eq(y, &z)) => c)
-            ----------------------------- ("normalize-l")
-            (prove_eq(decls, env, assumptions, x, z) => c)
+            (prove_existential_var_eq(decls, env, assumptions, v, l) => c)
+            ----------------------------- ("existential-r")
+            (prove_syntactically_eq(decls, env, assumptions, l, Variable::ExistentialVar(v)) => c)
         )
     }
 }
