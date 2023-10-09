@@ -35,8 +35,6 @@ judgment_fn! {
     ) => Constraints {
         debug(a, b, assumptions, env, decls)
 
-        assert(a.kind() == b.kind())
-
         trivial(a == b => Constraints::none(env))
 
         (
@@ -64,7 +62,7 @@ judgment_fn! {
 judgment_fn! {
     /// Compute the constraints that make two parameters `a` and `b` equal
     /// (semantically equivalent), given the `assumptions`.
-    pub fn prove_syntactically_eq(
+    fn prove_syntactically_eq(
         decls: Decls,
         env: Env,
         assumptions: Wcs,
@@ -72,8 +70,6 @@ judgment_fn! {
         b: Parameter,
     ) => Constraints {
         debug(a, b, assumptions, env, decls)
-
-        assert(a.kind() == b.kind())
 
         trivial(a == b => Constraints::none(env))
 

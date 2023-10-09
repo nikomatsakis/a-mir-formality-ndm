@@ -1,14 +1,13 @@
 use formality_types::{
-    grammar::{WcData, Wcs, PR},
+    grammar::{Relation, WcData, Wcs, PR},
     judgment_fn,
 };
 
 use crate::{
     decls::Decls,
-    prove::{
-        constraints::Constraints, env::Env, prove, prove_after::prove_after, 
-    },
+    prove::{constraints::Constraints, env::Env, prove, prove_after::prove_after},
 };
+
 
 judgment_fn! {
     pub fn prove_via(
@@ -20,22 +19,28 @@ judgment_fn! {
     ) => Constraints {
         debug(goal, via, assumptions, env, decls)
 
+        // Check whether the parameters can be equated -- this is called "congruence"
+        // because the parameters don't have to be syntactically equal, just semantically equal.
+        //
+        // Subtle: for equality predicates in particular, we use a different rule.
         (
+            (if !predicate.is_equals())
             (let (skel_c, parameters_c) = predicate.debone())
             (let (skel_g, parameters_g) = goal.debone())
             (if skel_c == skel_g)
             (prove(decls, env, assumptions, Wcs::all_eq(parameters_c, parameters_g)) => c)
             ----------------------------- ("predicate-congruence-axiom")
-            (prove_via(decls, env, assumptions, PR::Predicate(predicate), goal) => c)
+            (prove_via(decls, env, assumptions, predicate: PR, goal) => c)
         )
 
+        // Subtle: For equality predicates in particular, we require a 100% syntactic match.
+        // This is because when attempting to judge equality of `a` and `b` we already normalize
+        // `a` and `b` fully, so any non-syntactic match will be explored through that loop.
         (
-            (let (skel_c, parameters_c) = relation.debone())
-            (let (skel_g, parameters_g) = goal.debone())
-            (if skel_c == skel_g)
-            (if parameters_c == parameters_g) // for relations, we require 100% match
-            ----------------------------- ("relation-axiom")
-            (prove_via(_decls, env, _assumptions, PR::Relation(relation), goal) => Constraints::none(env))
+            (if a1 == a2)
+            (if b1 == b2)
+            ----------------------------- ("equality")
+            (prove_via(_decls, env, _assumptions, Relation::Equals(a1, b1), Relation::Equals(a2, b2)) => Constraints::none(env))
         )
 
         (

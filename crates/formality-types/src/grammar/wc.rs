@@ -55,7 +55,8 @@ impl IntoIterator for Wcs {
 }
 
 impl<E> FromIterator<E> for Wcs
-where E: Upcast<Wc>,
+where
+    E: Upcast<Wc>,
 {
     fn from_iter<T: IntoIterator<Item = E>>(iter: T) -> Self {
         Wcs {
@@ -165,6 +166,7 @@ impl DowncastFrom<Wc> for WcData {
 
 cast_impl!((PR) <: (WcData) <: (Wc));
 cast_impl!((Relation) <: (PR) <: (Wc));
+cast_impl!((Relation) <: (PR) <: (WcData));
 cast_impl!((Predicate) <: (PR) <: (Wc));
 cast_impl!((TraitRef) <: (PR) <: (Wc));
 
