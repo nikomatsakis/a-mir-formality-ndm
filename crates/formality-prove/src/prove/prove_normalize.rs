@@ -9,8 +9,10 @@ use formality_types::{
 use crate::{
     decls::{AliasEqDeclBoundData, Decls},
     prove::{
-        combinators::zip, env::Env, prove, prove_after::prove_after,
-        prove_eq::prove_existential_var_eq,
+        combinators::zip,
+        env::Env,
+        prove_after::prove_after,
+        prove_eq::{prove_all_eq, prove_existential_var_eq},
     },
 };
 
@@ -38,7 +40,7 @@ judgment_fn! {
             (let decl = decl.binder.instantiate_with(&subst).unwrap())
             (let AliasEqDeclBoundData { alias: AliasTy { name, parameters }, ty, where_clause } = decl)
             (assert a.name == name)
-            (prove(&decls, env, &assumptions, Wcs::all_eq(&a.parameters, &parameters)) => c)
+            (prove_all_eq(&decls, env, &assumptions, &a.parameters, &parameters) => c)
             (prove_after(&decls, c, &assumptions, &where_clause) => c)
             (let ty = c.substitution().apply(&ty))
             (let c = c.pop_subst(&subst))

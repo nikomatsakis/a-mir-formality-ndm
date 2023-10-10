@@ -5,9 +5,8 @@ use formality_types::{
 
 use crate::{
     decls::Decls,
-    prove::{constraints::Constraints, env::Env, prove, prove_after::prove_after},
+    prove::{constraints::Constraints, env::Env, prove_after::prove_after, prove_eq::prove_all_eq},
 };
-
 
 judgment_fn! {
     pub fn prove_via(
@@ -28,7 +27,7 @@ judgment_fn! {
             (let (skel_c, parameters_c) = predicate.debone())
             (let (skel_g, parameters_g) = goal.debone())
             (if skel_c == skel_g)
-            (prove(decls, env, assumptions, Wcs::all_eq(parameters_c, parameters_g)) => c)
+            (prove_all_eq(decls, env, assumptions, parameters_c, parameters_g) => c)
             ----------------------------- ("predicate-congruence-axiom")
             (prove_via(decls, env, assumptions, predicate: PR, goal) => c)
         )

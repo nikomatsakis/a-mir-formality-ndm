@@ -11,9 +11,7 @@ use formality_types::{
 
 use crate::{
     decls::Decls,
-    prove::{
-        constraints::occurs_in, prove, prove_after::prove_after, prove_normalize::prove_normalize,
-    },
+    prove::{constraints::occurs_in, prove_after::prove_after, prove_normalize::prove_normalize},
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -21,6 +19,37 @@ use super::{constraints::Constraints, env::Env};
 /// Goal(s) to prove `a` and `b` are equal
 pub fn eq(a: impl Upcast<Parameter>, b: impl Upcast<Parameter>) -> Relation {
     Relation::eq(a, b)
+}
+
+judgment_fn! {
+    /// Compute the constraints that make two parameters `a` and `b` equal
+    /// (semantically equivalent), given the `assumptions`.
+    pub fn prove_all_eq(
+        decls: Decls,
+        env: Env,
+        assumptions: Wcs,
+        a: Vec<Parameter>,
+        b: Vec<Parameter>,
+    ) => Constraints {
+        debug(a, b, assumptions, env, decls)
+
+        trivial(a == b => Constraints::none(env))
+
+        (
+            ----------------------------- ("prove-all-none")
+            (prove_all_eq(_decls, env, _assumptions, (), ()) => Constraints::none(env))
+        )
+
+        (
+            (prove_eq(&decls, env, &assumptions, a, b) => c1)
+            (let assumptions = c1.substitution().apply(&assumptions))
+            (let a_s = c1.substitution().apply(&a_s))
+            (let b_s = c1.substitution().apply(&b_s))
+            (prove_all_eq(&decls, c1.env(), assumptions, a_s, b_s) => c2)
+            ----------------------------- ("prove-all-some")
+            (prove_all_eq(decls, env, assumptions, (a, a_s), (b, b_s)) => c1.seq(c2))
+        )
+    }
 }
 
 judgment_fn! {
@@ -77,7 +106,7 @@ judgment_fn! {
             (let RigidTy { name: a_name, parameters: a_parameters } = a)
             (let RigidTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)
-            (prove(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => c)
+            (prove_all_eq(decls, env, assumptions, a_parameters, b_parameters) => c)
             ----------------------------- ("rigid")
             (prove_syntactically_eq(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
         )
@@ -86,9 +115,9 @@ judgment_fn! {
             (let AliasTy { name: a_name, parameters: a_parameters } = a)
             (let AliasTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)
-            (prove(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => env_c)
+            (prove_all_eq(decls, env, assumptions, a_parameters, b_parameters) => c)
             ----------------------------- ("alias")
-            (prove_syntactically_eq(decls, env, assumptions, TyData::AliasTy(a), TyData::AliasTy(b)) => env_c)
+            (prove_syntactically_eq(decls, env, assumptions, TyData::AliasTy(a), TyData::AliasTy(b)) => c)
         )
 
         (

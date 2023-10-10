@@ -10,7 +10,7 @@ use crate::{
         is_local::{is_local_trait_ref, may_be_remote},
         prove,
         prove_after::prove_after,
-        prove_eq::prove_eq,
+        prove_eq::{prove_all_eq, prove_eq},
         prove_outlives::prove_outlives,
         prove_via::prove_via,
         prove_wf::prove_wf,
@@ -60,7 +60,7 @@ judgment_fn! {
             (let i = i.binder.instantiate_with(&subst).unwrap())
             (let t = decls.trait_decl(&i.trait_ref.trait_id).binder.instantiate_with(&i.trait_ref.parameters).unwrap())
             (let co_assumptions = (&assumptions, &trait_ref))
-            (prove(&decls, env, co_assumptions, Wcs::all_eq(&trait_ref.parameters, &i.trait_ref.parameters)) => c)
+            (prove_all_eq(&decls, env, co_assumptions, &trait_ref.parameters, &i.trait_ref.parameters) => c)
             (prove_after(&decls, c, co_assumptions, &i.where_clause) => c)
             (prove_after(&decls, c, &assumptions, &t.where_clause) => c)
             ----------------------------- ("positive impl")
@@ -78,7 +78,7 @@ judgment_fn! {
             (decls.neg_impl_decls(&trait_ref.trait_id) => i)
             (let (env, subst) = env.existential_substitution(&i.binder))
             (let i = i.binder.instantiate_with(&subst).unwrap())
-            (prove(&decls, env, &assumptions, Wcs::all_eq(&trait_ref.parameters, &i.trait_ref.parameters)) => c)
+            (prove_all_eq(&decls, env, &assumptions, &trait_ref.parameters, &i.trait_ref.parameters) => c)
             (prove_after(&decls, c, &assumptions, &i.where_clause) => c)
             ----------------------------- ("negative impl")
             (prove_wc(decls, env, assumptions, Predicate::NotImplemented(trait_ref)) => c.pop_subst(&subst))
@@ -135,7 +135,7 @@ judgment_fn! {
 
         (
             (if let Some((_, const_ty)) = ct.as_value())
-            (prove(decls, env, assumptions, Wcs::all_eq(vec![const_ty], vec![ty])) => c)
+            (prove_eq(decls, env, assumptions, const_ty, ty) => c)
             ----------------------------- ("const has ty")
             (prove_wc(decls, env, assumptions, Predicate::ConstHasType(ct, ty)) => c)
         )
