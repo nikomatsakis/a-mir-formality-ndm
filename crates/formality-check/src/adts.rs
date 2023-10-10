@@ -8,6 +8,8 @@ impl super::Check<'_> {
 
         let mut env = Env::default();
 
+        // Given something like `struct Foo<X> where X: Trait { ... }`,
+        // you get `!X: Trait` in the list of where clauses
         let AdtBoundData {
             where_clauses,
             variants,
