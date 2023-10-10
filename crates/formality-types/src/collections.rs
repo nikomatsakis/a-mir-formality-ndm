@@ -146,20 +146,13 @@ where
     }
 }
 
-impl<A, T> DowncastTo<(A, Vec<T>)> for Vec<T>
+impl<T> DowncastTo<(T, Vec<T>)> for Vec<T>
 where
-    A: DowncastFrom<T>,
-    T: Ord + Clone,
+    T: Clone,
 {
-    fn downcast_to(&self) -> Option<(A, Vec<T>)> {
-        if self.is_empty() {
-            None
-        } else {
-            let r = self.clone();
-            let (a, bs) = r.split_first().unwrap();
-            let a: A = a.downcast()?;
-            Some((a, bs.to_vec()))
-        }
+    fn downcast_to(&self) -> Option<(T, Vec<T>)> {
+        let (a, bs) = self.split_first()?;
+        Some((a.clone(), bs.to_vec()))
     }
 }
 
