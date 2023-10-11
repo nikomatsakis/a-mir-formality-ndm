@@ -2,7 +2,7 @@ use formality_types::{
     cast::{Downcast, Upcast},
     collections::{Deduplicate, Set},
     grammar::{
-        AliasTy, ExistentialVar, Parameter, Relation, RigidTy, Substitution, TyData, UniversalVar,
+        AliasTy, ExistentialVar, Goal, Parameter, RigidTy, Substitution, TyData, UniversalVar,
         Variable, Wcs,
     },
     judgment_fn, set,
@@ -15,11 +15,6 @@ use crate::{
 };
 
 use super::{constraints::Constraints, env::Env};
-
-/// Goal(s) to prove `a` and `b` are equal
-pub fn eq(a: impl Upcast<Parameter>, b: impl Upcast<Parameter>) -> Relation {
-    Relation::eq(a, b)
-}
 
 judgment_fn! {
     /// Compute the constraints that make two parameters `a` and `b` equal
@@ -41,13 +36,10 @@ judgment_fn! {
         )
 
         (
-            (prove_eq(&decls, env, &assumptions, a, b) => c1)
-            (let assumptions = c1.substitution().apply(&assumptions))
-            (let a_s = c1.substitution().apply(&a_s))
-            (let b_s = c1.substitution().apply(&b_s))
-            (prove_all_eq(&decls, c1.env(), assumptions, a_s, b_s) => c2)
+            (prove_eq(&decls, env, &assumptions, a, b) => c)
+            (prove_after(&decls, c, &assumptions, Goal::all_eq(&a_s, &b_s)) => c)
             ----------------------------- ("prove-all-some")
-            (prove_all_eq(decls, env, assumptions, (a, a_s), (b, b_s)) => c1.seq(c2))
+            (prove_all_eq(decls, env, assumptions, (a, a_s), (b, b_s)) => c)
         )
     }
 }
@@ -74,14 +66,14 @@ judgment_fn! {
 
         (
             (prove_normalize(&decls, env, &assumptions, &a) => (c, a1))
-            (prove_after(&decls, c, &assumptions, eq(a1, &b)) => c)
+            (prove_after(&decls, c, &assumptions, Goal::eq(a1, &b)) => c)
             ----------------------------- ("normalize-l")
             (prove_eq(decls, env, assumptions, a, b) => c)
         )
 
         (
             (prove_normalize(&decls, env, &assumptions, &b) => (c, b1))
-            (prove_after(&decls, c, &assumptions, eq(&a, b1)) => c)
+            (prove_after(&decls, c, &assumptions, Goal::eq(&a, b1)) => c)
             ----------------------------- ("normalize-r")
             (prove_eq(decls, env, assumptions, a, b) => c)
         )
@@ -227,13 +219,23 @@ fn equate_variable(
     // above, we now have to prove that goal. e.g., if we had `X = Vec<!Y>`, we would replace `!Y` with `?Z`
     // (where `?Z` is in a lower universe than `X`), but now we must prove that `!Y = ?Z`
     // (this may be posible due to assumptions).
-    let goals: Wcs = universe_subst
+    let (variables, values): (Vec<Parameter>, Vec<Parameter>) = universe_subst
         .iter()
         .filter(|(v, _)| v.is_a::<UniversalVar>())
-        .map(|(v, p)| eq(v, p))
-        .collect();
+        .map(|(v, p)| (v.upcast(), p))
+        .unzip();
 
-    tracing::debug!("equated: constraints={:?}, goals={:?}", constraints, goals);
+    tracing::debug!(
+        "equated: constraints={:?}, variables={:?} values={:?}",
+        constraints,
+        variables,
+        values
+    );
 
-    prove_after(decls, constraints, assumptions, goals)
+    prove_after(
+        decls,
+        constraints,
+        assumptions,
+        Goal::AllEqual(variables, values),
+    )
 }

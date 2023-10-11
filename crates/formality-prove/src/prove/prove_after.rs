@@ -1,4 +1,7 @@
-use formality_types::{grammar::Wcs, judgment_fn};
+use formality_types::{
+    grammar::{Goal, Wcs},
+    judgment_fn,
+};
 
 use crate::{decls::Decls, prove::prove};
 
@@ -9,7 +12,7 @@ judgment_fn! {
         decls: Decls,
         constraints: Constraints,
         assumptions: Wcs,
-        goal: Wcs,
+        goal: Goal,
     ) => Constraints {
         debug(constraints, goal, assumptions, decls)
 

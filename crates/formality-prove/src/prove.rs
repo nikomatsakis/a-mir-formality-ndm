@@ -5,20 +5,28 @@ mod is_local;
 mod minimize;
 mod prove_after;
 mod prove_eq;
+mod prove_goal;
 mod prove_normalize;
+mod prove_outlives;
 mod prove_via;
 mod prove_wc;
 mod prove_wc_list;
 mod prove_wf;
-mod prove_outlives;
 
 pub use constraints::Constraints;
-use formality_types::{cast::Upcast, collections::Set, grammar::Wcs, set, visit::Visit};
+use formality_types::{
+    cast::Upcast,
+    collections::Set,
+    grammar::{Goal, Wcs},
+    set,
+    visit::Visit,
+};
 use tracing::Level;
 
 use crate::decls::Decls;
 
 pub use self::env::Env;
+use self::prove_goal::prove_goal;
 use self::prove_wc_list::prove_wc_list;
 
 /// Top-level entry point for proving things; other rules recurse to this one.
@@ -28,12 +36,12 @@ pub fn prove(
     decls: impl Upcast<Decls>,
     env: impl Upcast<Env>,
     assumptions: impl Upcast<Wcs>,
-    goals: impl Upcast<Wcs>,
+    goal: impl Upcast<Goal>,
 ) -> Set<Constraints> {
     let decls: Decls = decls.upcast();
     let env: Env = env.upcast();
     let assumptions: Wcs = assumptions.upcast();
-    let goal: Wcs = goals.upcast();
+    let goal: Goal = goal.upcast();
 
     let (env, (assumptions, goal), min) = minimize::minimize(env, (assumptions, goal));
 
@@ -52,7 +60,7 @@ pub fn prove(
 
     assert!(env.encloses(term_in));
 
-    let result_set = prove_wc_list(decls, &env, assumptions, goal);
+    let result_set = prove_goal(decls, &env, assumptions, goal);
 
     result_set.iter().for_each(|constraints1| {
         assert!(constraints1.is_valid_extension_of(&env));
