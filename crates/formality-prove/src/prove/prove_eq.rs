@@ -236,6 +236,6 @@ fn equate_variable(
         decls,
         constraints,
         assumptions,
-        Goal::AllEqual(variables, values),
+        Goal::all_eq(variables, values),
     )
 }

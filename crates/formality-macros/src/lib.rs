@@ -34,6 +34,7 @@ pub fn term(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 synstructure::decl_derive!([Visit] => visit::derive_visit);
+synstructure::decl_derive!([Fold] => fold::derive_fold);
 
 #[proc_macro_attribute]
 pub fn fixed_point(args: TokenStream, input: TokenStream) -> TokenStream {

@@ -4,8 +4,8 @@ use formality_macros::term;
 use formality_types::{
     cast::Upcast,
     grammar::{
-        AdtId, AssociatedItemId, Binder, Const, CrateId, Fallible, FieldId, FnId, Lt, Parameter,
-        TraitId, TraitRef, Ty, Wc, AliasTy,
+        AdtId, AliasTy, AssociatedItemId, Binder, Const, CrateId, Fallible, FieldId, FnId, Lt,
+        Parameter, TraitId, TraitRef, Ty, Wc,
     },
     term::Term,
 };
@@ -265,6 +265,21 @@ pub struct TraitImplBoundData {
 impl TraitImplBoundData {
     pub fn trait_ref(&self) -> TraitRef {
         self.trait_id.with(&self.self_ty, &self.trait_parameters)
+    }
+
+    /// Convert self into the two parts of the impl header:
+    /// the trait ref that is implemented plus the where-clauses.
+    /// This method is preferred to directly invoking `trait_ref()`
+    /// because it ensures you don't neglect the where-clauses etc.
+    pub fn into_header(self) -> (TraitRef, Vec<WhereClause>) {
+        let TraitImplBoundData {
+            trait_id,
+            self_ty,
+            trait_parameters,
+            where_clauses,
+            impl_items: _,
+        } = self;
+        (trait_id.with(&self_ty, &trait_parameters), where_clauses)
     }
 }
 

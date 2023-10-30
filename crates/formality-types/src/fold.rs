@@ -120,6 +120,12 @@ impl Fold for u32 {
     }
 }
 
+impl Fold for bool {
+    fn substitute(&self, _substitution_fn: SubstitutionFn<'_>) -> Self {
+        *self
+    }
+}
+
 impl Fold for () {
     fn substitute(&self, _substitution_fn: SubstitutionFn<'_>) -> Self {}
 }

@@ -17,6 +17,15 @@ pub struct Minimization {
     min2max_subst: VarSubstitution,
 }
 
+/// Given a term `term` defined in the environment `env_max`,
+/// returns a *minimized* version of the environment and term, along
+/// with a [`Minimization`][] mapping. Minimizing means that the free variables in the
+/// term are renumbered to start from 0, with the ordering dependent on where they appear
+/// in the term as it is visited, and the environment is minimized to contain only those
+/// variables that appear free in `term` and no others. The [`Minimization`][] mapping
+/// allows for the minimal variable numbers to be mapped back to the original values.
+/// Minimization not only removes unnecessary free variables but also gives the term a
+/// canonical and unique form.
 pub fn minimize<T: Term>(env_max: Env, term: T) -> (Env, T, Minimization) {
     let fv = term.free_variables().deduplicate();
 

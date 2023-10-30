@@ -105,6 +105,12 @@ impl UpcastFrom<()> for Wcs {
     }
 }
 
+impl UpcastFrom<Vec<Wc>> for Wcs {
+    fn upcast_from(term: Vec<Wc>) -> Self {
+        term.into_iter().collect()
+    }
+}
+
 impl DowncastTo<()> for Wcs {
     fn downcast_to(&self) -> Option<()> {
         if self.set.is_empty() {

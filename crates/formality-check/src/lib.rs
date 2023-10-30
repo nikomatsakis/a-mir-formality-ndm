@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use formality_types::derive_links;
+
 use std::{collections::VecDeque, fmt::Debug};
 
 use anyhow::bail;

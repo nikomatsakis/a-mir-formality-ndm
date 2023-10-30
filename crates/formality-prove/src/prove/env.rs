@@ -139,6 +139,9 @@ impl Env {
         vars
     }
 
+    /// Returns an environment with one fresh universal variable per bound variable in `b`
+    /// along with a list of the freshly created variables that can be used as a substitution
+    /// (see [`Binder::instantiate_with`]).
     pub fn universal_substitution<T>(&self, b: &Binder<T>) -> (Env, Vec<UniversalVar>)
     where
         T: Fold,
@@ -151,17 +154,22 @@ impl Env {
         (env, subst)
     }
 
+    /// Returns the inner value of `b` with all bound variables replaced by universal variables;
+    /// modifies `self` to include those new variables in the environment.
+    ///
+    /// This is a convenience wrapper around [`Self::universal_substitution`][].
     pub fn instantiate_universally<T>(&mut self, b: &Binder<T>) -> T
     where
         T: Fold,
     {
-        let subst = self.fresh_substitution(b.kinds(), |kind, var_index| UniversalVar {
-            kind,
-            var_index,
-        });
-        b.instantiate_with(&subst).unwrap()
+        let (env, substitution) = self.universal_substitution(b);
+        *self = env;
+        b.instantiate_with(&substitution).unwrap()
     }
 
+    /// Returns an environment with one fresh existential variable per bound variable in `b`
+    /// along with a list of the freshly created variables that can be used as a substitution
+    /// (see [`Binder::instantiate_with`]).
     pub fn existential_substitution<T>(&self, b: &Binder<T>) -> (Env, Vec<ExistentialVar>)
     where
         T: Fold,
@@ -172,6 +180,19 @@ impl Env {
             var_index,
         });
         (env, subst)
+    }
+
+    /// Returns the inner value of `b` with all bound variables replaced by existential variables;
+    /// modifies `self` to include those new variables in the environment.
+    ///
+    /// This is a convenience wrapper around [`Self::existential_substitution`][].
+    pub fn instantiate_existentially<T>(&mut self, b: &Binder<T>) -> T
+    where
+        T: Fold,
+    {
+        let (env, substitution) = self.existential_substitution(b);
+        *self = env;
+        b.instantiate_with(&substitution).unwrap()
     }
 
     /// Given a set of variables that was returned by
@@ -202,10 +223,13 @@ impl Env {
         discarded
     }
 
+    /// A list of all variables in the environment.
     pub fn variables(&self) -> &[Variable] {
         &self.variables
     }
 
+    /// Map the names of variables bound in the environment according to the given
+    /// substitution. Anything not in the substitution will be mapped to itself.
     pub fn substitute(&self, vs: &VarSubstitution) -> Self {
         Self {
             variables: self

@@ -137,6 +137,18 @@ impl Visit for usize {
     fn assert_valid(&self) {}
 }
 
+impl Visit for bool {
+    fn free_variables(&self) -> Vec<Variable> {
+        vec![]
+    }
+
+    fn size(&self) -> usize {
+        1
+    }
+
+    fn assert_valid(&self) {}
+}
+
 impl Visit for u32 {
     fn free_variables(&self) -> Vec<Variable> {
         vec![]

@@ -273,6 +273,17 @@ impl Parse for usize {
     }
 }
 
+impl Parse for bool {
+    #[tracing::instrument(level = "trace", ret)]
+    fn parse<'t>(_scope: &Scope, text0: &'t str) -> ParseResult<'t, Self> {
+        match identifier(text0) {
+            Ok((ident, text1)) if &*ident == "true" => Ok((true, text1)),
+            Ok((ident, text1)) if &*ident == "false" => Ok((false, text1)),
+            _ => Err(ParseError::at(text0, format!("expected boolean"))),
+        }
+    }
+}
+
 impl Parse for u32 {
     #[tracing::instrument(level = "trace", ret)]
     fn parse<'t>(_scope: &Scope, text: &'t str) -> ParseResult<'t, Self> {
