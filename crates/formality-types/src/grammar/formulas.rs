@@ -31,6 +31,7 @@ pub enum Predicate {
     NotImplemented(TraitRef),
 
     #[cast]
+    #[grammar($v0 => $v1)]
     AliasEq(AliasTy, Ty),
 
     #[grammar(@WellFormedTraitRef($v0))]
@@ -124,11 +125,7 @@ impl Predicate {
             Predicate::AliasEq(AliasTy { name, parameters }, ty) => {
                 let mut params = parameters.clone();
                 params.push(ty.clone().upcast());
-                (
-                    Skeleton::AliasEq(name.clone()),
-                    params,
-                )
-                
+                (Skeleton::AliasEq(name.clone()), params)
             }
             Predicate::WellFormedTraitRef(TraitRef {
                 trait_id,

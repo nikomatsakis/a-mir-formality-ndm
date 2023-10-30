@@ -11,7 +11,10 @@ use formality_types::{
 
 use crate::{
     decls::Decls,
-    prove::{constraints::occurs_in, prove_after::prove_after, prove_normalize::prove_normalize},
+    prove::{
+        combinators::zip, constraints::occurs_in, prove_after::prove_after,
+        prove_normalize::prove_normalize,
+    },
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -31,15 +34,9 @@ judgment_fn! {
         trivial(a == b => Constraints::none(env))
 
         (
-            ----------------------------- ("prove-all-none")
-            (prove_all_eq(_decls, env, _assumptions, (), ()) => Constraints::none(env))
-        )
-
-        (
-            (prove_eq(&decls, env, &assumptions, a, b) => c)
-            (prove_after(&decls, c, &assumptions, Goal::all_eq(&a_s, &b_s)) => c)
-            ----------------------------- ("prove-all-some")
-            (prove_all_eq(decls, env, assumptions, (a, a_s), (b, b_s)) => c)
+            (zip(&decls, &env, &assumptions, a_s, b_s, &prove_eq) => c)
+            ----------------------------- ("prove-all")
+            (prove_all_eq(decls, env, assumptions, a_s, b_s) => c)
         )
     }
 }
