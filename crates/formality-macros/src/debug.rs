@@ -253,11 +253,9 @@ fn debug_field_with_mode(name: &Ident, mode: &FieldMode) -> TokenStream {
         FieldMode::Optional => {
             quote_spanned! { name.span() =>
                 if !::formality_core::util::is_default(#name) {
-                    quote_spanned! { name.span() =>
                         write!(fmt, "{}", sep)?;
                         write!(fmt, "{:?}", #name)?;
                         sep = " ";
-                    }
                 }
             }
         }
