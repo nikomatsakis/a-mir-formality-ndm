@@ -1,13 +1,6 @@
 #![feature(rustc_private)]
 #![feature(control_flow_enum)]
 
-#[macro_use]
-extern crate rustc_smir;
-extern crate rustc_driver;
-extern crate rustc_interface;
-extern crate rustc_middle;
-extern crate stable_mir;
-
 use std::{path::PathBuf, sync::Arc};
 
 use clap::Parser;

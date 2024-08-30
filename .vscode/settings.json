@@ -1,5 +1,6 @@
 {
     "rust-analyzer.linkedProjects": [
         "./crates/formality-core/Cargo.toml"
-    ]
+    ],
+    "rust-analyzer.rustc.source": "discover"
 }

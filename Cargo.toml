@@ -20,7 +20,6 @@ formality-macros = { version = "0.1.0", path = "crates/formality-macros" }
 formality-core = { version = "0.1.0", path = "crates/formality-core" }
 tracing = "0.1.40"
 
-
 [dependencies]
 anyhow = "1"
 clap = { version = "4.0.9", features = ["derive"] }
