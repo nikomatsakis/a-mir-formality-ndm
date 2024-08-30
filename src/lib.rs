@@ -28,19 +28,29 @@ struct Args {
     #[arg(long)]
     out_dir: Option<PathBuf>,
 
-    input_path: String,
+    input_path: PathBuf,
 }
 
 pub fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let input: String = std::fs::read_to_string(&args.input_path)?;
-    let program: Program = try_term(&input)?;
 
-    if args.print_rust {
-        eprintln!("{:#?}", program);
+    if args
+        .input_path
+        .extension()
+        .map(|s| s == "rs")
+        .unwrap_or(false)
+    {
+        formality_smir::check_rust_source(&args.input_path)
+    } else {
+        let input: String = std::fs::read_to_string(&args.input_path)?;
+        let program: Program = try_term(&input)?;
+
+        if args.print_rust {
+            eprintln!("{:#?}", program);
+        }
+
+        check_all_crates(&program)
     }
-
-    check_all_crates(&program)
 }
 
 #[macro_export]
