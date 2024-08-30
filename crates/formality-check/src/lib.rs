@@ -37,6 +37,7 @@ fn check_current_crate(program: &Program) -> Fallible<()> {
 }
 
 mod adts;
+mod bodies;
 mod coherence;
 mod fns;
 mod impls;

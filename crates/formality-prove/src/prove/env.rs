@@ -194,6 +194,16 @@ impl Env {
         b.instantiate_with(&subst).unwrap()
     }
 
+    pub fn instantiate_existentially<T>(&mut self, b: &Binder<T>) -> T
+    where
+        T: Fold,
+    {
+        let (env, subst) = self.existential_substitution(b);
+        let result = b.instantiate_with(&subst).unwrap();
+        *self = env;
+        result
+    }
+
     pub fn existential_substitution<T>(&self, b: &Binder<T>) -> (Env, Vec<ExistentialVar>)
     where
         T: Fold,
