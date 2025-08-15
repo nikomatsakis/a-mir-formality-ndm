@@ -1,9 +1,17 @@
-use formality_core::judgment_fn;
-use formality_types::grammar::{Parameter, Relation, RigidTy, TyData, Wcs};
+use formality_core::visit::CoreVisit;
+use formality_core::{judgment_fn, Downcast, ProvenSet, Upcast};
+use formality_core::{Deduplicate, Upcasted};
+use formality_types::grammar::{
+    AliasTy, ExistentialVar, Lt, Parameter, Relation, RigidTy, Substitution, TyData, UniversalVar,
+    Variable, Wcs,
+};
 
+use crate::prove::prove_outlives::prove_outlives;
 use crate::{
     decls::Decls,
-    prove::{prove, prove_after::prove_after, prove_normalize::prove_normalize},
+    prove::{
+        constraints::occurs_in, prove, prove_after::prove_after, prove_normalize::prove_normalize,
+    },
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -45,11 +53,10 @@ judgment_fn! {
             (prove_sub(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
         )
 
-        // FIXME: uncomment this when adding prove_outlives
-        //(
-        //    (prove_outlives(decls, env, assumptions, a, b) => c)
-        //    ----------------------------- ("lifetime => outlives")
-        //    (prove_sub(decls, env, assumptions, a: Lt, b: Lt) => c)
-        //)
+        (
+            (prove_outlives(decls, env, assumptions, a, b) => c)
+            ----------------------------- ("lifetime => outlives")
+            (prove_sub(decls, env, assumptions, a: Lt, b: Lt) => c)
+        )
     }
 }

@@ -75,6 +75,13 @@ impl Env {
     pub fn bias(&self) -> Bias {
         self.bias
     }
+
+    /// Return a clone of the environment with `w` as a pending where-clause
+    pub fn with_pending(&self, w: impl Upcast<Wc>) -> Self {
+        let mut env = self.clone();
+        env.pending.push(w.upcast());
+        env
+    }
 }
 
 cast_impl!(Env);

@@ -6,8 +6,16 @@ mod minimize;
 mod negation;
 mod prove_after;
 mod prove_eq;
+<<<<<<< HEAD
 pub mod prove_normalize;
 mod prove_sub;
+||||||| parent of 0ecc75e (add some structure, basic lifetime rules)
+mod prove_normalize;
+=======
+mod prove_normalize;
+mod prove_outlives;
+mod prove_sub;
+>>>>>>> 0ecc75e (add some structure, basic lifetime rules)
 mod prove_via;
 mod prove_wc;
 mod prove_wc_list;
@@ -38,11 +46,20 @@ pub fn prove(
     let assumptions: Wcs = assumptions.upcast();
     let goal: Wcs = goal.upcast();
 
+    // "Minimize" the env/assumptions/goals so that we better detect cycles.
     let (env, (assumptions, goal), min) = minimize::minimize(env, (assumptions, goal));
 
+    // Establish context for debugging/tracing logs.
     let span = tracing::span!(Level::DEBUG, "prove", ?goal, ?assumptions, ?env, ?decls);
     let _guard = span.enter();
 
+    // Fail if the terms are getting too large ("overflow detection").
+    // This is meant to capture complex recursion cycles that will never terminate but also
+    // never reach a (simple) cycle, e.g., proving `A: Foo` requires proving `Vec<A>: Foo`
+    // requires proving `Vec<Vec<A>>: Foo` etc.
+    //
+    // In the compiler we use recursion depth instead. We avoid recursion depth because it requires
+    // knowing the context in which the proof occurs.
     let term_in = (&assumptions, &goal);
     if term_in.size() > decls.max_size {
         tracing::debug!(
@@ -53,8 +70,10 @@ pub fn prove(
         return ProvenSet::singleton(Constraints::none(env).ambiguous());
     }
 
+    // Assert the term we are trying to prove should not have any variables that are not in the environment.
     assert!(env.encloses(term_in));
 
+    // Call `prove_wc_list` to do the real work.
     struct ProveFailureLabel(String);
     let label = ProveFailureLabel(format!(
         "prove {{ goal: {goal:?}, assumptions: {assumptions:?}, env: {env:?}, decls: {decls:?} }}"
@@ -72,6 +91,7 @@ pub fn prove(
 
     tracing::debug!(?result_set);
 
+    // Map the results back to the "unminimized" form ("reconstitute").
     result_set.map(|r| {
         assert!(r.is_valid_extension_of(&env));
         min.reconstitute(r)
