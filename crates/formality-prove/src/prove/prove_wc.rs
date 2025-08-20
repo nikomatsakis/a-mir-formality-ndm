@@ -10,13 +10,8 @@ use crate::{
         prove,
         prove_after::prove_after,
         prove_eq::prove_eq,
-<<<<<<< HEAD
-        prove_sub::prove_sub,
-||||||| parent of 0ecc75e (add some structure, basic lifetime rules)
-=======
         prove_outlives::prove_outlives,
         prove_sub::prove_sub,
->>>>>>> 0ecc75e (add some structure, basic lifetime rules)
         prove_via::prove_via,
         prove_wf::prove_wf,
     },
@@ -62,21 +57,8 @@ judgment_fn! {
             (prove_wc(decls, env, assumptions, WcData::Relation(goal)) => c)
         )
 
-<<<<<<< HEAD
-||||||| parent of 0ecc75e (add some structure, basic lifetime rules)
-        // FIXME: improve the subtype rule after adding lifetime
-        (
-            (if let Ty(_) = param1.clone())!
-            (if let Ty(_) = param2.clone())!
-            (if param1 == param2)!
-            ----------------------------- ("subtype - reflexive")
-            (prove_wc(_decls, env, _assumptions, WcData::Relation(Relation::Sub(param1, param2))) => Constraints::none(env))
-        )
-
-=======
 
         // This rule is: prove `T: Foo<U>` holds on the basis of an `impl<A,B> Foo<B> for A where WC` impl somewhere.
->>>>>>> 0ecc75e (add some structure, basic lifetime rules)
         (
             // Get the impl declaration.
             (decls.impl_decls(&trait_ref.trait_id) => i)!

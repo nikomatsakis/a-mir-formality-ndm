@@ -54,6 +54,12 @@ judgment_fn! {
 
         trivial(a == b => Constraints::none(env))
 
+        // 'static outlives us all
+        (
+            ----------------------------- ("static outlives everything")
+            (prove_outlives(_decls, _env, _assumptions, LtData::Static, _b) => Constraints::none(env))
+        )
+
         // Rather than proving `'a: 'b` locally, we can add it to the environment
         // as a "pending obligation" and leave it to the caller to prove.
         (

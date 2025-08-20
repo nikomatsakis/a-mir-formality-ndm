@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::iter::zip;
 
 use formality_core::{judgment_fn, Fallible, Map, Upcast};
@@ -95,6 +96,7 @@ impl Check<'_> {
             callee_input_tys: Map::new(),
             crate_id: crate_id.clone(),
             fn_args: body.args.clone(),
+            pending_outlives: vec![],
         };
 
         // (4) Check statements in body are valid
@@ -496,6 +498,138 @@ struct TypeckEnv {
 
     /// LocalId of function argument.
     fn_args: Vec<LocalId>,
+
+    /// As we conduct the type check, we accumulate outlives constraints here
+    /// to hand off to the borrow checker later.
+    pending_outlives: Vec<PendingOutlives>,
+}
+
+/// A pending outlives constraint that we incurred during typechecking.
+struct PendingOutlives {
+    /// The location where this outlives obligation was incurred.
+    location: Location,
+
+    /// The `a` in `a: b`
+    a: Parameter,
+
+    /// The `b` in `a: b`
+    b: Parameter,
+}
+
+struct Location;
+
+impl TypeckEnv {
+    fn prove_goal(
+        &mut self,
+        location: Location,
+        assumptions: impl ToWcs,
+        goal: impl ToWcs + Debug,
+    ) -> Fallible<()> {
+        let goal: Wcs = goal.to_wcs();
+        self.prove_judgment(assumptions, goal.to_wcs(), formality_prove::prove)
+    }
+
+    fn prove_judgment<G>(
+        &mut self,
+        location: Location,
+        assumptions: impl ToWcs,
+        goal: G,
+        judgment_fn: impl FnOnce(Decls, Env, Wcs, G) -> ProvenSet<Constraints>,
+    ) -> Fallible<()>
+    where
+        G: Debug + Visit + Clone,
+    {
+        let assumptions: Wcs = assumptions.to_wcs();
+
+        assert!(self.env.only_universal_variables());
+        assert!(self.env.encloses((&assumptions, &goal)));
+
+        let cs = judgment_fn(
+            self.decls.clone(),
+            self.env.clone(),
+            assumptions.clone(),
+            goal.clone(),
+        );
+        let cs = cs.into_set()?;
+
+        // If there is anything *unconditionally true*, that's great
+        if cs.iter().any(|c| c.unconditionally_true()) {
+            return Ok(());
+        }
+
+        // Each `c` in `cs` is a set of [`Constraints`][] that, if they hold,
+        // imply the judgment is true. These are all independent. In the trait
+        // solver, when we have multiple choices, we explore them ALL, simulating
+        // nondeterministic choice. This is what judgment functions do.
+        // But we don't want to do that here, we are writing
+        // Rust code that is deterministic and only explores a single option.
+        // This matches the compiler's behavior, where the trait solver picks the "best"
+        // choice of the options it can see, and returns those constraints to the
+        // type checker. In our version, the trait solver gives *all* the constraints
+        // and the type checker decices the "best" choice. Same basic idea.
+        //
+        // So which one do we want? We can take any `c` in `cs` and it will be *sound*
+        // but it may not be *complete*. In particular, if it has more constraints than
+        // are necessary, it could lead us to conclude that the code does not type
+        // check -- when it COULD have type checked if we had picked a better choice.
+        //
+        // Example: suppose that `cs` returns two choices: {
+        //     [], // unconditionally true
+        //     ['a: 'b], // only true if 'a: 'b
+        // }
+        //
+        // If we pick the second one, and `'a: 'b` does not hold, we get an error
+        // in the borrow checker later on. But it wasn't necessary.\
+        //
+        // So what we do is we look for a *minimal result* -- if there isn't one,
+        // for now, we fail with ambiguity.
+
+        let known_true_constraints = cs.iter().filter(|c| c.known_true());
+
+        let mut minimal_result: Option<BTreeSet<PendingOutlives>> = None;
+        'outer: for c in known_true_constraints.next() {
+            assert!(c.known_true); // we already filtered this above
+
+            // We don't have any existential variables, so there can't be a substitution
+            assert!(c.substitution().is_empty());
+
+            // Convert the pending goals into a series of `PendingOutlives`
+            let mut c_outlives = BTreeSet::default();
+            for pending in c.env.pending() {
+                match pending.downcast::<Relation>() {
+                    Some(Relation::Outlives(a, b)) => {
+                        c_outlives.insert(PendingOutlives { location, a, b });
+                    }
+
+                    _ => {
+                        // give up.
+                        minimal_result = None;
+                        break 'outer;
+                    }
+                }
+            }
+
+            if let Some(previous_minimal_result) = minimal_result {
+                if c_outlives.is_subset(previous_minimal_result) {
+                    minimal_result = Some(c_outlives);
+                } else if previous_minimal_result.is_subset(c_outlives) {
+                    // keep the previous one
+                } else {
+                    // neither is a subset of the other: give up.
+                    minimal_result = None;
+                    break 'outer;
+                }
+            }
+        }
+
+        match minimal_result {
+            Some(c) => {
+                self.pending_outlives.extend(c);
+                Ok(())
+            }
+            None => bail!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}"),
+        }
+    }
 }
 
 judgment_fn! {

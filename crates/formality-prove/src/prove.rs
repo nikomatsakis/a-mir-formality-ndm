@@ -6,16 +6,9 @@ mod minimize;
 mod negation;
 mod prove_after;
 mod prove_eq;
-<<<<<<< HEAD
-pub mod prove_normalize;
-mod prove_sub;
-||||||| parent of 0ecc75e (add some structure, basic lifetime rules)
-mod prove_normalize;
-=======
 mod prove_normalize;
 mod prove_outlives;
 mod prove_sub;
->>>>>>> 0ecc75e (add some structure, basic lifetime rules)
 mod prove_via;
 mod prove_wc;
 mod prove_wc_list;
