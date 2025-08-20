@@ -54,46 +54,14 @@ judgment_fn! {
 
         trivial(a == b => Constraints::none(env))
 
-        // 'static outlives us all
+        // Rather than proving `'a: 'b` locally, we can add it to the environment
+        // as a "pending obligation" and leave it to the caller to prove.
         (
-            ----------------------------- ("static outlives everything")
-            (prove_outlives(_decls, _env, _assumptions, LtData::Static, _b) => Constraints::none(env))
+            ----------------------------- ("anything can be pending")
+            (prove_outlives(_decls, env, _assumptions, a, b) => Constraints::none(
+                env.with_pending(Relation::outlives(a, b))
+            ))
         )
-
-        // assumptions
-        //
-        // `fn foo<'a, 'b>(x: &'a u32, y: &'b u32) where 'a: 'b`
-        //
-        // we don't know what 'a and 'b are, but we do know 'a outlives 'b
-        //
-        // FIXME: we do want to check the transitive case
-        // FIXME: there is some logic in prove_wc though
-
-        // FIXME: Niko and tiif to pick this up next week.
-        // (
-        //     // NB: We should capture assumptions, but that would not match compiler behavior, leave for later.
-        //     //
-        //     // Example:
-        //     //
-        //     // ```
-        //     // trait Outlives<'a, 'b> where 'a: 'b { }
-        //     // impl<'x, 'y> Outlives<'x, 'y> for () where 'x: 'y { }
-        //     //
-        //     // fn foo<'a, 'b, T>()
-        //     // where
-        //     //     T: Outlives<'a, 'b>, // implied bound: 'a: 'b
-        //     // { }
-        //     // ```
-        //     //
-        //     // now consider proving well-formedness of `for<'a, 'b> /* [where 'a: 'b] */ fn foo(impl Outlives<'a, 'b>)`
-        //     //
-        //     // anything this is complicated check out the relevant issues that I can't find right now. =)
-        //     ----------------------------- ("defer existential lifetime variables")
-        //     (prove_outlives(_decls, env, _assumptions,
-        //         LtData::Variable(Variable::ExistentialVar(a)),
-        //         LtData::Variable(Variable::ExistentialVar(b)),
-        //     ) => Constraints::none(env.with_pending(Relation::outlives(a, b))))
-        // )
     }
 }
 
