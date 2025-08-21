@@ -14,7 +14,7 @@ use formality_types::grammar::{
     CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, VariantId, Wcs,
 };
 
-use crate::{Check, CrateItem, ToWcs, Debug, Visit, ProvenSet};
+use crate::{Check, CrateItem, Debug, ProvenSet, ToWcs, Visit};
 use anyhow::bail;
 
 impl Check<'_> {
@@ -97,7 +97,7 @@ impl Check<'_> {
             crate_id: crate_id.clone(),
             fn_args: body.args.clone(),
             pending_outlives: vec![],
-            decls: self.decls.clone()
+            decls: self.decls.clone(),
         };
 
         // (4) Check statements in body are valid
@@ -607,13 +607,15 @@ impl TypeckEnv {
             };
 
             if let Some(ref previous_minimal_result) = minimal_result {
-                if !c_outlives.is_subset(&previous_minimal_result) && !previous_minimal_result.is_subset(&c_outlives) {
+                if !c_outlives.is_subset(&previous_minimal_result)
+                    && !previous_minimal_result.is_subset(&c_outlives)
+                {
                     // If neither is subset of other, give up
                     minimal_result = None;
                     break;
                 } else if c_outlives.is_subset(&previous_minimal_result) {
                     minimal_result = Some(c_outlives);
-                } 
+                }
             }
         }
 
@@ -621,7 +623,7 @@ impl TypeckEnv {
             Some(c) => {
                 if !c.is_empty() {
                     self.pending_outlives.extend(c);
-                } 
+                }
                 Ok(())
             }
             None => bail!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}"),
@@ -629,14 +631,21 @@ impl TypeckEnv {
     }
 
     // Convert the pending goals into a series of `PendingOutlives`
-    fn convert_to_pending_outlives(&self, location: &Location, c: &Constraints) -> Option<BTreeSet<PendingOutlives>> {
-
+    fn convert_to_pending_outlives(
+        &self,
+        location: &Location,
+        c: &Constraints,
+    ) -> Option<BTreeSet<PendingOutlives>> {
         let mut c_outlives = BTreeSet::default();
 
         for pending in c.env.pending() {
             match pending.downcast::<Relation>() {
                 Some(Relation::Outlives(a, b)) => {
-                    c_outlives.insert(PendingOutlives { location: location.clone(), a, b });
+                    c_outlives.insert(PendingOutlives {
+                        location: location.clone(),
+                        a,
+                        b,
+                    });
                 }
 
                 _ => {

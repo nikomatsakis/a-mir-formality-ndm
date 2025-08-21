@@ -1,14 +1,10 @@
 use formality_core::judgment_fn;
-use formality_types::grammar::{
-    Lt, Parameter, Relation, RigidTy, TyData, Wcs,
-};
+use formality_types::grammar::{Lt, Parameter, Relation, RigidTy, TyData, Wcs};
 
 use crate::prove::prove_outlives::prove_outlives;
 use crate::{
     decls::Decls,
-    prove::{
-        prove, prove_after::prove_after, prove_normalize::prove_normalize,
-    },
+    prove::{prove, prove_after::prove_after, prove_normalize::prove_normalize},
 };
 
 use super::{constraints::Constraints, env::Env};

@@ -1,7 +1,5 @@
 use formality_core::judgment_fn;
-use formality_types::grammar::{
-    Wcs, LtData, Parameter, Relation
-};
+use formality_types::grammar::{LtData, Parameter, Relation, Wcs};
 
 use crate::decls::Decls;
 
