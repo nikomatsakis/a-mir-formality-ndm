@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::iter::zip;
 
-use formality_core::{judgment_fn, Fallible, Map, Upcast};
+use formality_core::{judgment_fn, Downcast, Fallible, Map, Upcast};
 use formality_prove::{prove_normalize, AdtDeclBoundData, AdtDeclVariant, Constraints, Decls, Env};
 use formality_rust::grammar::minirust::ArgumentExpression::{ByValue, InPlace};
 use formality_rust::grammar::minirust::PlaceExpression::*;
@@ -14,7 +14,7 @@ use formality_types::grammar::{
     CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, VariantId, Wcs,
 };
 
-use crate::{Check, CrateItem};
+use crate::{Check, CrateItem, ToWcs, Debug, Visit, ProvenSet};
 use anyhow::bail;
 
 impl Check<'_> {
@@ -97,6 +97,7 @@ impl Check<'_> {
             crate_id: crate_id.clone(),
             fn_args: body.args.clone(),
             pending_outlives: vec![],
+            decls: self.decls.clone()
         };
 
         // (4) Check statements in body are valid
@@ -502,9 +503,12 @@ struct TypeckEnv {
     /// As we conduct the type check, we accumulate outlives constraints here
     /// to hand off to the borrow checker later.
     pending_outlives: Vec<PendingOutlives>,
+
+    decls: Decls,
 }
 
 /// A pending outlives constraint that we incurred during typechecking.
+#[derive(Ord, PartialOrd, Eq, PartialEq)]
 struct PendingOutlives {
     /// The location where this outlives obligation was incurred.
     location: Location,
@@ -516,17 +520,18 @@ struct PendingOutlives {
     b: Parameter,
 }
 
+#[derive(Ord, PartialOrd, Eq, PartialEq, Clone)]
 struct Location;
 
 impl TypeckEnv {
     fn prove_goal(
         &mut self,
-        location: Location,
+        _location: Location,
         assumptions: impl ToWcs,
         goal: impl ToWcs + Debug,
     ) -> Fallible<()> {
         let goal: Wcs = goal.to_wcs();
-        self.prove_judgment(assumptions, goal.to_wcs(), formality_prove::prove)
+        self.prove_judgment(Location, assumptions, goal.to_wcs(), formality_prove::prove)
     }
 
     fn prove_judgment<G>(
@@ -584,51 +589,64 @@ impl TypeckEnv {
         // So what we do is we look for a *minimal result* -- if there isn't one,
         // for now, we fail with ambiguity.
 
-        let known_true_constraints = cs.iter().filter(|c| c.known_true());
+        let mut known_true_constraints = cs.iter().filter(|c| c.known_true);
 
-        let mut minimal_result: Option<BTreeSet<PendingOutlives>> = None;
-        'outer: for c in known_true_constraints.next() {
-            assert!(c.known_true); // we already filtered this above
+        let mut minimal_result: Option<BTreeSet<PendingOutlives>> = Some(BTreeSet::default());
+
+        while let Some(c) = known_true_constraints.next() {
+            // We already filtered this above
+            assert!(c.known_true);
 
             // We don't have any existential variables, so there can't be a substitution
             assert!(c.substitution().is_empty());
 
-            // Convert the pending goals into a series of `PendingOutlives`
-            let mut c_outlives = BTreeSet::default();
-            for pending in c.env.pending() {
-                match pending.downcast::<Relation>() {
-                    Some(Relation::Outlives(a, b)) => {
-                        c_outlives.insert(PendingOutlives { location, a, b });
-                    }
+            // If we fail to convert any of the goals to PendingOutlives, we should not proceed.
+            let Some(c_outlives) = self.convert_to_pending_outlives(&location, c) else {
+                minimal_result = None;
+                break;
+            };
 
-                    _ => {
-                        // give up.
-                        minimal_result = None;
-                        break 'outer;
-                    }
-                }
-            }
-
-            if let Some(previous_minimal_result) = minimal_result {
-                if c_outlives.is_subset(previous_minimal_result) {
-                    minimal_result = Some(c_outlives);
-                } else if previous_minimal_result.is_subset(c_outlives) {
-                    // keep the previous one
-                } else {
-                    // neither is a subset of the other: give up.
+            if let Some(ref previous_minimal_result) = minimal_result {
+                if !c_outlives.is_subset(&previous_minimal_result) && !previous_minimal_result.is_subset(&c_outlives) {
+                    // If neither is subset of other, give up
                     minimal_result = None;
-                    break 'outer;
-                }
+                    break;
+                } else if c_outlives.is_subset(&previous_minimal_result) {
+                    minimal_result = Some(c_outlives);
+                } 
             }
         }
 
         match minimal_result {
             Some(c) => {
-                self.pending_outlives.extend(c);
+                if !c.is_empty() {
+                    self.pending_outlives.extend(c);
+                } 
                 Ok(())
             }
             None => bail!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}"),
         }
+    }
+
+    // Convert the pending goals into a series of `PendingOutlives`
+    fn convert_to_pending_outlives(&self, location: &Location, c: &Constraints) -> Option<BTreeSet<PendingOutlives>> {
+
+        let mut c_outlives = BTreeSet::default();
+
+        for pending in c.env.pending() {
+            match pending.downcast::<Relation>() {
+                Some(Relation::Outlives(a, b)) => {
+                    c_outlives.insert(PendingOutlives { location: location.clone(), a, b });
+                }
+
+                _ => {
+                    // give up
+                    return None;
+                }
+            }
+        }
+
+        Some(c_outlives)
     }
 }
 

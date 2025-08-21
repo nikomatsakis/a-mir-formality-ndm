@@ -11,7 +11,7 @@ use formality_rust::{
 };
 use formality_types::{
     grammar::{CrateId, Fallible, Wcs},
-    rust::Visit,
+    rust::Visit
 };
 
 mod mini_rust_check;

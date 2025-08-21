@@ -1,16 +1,13 @@
-use formality_core::visit::CoreVisit;
-use formality_core::{judgment_fn, Downcast, ProvenSet, Upcast};
-use formality_core::{Deduplicate, Upcasted};
+use formality_core::judgment_fn;
 use formality_types::grammar::{
-    AliasTy, ExistentialVar, Lt, Parameter, Relation, RigidTy, Substitution, TyData, UniversalVar,
-    Variable, Wcs,
+    Lt, Parameter, Relation, RigidTy, TyData, Wcs,
 };
 
 use crate::prove::prove_outlives::prove_outlives;
 use crate::{
     decls::Decls,
     prove::{
-        constraints::occurs_in, prove, prove_after::prove_after, prove_normalize::prove_normalize,
+        prove, prove_after::prove_after, prove_normalize::prove_normalize,
     },
 };
 
