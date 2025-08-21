@@ -526,12 +526,12 @@ struct Location;
 impl TypeckEnv {
     fn prove_goal(
         &mut self,
-        _location: Location,
+        location: Location,
         assumptions: impl ToWcs,
         goal: impl ToWcs + Debug,
     ) -> Fallible<()> {
         let goal: Wcs = goal.to_wcs();
-        self.prove_judgment(Location, assumptions, goal.to_wcs(), formality_prove::prove)
+        self.prove_judgment(location, assumptions, goal.to_wcs(), formality_prove::prove)
     }
 
     fn prove_judgment<G>(
@@ -610,7 +610,7 @@ impl TypeckEnv {
                 if !c_outlives.is_subset(&previous_minimal_result)
                     && !previous_minimal_result.is_subset(&c_outlives)
                 {
-                    // If neither is subset of other, give up
+                    // If neither is subset of the other, give up
                     minimal_result = None;
                     break;
                 } else if c_outlives.is_subset(&previous_minimal_result) {
@@ -621,9 +621,7 @@ impl TypeckEnv {
 
         match minimal_result {
             Some(c) => {
-                if !c.is_empty() {
-                    self.pending_outlives.extend(c);
-                }
+                self.pending_outlives.extend(c);
                 Ok(())
             }
             None => bail!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}"),
