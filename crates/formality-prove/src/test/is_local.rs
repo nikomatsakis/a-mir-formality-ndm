@@ -15,7 +15,7 @@ fn test_forall_not_local() {
     expect![[r#"
         judgment `prove { goal: {for <ty> @ IsLocal(Debug(^ty0_0))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
           failed at (src/file.rs:LL:CC) because
-            judgment `prove_wc_list { goal: {for <ty> @ IsLocal(Debug(^ty0_0))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+            judgment `prove_wc_list { goals: {for <ty> @ IsLocal(Debug(^ty0_0))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
               the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                 judgment `prove_wc { goal: for <ty> @ IsLocal(Debug(^ty0_0)), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                   the rule "forall" failed at step #2 (src/file.rs:LL:CC) because

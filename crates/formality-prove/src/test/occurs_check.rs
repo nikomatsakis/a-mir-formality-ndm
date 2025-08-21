@@ -22,7 +22,7 @@ fn direct_cycle() {
             expect![[r#"
                 judgment `prove { goal: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty> ], [impl <ty> Foo(Vec<^ty0_0>)], [], [], [], [], {}, {}) }` failed at the following rule(s):
                   failed at (src/file.rs:LL:CC) because
-                    judgment `prove_wc_list { goal: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                    judgment `prove_wc_list { goals: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                         judgment `prove_wc { goal: ?ty_0 = Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "eq" failed at step #0 (src/file.rs:LL:CC) because
@@ -65,13 +65,13 @@ fn indirect_cycle_1() {
     expect![[r#"
         judgment `prove { goal: {?ty_0 = Vec<?ty_1>, ?ty_1 = ?ty_0}, assumptions: {}, env: Env { variables: [?ty_0, ?ty_1], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty> ], [impl <ty> Foo(Vec<^ty0_0>)], [], [], [], [], {}, {}) }` failed at the following rule(s):
           failed at (src/file.rs:LL:CC) because
-            judgment `prove_wc_list { goal: {?ty_0 = Vec<?ty_1>, ?ty_1 = ?ty_0}, assumptions: {}, env: Env { variables: [?ty_0, ?ty_1], bias: Soundness, pending: [] } }` failed at the following rule(s):
+            judgment `prove_wc_list { goals: {?ty_0 = Vec<?ty_1>, ?ty_1 = ?ty_0}, assumptions: {}, env: Env { variables: [?ty_0, ?ty_1], bias: Soundness, pending: [] } }` failed at the following rule(s):
               the rule "some" failed at step #1 (src/file.rs:LL:CC) because
                 judgment `prove_after { constraints: Constraints { env: Env { variables: [?ty_2, ?ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_0 => Vec<?ty_2>, ?ty_1 => ?ty_2} }, goal: {?ty_1 = ?ty_0}, assumptions: {} }` failed at the following rule(s):
                   the rule "prove_after" failed at step #1 (src/file.rs:LL:CC) because
                     judgment `prove { goal: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty> ], [impl <ty> Foo(Vec<^ty0_0>)], [], [], [], [], {}, {}) }` failed at the following rule(s):
                       failed at (src/file.rs:LL:CC) because
-                        judgment `prove_wc_list { goal: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                        judgment `prove_wc_list { goals: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                             judgment `prove_wc { goal: ?ty_0 = Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                               the rule "eq" failed at step #0 (src/file.rs:LL:CC) because
@@ -94,13 +94,13 @@ fn indirect_cycle_2() {
     expect![[r#"
         judgment `prove { goal: {?ty_0 = Vec<?ty_1>, ?ty_1 = ?ty_0}, assumptions: {}, env: Env { variables: [?ty_0, ?ty_1], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty> ], [impl <ty> Foo(Vec<^ty0_0>)], [], [], [], [], {}, {}) }` failed at the following rule(s):
           failed at (src/file.rs:LL:CC) because
-            judgment `prove_wc_list { goal: {?ty_0 = Vec<?ty_1>, ?ty_1 = ?ty_0}, assumptions: {}, env: Env { variables: [?ty_0, ?ty_1], bias: Soundness, pending: [] } }` failed at the following rule(s):
+            judgment `prove_wc_list { goals: {?ty_0 = Vec<?ty_1>, ?ty_1 = ?ty_0}, assumptions: {}, env: Env { variables: [?ty_0, ?ty_1], bias: Soundness, pending: [] } }` failed at the following rule(s):
               the rule "some" failed at step #1 (src/file.rs:LL:CC) because
                 judgment `prove_after { constraints: Constraints { env: Env { variables: [?ty_2, ?ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_0 => Vec<?ty_2>, ?ty_1 => ?ty_2} }, goal: {?ty_1 = ?ty_0}, assumptions: {} }` failed at the following rule(s):
                   the rule "prove_after" failed at step #1 (src/file.rs:LL:CC) because
                     judgment `prove { goal: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty> ], [impl <ty> Foo(Vec<^ty0_0>)], [], [], [], [], {}, {}) }` failed at the following rule(s):
                       failed at (src/file.rs:LL:CC) because
-                        judgment `prove_wc_list { goal: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                        judgment `prove_wc_list { goals: {?ty_0 = Vec<?ty_0>}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                             judgment `prove_wc { goal: ?ty_0 = Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                               the rule "eq" failed at step #0 (src/file.rs:LL:CC) because

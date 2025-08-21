@@ -20,7 +20,7 @@ judgment_fn! {
     ///
     /// Borrow check flow example
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// fn main() {
     ///     let mut i = 22;
     ///     let p: &'?0 i32 = &i;

@@ -54,7 +54,7 @@ fn not_well_formed_adt() {
     ).assert_err(expect![[r#"
         judgment `prove { goal: {@ wf(X<u64>)}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty> ], [impl Foo(u32)], [], [], [], [adt X <ty> where {Foo(^ty0_0)} { }], {}, {}) }` failed at the following rule(s):
           failed at (src/file.rs:LL:CC) because
-            judgment `prove_wc_list { goal: {@ wf(X<u64>)}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+            judgment `prove_wc_list { goals: {@ wf(X<u64>)}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
               the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                 judgment `prove_wc { goal: @ wf(X<u64>), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                   the rule "parameter well formed" failed at step #0 (src/file.rs:LL:CC) because
@@ -64,7 +64,7 @@ fn not_well_formed_adt() {
                           the rule "prove_after" failed at step #1 (src/file.rs:LL:CC) because
                             judgment `prove { goal: {Foo(u64)}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty> ], [impl Foo(u32)], [], [], [], [adt X <ty> where {Foo(^ty0_0)} { }], {}, {}) }` failed at the following rule(s):
                               failed at (src/file.rs:LL:CC) because
-                                judgment `prove_wc_list { goal: {Foo(u64)}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                                judgment `prove_wc_list { goals: {Foo(u64)}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                   the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                                     judgment `prove_wc { goal: Foo(u64), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                       the rule "trait implied bound" failed at step #0 (src/file.rs:LL:CC) because

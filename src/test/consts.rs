@@ -20,7 +20,7 @@ fn nonsense_rigid_const_bound() {
                 0: prove_where_clauses_well_formed([type_of_const value(0, bool) is u32])
                 1: judgment `prove { goal: {u32 = bool, @ wf(u32), @ wf(const value(0, bool))}, assumptions: {@ ConstHasType(value(0, bool) , u32)}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty> where {@ ConstHasType(value(0, bool) , u32)}], [], [], [], [], [], {Foo}, {}) }` failed at the following rule(s):
                      failed at (src/file.rs:LL:CC) because
-                       judgment `prove_wc_list { goal: {u32 = bool, @ wf(u32), @ wf(const value(0, bool))}, assumptions: {@ ConstHasType(value(0, bool) , u32)}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                       judgment `prove_wc_list { goals: {u32 = bool, @ wf(u32), @ wf(const value(0, bool))}, assumptions: {@ ConstHasType(value(0, bool) , u32)}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                          the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                            judgment `prove_wc { goal: u32 = bool, assumptions: {@ ConstHasType(value(0, bool) , u32)}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                              the rule "assumption - relation" failed at step #1 (src/file.rs:LL:CC) because
@@ -78,7 +78,7 @@ fn mismatch() {
             Caused by:
                 judgment `prove { goal: {Foo(u32, const value(42, u32))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty, const> where {@ ConstHasType(^const0_1 , bool)}], [impl Foo(u32, const value(42, u32))], [], [], [], [], {Foo}, {}) }` failed at the following rule(s):
                   failed at (src/file.rs:LL:CC) because
-                    judgment `prove_wc_list { goal: {Foo(u32, const value(42, u32))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                    judgment `prove_wc_list { goals: {Foo(u32, const value(42, u32))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                         judgment `prove_wc { goal: Foo(u32, const value(42, u32)), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "trait implied bound" failed at step #0 (src/file.rs:LL:CC) because
@@ -137,7 +137,7 @@ fn generic_mismatch() {
             Caused by:
                 judgment `prove { goal: {Foo(u32, const !const_0)}, assumptions: {@ ConstHasType(!const_0 , u32)}, env: Env { variables: [!const_0], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty, const> where {@ ConstHasType(^const0_1 , bool)}], [impl <const> Foo(u32, const ^const0_0) where {@ ConstHasType(^const0_0 , u32)}], [], [], [], [], {Foo}, {}) }` failed at the following rule(s):
                   failed at (src/file.rs:LL:CC) because
-                    judgment `prove_wc_list { goal: {Foo(u32, const !const_0)}, assumptions: {@ ConstHasType(!const_0 , u32)}, env: Env { variables: [!const_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                    judgment `prove_wc_list { goals: {Foo(u32, const !const_0)}, assumptions: {@ ConstHasType(!const_0 , u32)}, env: Env { variables: [!const_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                         judgment `prove_wc { goal: Foo(u32, const !const_0), assumptions: {@ ConstHasType(!const_0 , u32)}, env: Env { variables: [!const_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "positive impl" failed at step #7 (src/file.rs:LL:CC) because
@@ -145,7 +145,7 @@ fn generic_mismatch() {
                               the rule "prove_after" failed at step #1 (src/file.rs:LL:CC) because
                                 judgment `prove { goal: {@ ConstHasType(!const_0 , bool)}, assumptions: {@ ConstHasType(!const_0 , u32)}, env: Env { variables: [!const_0], bias: Soundness, pending: [] }, decls: decls(222, [trait Foo <ty, const> where {@ ConstHasType(^const0_1 , bool)}], [impl <const> Foo(u32, const ^const0_0) where {@ ConstHasType(^const0_0 , u32)}], [], [], [], [], {Foo}, {}) }` failed at the following rule(s):
                                   failed at (src/file.rs:LL:CC) because
-                                    judgment `prove_wc_list { goal: {@ ConstHasType(!const_0 , bool)}, assumptions: {@ ConstHasType(!const_0 , u32)}, env: Env { variables: [!const_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                                    judgment `prove_wc_list { goals: {@ ConstHasType(!const_0 , bool)}, assumptions: {@ ConstHasType(!const_0 , u32)}, env: Env { variables: [!const_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                                         judgment `prove_wc { goal: @ ConstHasType(!const_0 , bool), assumptions: {@ ConstHasType(!const_0 , u32)}, env: Env { variables: [!const_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                           the rule "const has ty" failed at step #0 (src/file.rs:LL:CC) because
