@@ -54,7 +54,7 @@ fn test_normalize_assoc_ty_existential0() {
     expect![[r#"
         judgment `prove { goal: {for <ty> if {<^ty0_0 as Iterator>::Item = u32} <?ty_0 as Iterator>::Item = u32}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
           failed at (src/file.rs:LL:CC) because
-            judgment `prove_wc_list { goal: {for <ty> if {<^ty0_0 as Iterator>::Item = u32} <?ty_0 as Iterator>::Item = u32}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+            judgment `prove_wc_list { goals: {for <ty> if {<^ty0_0 as Iterator>::Item = u32} <?ty_0 as Iterator>::Item = u32}, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
               the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                 judgment `prove_wc { goal: for <ty> if {<^ty0_0 as Iterator>::Item = u32} <?ty_0 as Iterator>::Item = u32, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                   the rule "forall" failed at step #2 (src/file.rs:LL:CC) because
@@ -98,7 +98,7 @@ fn test_normalize_assoc_ty_existential0() {
                                       the rule "prove_after" failed at step #1 (src/file.rs:LL:CC) because
                                         judgment `prove { goal: {<!ty_0 as Iterator>::Item = <?ty_1 as Iterator>::Item}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
                                           failed at (src/file.rs:LL:CC) because
-                                            judgment `prove_wc_list { goal: {<!ty_0 as Iterator>::Item = <?ty_1 as Iterator>::Item}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                                            judgment `prove_wc_list { goals: {<!ty_0 as Iterator>::Item = <?ty_1 as Iterator>::Item}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                               the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                                                 judgment `prove_wc { goal: <!ty_0 as Iterator>::Item = <?ty_1 as Iterator>::Item, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                                   the rule "eq" failed at step #0 (src/file.rs:LL:CC) because
@@ -106,7 +106,7 @@ fn test_normalize_assoc_ty_existential0() {
                                                       the rule "alias" failed at step #3 (src/file.rs:LL:CC) because
                                                         judgment `prove { goal: {!ty_0 = ?ty_1}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
                                                           failed at (src/file.rs:LL:CC) because
-                                                            judgment `prove_wc_list { goal: {!ty_0 = ?ty_1}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                                                            judgment `prove_wc_list { goals: {!ty_0 = ?ty_1}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                                               the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                                                                 judgment `prove_wc { goal: !ty_0 = ?ty_1, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                                                   the rule "eq" failed at step #0 (src/file.rs:LL:CC) because
@@ -124,7 +124,7 @@ fn test_normalize_assoc_ty_existential0() {
                                                           the rule "prove_after" failed at step #1 (src/file.rs:LL:CC) because
                                                             judgment `prove { goal: {u32 = <?ty_1 as Iterator>::Item}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
                                                               failed at (src/file.rs:LL:CC) because
-                                                                judgment `prove_wc_list { goal: {u32 = <?ty_1 as Iterator>::Item}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                                                                judgment `prove_wc_list { goals: {u32 = <?ty_1 as Iterator>::Item}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                                                   the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                                                                     judgment `prove_wc { goal: u32 = <?ty_1 as Iterator>::Item, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                                                       the rule "eq" failed at step #0 (src/file.rs:LL:CC) because
@@ -164,7 +164,7 @@ fn test_normalize_assoc_ty_existential0() {
                                                           the rule "alias" failed at step #3 (src/file.rs:LL:CC) because
                                                             judgment `prove { goal: {?ty_1 = !ty_0}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
                                                               failed at (src/file.rs:LL:CC) because
-                                                                judgment `prove_wc_list { goal: {?ty_1 = !ty_0}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                                                                judgment `prove_wc_list { goals: {?ty_1 = !ty_0}, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                                                   the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                                                                     judgment `prove_wc { goal: ?ty_1 = !ty_0, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                                                                       the rule "eq" failed at step #0 (src/file.rs:LL:CC) because

@@ -1,17 +1,7 @@
-use formality_core::visit::CoreVisit;
-use formality_core::{judgment_fn, Downcast, ProvenSet, Upcast};
-use formality_core::{Deduplicate, Upcasted};
-use formality_types::grammar::{
-    AliasTy, ExistentialVar, Lt, LtData, Parameter, Relation, RigidTy, Substitution, TyData,
-    UniversalVar, Variable, Wcs,
-};
+use formality_core::judgment_fn;
+use formality_types::grammar::{LtData, Parameter, Relation, Wcs};
 
-use crate::{
-    decls::Decls,
-    prove::{
-        constraints::occurs_in, prove, prove_after::prove_after, prove_normalize::prove_normalize,
-    },
-};
+use crate::decls::Decls;
 
 use super::{constraints::Constraints, env::Env};
 
@@ -30,7 +20,7 @@ judgment_fn! {
     ///
     /// Borrow check flow example
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// fn main() {
     ///     let mut i = 22;
     ///     let p: &'?0 i32 = &i;

@@ -21,7 +21,7 @@ fn neg_CoreTrait_for_CoreStruct_in_Foo() {
             Caused by:
                 judgment `prove { goal: {@ IsLocal(CoreTrait(CoreStruct))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [trait CoreTrait <ty> ], [], [impl ! CoreTrait(CoreStruct)], [], [], [adt CoreStruct { struct { } }], {}, {}) }` failed at the following rule(s):
                   failed at (src/file.rs:LL:CC) because
-                    judgment `prove_wc_list { goal: {@ IsLocal(CoreTrait(CoreStruct))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                    judgment `prove_wc_list { goals: {@ IsLocal(CoreTrait(CoreStruct))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                         judgment `prove_wc { goal: @ IsLocal(CoreTrait(CoreStruct)), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "trait ref is local" failed at step #0 (src/file.rs:LL:CC) because
@@ -72,7 +72,7 @@ fn mirror_CoreStruct() {
             Caused by:
                 judgment `prove { goal: {@ IsLocal(CoreTrait(<CoreStruct as Mirror>::Assoc))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [trait CoreTrait <ty> , trait Mirror <ty> ], [impl <ty> Mirror(^ty0_0), impl CoreTrait(<CoreStruct as Mirror>::Assoc)], [], [alias <ty> <^ty0_0 as Mirror>::Assoc = ^ty0_0], [], [adt CoreStruct { struct { } }], {}, {}) }` failed at the following rule(s):
                   failed at (src/file.rs:LL:CC) because
-                    judgment `prove_wc_list { goal: {@ IsLocal(CoreTrait(<CoreStruct as Mirror>::Assoc))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                    judgment `prove_wc_list { goals: {@ IsLocal(CoreTrait(<CoreStruct as Mirror>::Assoc))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                         judgment `prove_wc { goal: @ IsLocal(CoreTrait(<CoreStruct as Mirror>::Assoc)), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "trait ref is local" failed at step #0 (src/file.rs:LL:CC) because
@@ -160,7 +160,7 @@ fn uncovered_T() {
             Caused by:
                 judgment `prove { goal: {@ IsLocal(CoreTrait(!ty_0, FooStruct))}, assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, decls: decls(222, [trait CoreTrait <ty, ty> ], [impl <ty> CoreTrait(^ty0_0, FooStruct)], [], [], [], [adt FooStruct { struct { } }], {}, {FooStruct}) }` failed at the following rule(s):
                   failed at (src/file.rs:LL:CC) because
-                    judgment `prove_wc_list { goal: {@ IsLocal(CoreTrait(!ty_0, FooStruct))}, assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                    judgment `prove_wc_list { goals: {@ IsLocal(CoreTrait(!ty_0, FooStruct))}, assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                         judgment `prove_wc { goal: @ IsLocal(CoreTrait(!ty_0, FooStruct)), assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "trait ref is local" failed at step #0 (src/file.rs:LL:CC) because
@@ -201,7 +201,7 @@ fn alias_to_unit() {
             Caused by:
                 judgment `prove { goal: {@ IsLocal(CoreTrait(<FooStruct as Unit>::Assoc))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [trait CoreTrait <ty> , trait Unit <ty> ], [impl <ty> Unit(^ty0_0), impl CoreTrait(<FooStruct as Unit>::Assoc)], [], [alias <ty> <^ty0_0 as Unit>::Assoc = ()], [], [adt FooStruct { struct { } }], {}, {FooStruct}) }` failed at the following rule(s):
                   failed at (src/file.rs:LL:CC) because
-                    judgment `prove_wc_list { goal: {@ IsLocal(CoreTrait(<FooStruct as Unit>::Assoc))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                    judgment `prove_wc_list { goals: {@ IsLocal(CoreTrait(<FooStruct as Unit>::Assoc))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                         judgment `prove_wc { goal: @ IsLocal(CoreTrait(<FooStruct as Unit>::Assoc)), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "trait ref is local" failed at step #0 (src/file.rs:LL:CC) because
@@ -242,7 +242,7 @@ fn CoreTrait_for_CoreStruct_in_Foo() {
             Caused by:
                 judgment `prove { goal: {@ IsLocal(CoreTrait(CoreStruct))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [trait CoreTrait <ty> ], [impl CoreTrait(CoreStruct)], [], [], [], [adt CoreStruct { struct { } }], {}, {}) }` failed at the following rule(s):
                   failed at (src/file.rs:LL:CC) because
-                    judgment `prove_wc_list { goal: {@ IsLocal(CoreTrait(CoreStruct))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                    judgment `prove_wc_list { goals: {@ IsLocal(CoreTrait(CoreStruct))}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                         judgment `prove_wc { goal: @ IsLocal(CoreTrait(CoreStruct)), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                           the rule "trait ref is local" failed at step #0 (src/file.rs:LL:CC) because

@@ -6,7 +6,7 @@ mod minimize;
 mod negation;
 mod prove_after;
 mod prove_eq;
-mod prove_normalize;
+pub mod prove_normalize;
 mod prove_outlives;
 mod prove_sub;
 mod prove_via;

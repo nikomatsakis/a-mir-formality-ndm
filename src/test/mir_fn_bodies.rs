@@ -355,7 +355,7 @@ fn test_invalid_assign_statement() {
         expect_test::expect![[r#"
             judgment `prove { goal: {u32 <: ()}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
               failed at (src/file.rs:LL:CC) because
-                judgment `prove_wc_list { goal: {u32 <: ()}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                judgment `prove_wc_list { goals: {u32 <: ()}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                   the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                     judgment `prove_wc { goal: u32 <: (), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "subtype" failed at step #0 (src/file.rs:LL:CC) because
@@ -390,7 +390,7 @@ fn test_invalid_assign_constant() {
         expect_test::expect![[r#"
             judgment `prove { goal: {u32 <: usize}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
               failed at (src/file.rs:LL:CC) because
-                judgment `prove_wc_list { goal: {u32 <: usize}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                judgment `prove_wc_list { goals: {u32 <: usize}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                   the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                     judgment `prove_wc { goal: u32 <: usize, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "subtype" failed at step #0 (src/file.rs:LL:CC) because
@@ -563,7 +563,7 @@ fn test_pass_non_subtype_arg() {
         expect_test::expect![[r#"
             judgment `prove { goal: {() <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
               failed at (src/file.rs:LL:CC) because
-                judgment `prove_wc_list { goal: {() <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                judgment `prove_wc_list { goals: {() <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                   the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                     judgment `prove_wc { goal: () <: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "subtype" failed at step #0 (src/file.rs:LL:CC) because
@@ -646,7 +646,7 @@ fn test_incompatible_return_type() {
         expect_test::expect![[r#"
             judgment `prove { goal: {() <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [], {}, {}) }` failed at the following rule(s):
               failed at (src/file.rs:LL:CC) because
-                judgment `prove_wc_list { goal: {() <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                judgment `prove_wc_list { goals: {() <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                   the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                     judgment `prove_wc { goal: () <: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "subtype" failed at step #0 (src/file.rs:LL:CC) because
@@ -892,7 +892,7 @@ fn test_struct_wrong_type_in_initialisation() {
         expect_test::expect![[r#"
             judgment `prove { goal: {bool <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] }, decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32 } }], {}, {Dummy}) }` failed at the following rule(s):
               failed at (src/file.rs:LL:CC) because
-                judgment `prove_wc_list { goal: {bool <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
+                judgment `prove_wc_list { goals: {bool <: u32}, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                   the rule "some" failed at step #0 (src/file.rs:LL:CC) because
                     judgment `prove_wc { goal: bool <: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [] } }` failed at the following rule(s):
                       the rule "subtype" failed at step #0 (src/file.rs:LL:CC) because
