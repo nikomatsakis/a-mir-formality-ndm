@@ -9,7 +9,7 @@ use formality_rust::grammar::minirust::ValueExpression::{Constant, Fn, Load, Str
 use formality_rust::grammar::minirust::{
     self, ArgumentExpression, BasicBlock, BbId, LocalId, PlaceExpression, ValueExpression,
 };
-use formality_rust::grammar::FnBoundData;
+use formality_rust::grammar::{FnBoundData, Program};
 use formality_types::grammar::{
     CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, VariantId, Wcs,
 };
@@ -86,6 +86,7 @@ impl Check<'_> {
         )?;
 
         let mut env = TypeckEnv {
+            program: self.program,
             env: env.clone(),
             output_ty,
             local_variables,
@@ -102,72 +103,63 @@ impl Check<'_> {
 
         // (4) Check statements in body are valid
         for block in body.blocks {
-            self.check_block(&mut env, fn_assumptions, &block)?;
+            env.check_block(fn_assumptions, &block)?;
         }
 
         Ok(())
     }
+}
 
-    fn check_block(
-        &self,
-        env: &mut TypeckEnv,
-        fn_assumptions: &Wcs,
-        block: &minirust::BasicBlock,
-    ) -> Fallible<()> {
+impl TypeckEnv<'_> {
+    fn check_block(&mut self, fn_assumptions: &Wcs, block: &minirust::BasicBlock) -> Fallible<()> {
         for statement in &block.statements {
-            self.check_statement(env, fn_assumptions, statement)?;
+            self.check_statement(fn_assumptions, statement)?;
         }
 
-        self.check_terminator(env, fn_assumptions, &block.terminator)?;
+        self.check_terminator(fn_assumptions, &block.terminator)?;
 
         Ok(())
     }
 
     fn check_statement(
-        &self,
-        typeck_env: &mut TypeckEnv,
+        &mut self,
         fn_assumptions: &Wcs,
         statement: &minirust::Statement,
     ) -> Fallible<()> {
         match statement {
             minirust::Statement::Assign(place_expression, value_expression) => {
                 // Check if the place expression is well-formed.
-                let place_ty = self.check_place(typeck_env, place_expression)?;
+                let place_ty = self.check_place(place_expression)?;
 
                 // Check if the value expression is well-formed.
-                let value_ty = self.check_value(typeck_env, fn_assumptions, value_expression)?;
+                let value_ty = self.check_value(fn_assumptions, value_expression)?;
 
                 // Check that the type of the value is a subtype of the place's type
-                self.prove_goal(
-                    &typeck_env.env,
-                    fn_assumptions,
-                    Relation::sub(value_ty, place_ty),
-                )?;
+                self.prove_goal(Location, fn_assumptions, Relation::sub(value_ty, place_ty))?;
 
                 // Record if the return place has been initialised.
-                if *place_expression == PlaceExpression::Local(typeck_env.ret_id.clone()) {
-                    typeck_env.ret_place_is_initialised = true;
+                if *place_expression == PlaceExpression::Local(self.ret_id.clone()) {
+                    self.ret_place_is_initialised = true;
                 }
             }
             minirust::Statement::PlaceMention(place_expression) => {
                 // Check if the place expression is well-formed.
-                self.check_place(typeck_env, place_expression)?;
+                self.check_place(place_expression)?;
                 // FIXME: check that access the place is allowed per borrowck rules
             }
             minirust::Statement::StorageLive(local_id) => {
                 // FIXME: We need more checks here after loan is introduced.
-                if self.find_local_id(&typeck_env, local_id).is_none() {
+                if self.find_local_id(local_id).is_none() {
                     bail!("Statement::StorageLive: invalid local variable")
                 }
             }
             minirust::Statement::StorageDead(local_id) => {
                 // FIXME: We need more checks here after loan is introduced.
-                let Some((local_id, _)) = self.find_local_id(&typeck_env, local_id) else {
+                let Some((local_id, _)) = self.find_local_id(local_id) else {
                     bail!("Statement::StorageDead: invalid local variable")
                 };
                 // Make sure function arguments and return place are not marked as dead.
-                if local_id == typeck_env.ret_id
-                    || typeck_env.fn_args.iter().any(|fn_arg| local_id == *fn_arg)
+                if local_id == self.ret_id || self.fn_args.iter().any(|fn_arg| local_id == *fn_arg)
                 {
                     bail!("Statement::StorageDead: trying to mark function arguments or return local as dead")
                 }
@@ -177,15 +169,14 @@ impl Check<'_> {
     }
 
     fn check_terminator(
-        &self,
-        typeck_env: &mut TypeckEnv,
+        &mut self,
         fn_assumptions: &Wcs,
         terminator: &minirust::Terminator,
     ) -> Fallible<()> {
         match terminator {
             minirust::Terminator::Goto(bb_id) => {
                 // Check that the basic block `bb_id` exists.
-                self.check_block_exists(typeck_env, bb_id)?;
+                self.check_block_exists(bb_id)?;
             }
             minirust::Terminator::Call {
                 callee,
@@ -195,14 +186,14 @@ impl Check<'_> {
                 next_block,
             } => {
                 // Function is part of the value expression, so we will check if the function exists in check_value.
-                self.check_value(typeck_env, fn_assumptions, callee)?;
+                self.check_value(fn_assumptions, callee)?;
 
                 // Get argument information from the callee.
                 let Fn(callee_fn_id) = callee else {
                     unreachable!("Callee must exists in Terminator::Call");
                 };
 
-                let callee_fn_bound_data = typeck_env.callee_input_tys.get(callee_fn_id).unwrap();
+                let callee_fn_bound_data = self.callee_input_tys.get(callee_fn_id).unwrap();
                 let callee_declared_input_tys = callee_fn_bound_data.input_tys.clone();
                 // Check if the numbers of arguments passed equals to number of arguments declared.
                 if callee_declared_input_tys.len() != actual_arguments.len() {
@@ -212,37 +203,34 @@ impl Check<'_> {
                 let arguments = zip(callee_declared_input_tys, actual_arguments);
                 for (declared_ty, actual_argument) in arguments {
                     // Check if the arguments are well formed.
-                    let actual_ty = self.check_argument_expression(
-                        typeck_env,
-                        fn_assumptions,
-                        actual_argument,
-                    )?;
+                    let actual_ty =
+                        self.check_argument_expression(fn_assumptions, actual_argument)?;
                     // Check if the actual argument type passed in is the subtype of expect argument type.
                     self.prove_goal(
-                        &typeck_env.env,
+                        Location,
                         fn_assumptions,
                         Relation::sub(&actual_ty, &declared_ty),
                     )?;
                 }
 
                 // Check whether ret place is well-formed.
-                let actual_return_ty = self.check_place(typeck_env, ret)?;
+                let actual_return_ty = self.check_place(ret)?;
 
                 // Check if the fn's declared return type is a subtype of the type of the local variable `ret`
                 self.prove_goal(
-                    &typeck_env.env,
+                    Location,
                     fn_assumptions,
-                    Relation::sub(&typeck_env.output_ty, &actual_return_ty),
+                    Relation::sub(&self.output_ty, &actual_return_ty),
                 )?;
 
                 // Check the validity of next bb_id.
                 if let Some(bb_id) = next_block {
-                    self.check_block_exists(typeck_env, bb_id)?;
+                    self.check_block_exists(bb_id)?;
                 };
             }
             minirust::Terminator::Return => {
                 // Check if the return local variable has been initialized
-                if !typeck_env.ret_place_is_initialised {
+                if !self.ret_place_is_initialised {
                     bail!("The return local variable has not been initialized.")
                 }
             }
@@ -253,29 +241,27 @@ impl Check<'_> {
                 fallback,
             } => {
                 // Check if the value is well-formed.
-                let value_ty = self
-                    .check_value(typeck_env, fn_assumptions, switch_value)
-                    .unwrap();
+                let value_ty = self.check_value(fn_assumptions, switch_value).unwrap();
 
-                self.prove_judgment(&typeck_env.env, &fn_assumptions, value_ty, ty_is_int)?;
+                self.prove_judgment(Location, &fn_assumptions, value_ty, ty_is_int)?;
 
                 // Ensure all bbid are valid.
                 for switch_target in switch_targets {
-                    self.check_block_exists(typeck_env, &switch_target.target)?;
+                    self.check_block_exists(&switch_target.target)?;
                 }
-                self.check_block_exists(typeck_env, fallback)?;
+                self.check_block_exists(fallback)?;
             }
         }
         Ok(())
     }
 
     // Check if the place expression is well-formed, and return the type of the place expression.
-    fn check_place(&self, env: &TypeckEnv, place: &PlaceExpression) -> Fallible<Ty> {
+    fn check_place(&mut self, place: &PlaceExpression) -> Fallible<Ty> {
         let place_ty;
         match place {
             Local(local_id) => {
                 // Check if place id is a valid local id.
-                let Some((_, ty)) = self.find_local_id(env, local_id) else {
+                let Some((_, ty)) = self.find_local_id(local_id) else {
                     bail!(
                         "PlaceExpression::Local: unknown local name `{:?}`",
                         local_id
@@ -284,7 +270,7 @@ impl Check<'_> {
                 place_ty = ty;
             }
             Field(field_projection) => {
-                let ty = self.check_place(env, &field_projection.root).unwrap();
+                let ty = self.check_place(&field_projection.root).unwrap();
 
                 // FIXME(tiif): We eventually want to do normalization here, so check_place should be
                 // a judgment fn.
@@ -316,8 +302,8 @@ impl Check<'_> {
         Ok(place_ty.clone())
     }
 
-    fn find_local_id(&self, env: &TypeckEnv, local_id: &LocalId) -> Option<(LocalId, Ty)> {
-        if let Some((local_id, ty)) = env
+    fn find_local_id(&self, local_id: &LocalId) -> Option<(LocalId, Ty)> {
+        if let Some((local_id, ty)) = self
             .local_variables
             .iter()
             .find(|(declared_local_id, _)| *declared_local_id == local_id)
@@ -328,16 +314,11 @@ impl Check<'_> {
     }
 
     // Check if the value expression is well-formed, and return the type of the value expression.
-    fn check_value(
-        &self,
-        typeck_env: &mut TypeckEnv,
-        fn_assumptions: &Wcs,
-        value: &ValueExpression,
-    ) -> Fallible<Ty> {
+    fn check_value(&mut self, fn_assumptions: &Wcs, value: &ValueExpression) -> Fallible<Ty> {
         let value_ty;
         match value {
             Load(place_expression) => {
-                value_ty = self.check_place(typeck_env, place_expression)?;
+                value_ty = self.check_place(place_expression)?;
                 Ok(value_ty)
             }
             Fn(fn_id) => {
@@ -348,7 +329,7 @@ impl Check<'_> {
                     .program
                     .crates
                     .iter()
-                    .find(|c| c.id == typeck_env.crate_id)
+                    .find(|c| c.id == self.crate_id)
                     .unwrap();
 
                 // Find the callee from current crate.
@@ -357,10 +338,9 @@ impl Check<'_> {
                         CrateItem::Fn(fn_declared) => {
                             if fn_declared.id == *fn_id {
                                 let fn_bound_data =
-                                    typeck_env.env.instantiate_universally(&fn_declared.binder);
+                                    self.env.instantiate_universally(&fn_declared.binder);
                                 // Store the callee information in typeck_env, we will need this when type checking Terminator::Call.
-                                typeck_env
-                                    .callee_input_tys
+                                self.callee_input_tys
                                     .insert(fn_declared.id.clone(), fn_bound_data);
                                 return true;
                             }
@@ -374,7 +354,7 @@ impl Check<'_> {
                 if callee.is_none() {
                     bail!("The function called is not declared in current crate")
                 }
-                value_ty = typeck_env.output_ty.clone();
+                value_ty = self.output_ty.clone();
                 Ok(value_ty)
             }
             Constant(constant) => {
@@ -384,7 +364,7 @@ impl Check<'_> {
             }
             Struct(value_expressions, ty) => {
                 // Check if the adt is well-formed.
-                self.prove_goal(&typeck_env.env, &fn_assumptions, ty.well_formed())?;
+                self.prove_goal(Location, &fn_assumptions, ty.well_formed())?;
 
                 let Some(adt_id) = ty.get_adt_id() else {
                     bail!("The type used in ValueExpression::Struct must be adt")
@@ -421,16 +401,12 @@ impl Check<'_> {
                     let Constant(_) = value_expression else {
                         bail!("Only Constant is supported in ValueExpression::Struct for now.")
                     };
-                    value_tys.push(self.check_value(
-                        typeck_env,
-                        fn_assumptions,
-                        value_expression,
-                    )?);
+                    value_tys.push(self.check_value(fn_assumptions, value_expression)?);
                 }
 
                 // Make sure all the types supplied are the subtype of declared types.
                 self.prove_goal(
-                    &typeck_env.env,
+                    Location,
                     &fn_assumptions,
                     Wcs::all_sub(value_tys, struct_field_tys),
                 )?;
@@ -441,25 +417,24 @@ impl Check<'_> {
     }
 
     fn check_argument_expression(
-        &self,
-        env: &mut TypeckEnv,
+        &mut self,
         fn_assumptions: &Wcs,
         arg_expr: &ArgumentExpression,
     ) -> Fallible<Ty> {
         let ty;
         match arg_expr {
             ByValue(val_expr) => {
-                ty = self.check_value(env, fn_assumptions, val_expr)?;
+                ty = self.check_value(fn_assumptions, val_expr)?;
             }
             InPlace(place_expr) => {
-                ty = self.check_place(env, place_expr)?;
+                ty = self.check_place(place_expr)?;
             }
         }
         Ok(ty)
     }
 
-    fn check_block_exists(&self, env: &TypeckEnv, id: &BbId) -> Fallible<()> {
-        for block in env.blocks.iter() {
+    fn check_block_exists(&self, id: &BbId) -> Fallible<()> {
+        for block in self.blocks.iter() {
             if *id == block.id {
                 return Ok(());
             }
@@ -468,7 +443,11 @@ impl Check<'_> {
     }
 }
 
-struct TypeckEnv {
+struct TypeckEnv<'p> {
+    /// Program being typechecked that contains this functon
+    program: &'p Program,
+
+    /// The environment (set of universal, existential variables)
     env: Env,
 
     /// The declared return type from the function signature.
@@ -523,7 +502,7 @@ struct PendingOutlives {
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 struct Location;
 
-impl TypeckEnv {
+impl TypeckEnv<'_> {
     /// Prove the goal in this environment, adding any pending outlive constraints that are required
     /// for the goal to be true into `self.pending_outlives`.
     fn prove_goal(
