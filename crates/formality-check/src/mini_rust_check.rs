@@ -508,7 +508,7 @@ struct TypeckEnv {
 }
 
 /// A pending outlives constraint that we incurred during typechecking.
-#[derive(Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
 struct PendingOutlives {
     /// The location where this outlives obligation was incurred.
     location: Location,
@@ -520,10 +520,12 @@ struct PendingOutlives {
     b: Parameter,
 }
 
-#[derive(Ord, PartialOrd, Eq, PartialEq, Clone)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 struct Location;
 
 impl TypeckEnv {
+    /// Prove the goal in this environment, adding any pending outlive constraints that are required
+    /// for the goal to be true into `self.pending_outlives`.
     fn prove_goal(
         &mut self,
         location: Location,
@@ -534,6 +536,9 @@ impl TypeckEnv {
         self.prove_judgment(location, assumptions, goal.to_wcs(), formality_prove::prove)
     }
 
+    /// Prove the goal with the function `judgment_fn`,
+    /// adding any pending outlive constraints that are required
+    /// for the goal to be true into `self.pending_outlives`.
     fn prove_judgment<G>(
         &mut self,
         location: Location,
@@ -546,16 +551,29 @@ impl TypeckEnv {
     {
         let assumptions: Wcs = assumptions.to_wcs();
 
+        // TODO: This assertion states that there are no existential variables
+        // (i.e., no type/lifetime inference is required). This is not going to remain
+        // true much longer. In the compiler, we insert existential variables for all
+        // lifetimes that appear in the MIR body, and I expect we will do the same here.
         assert!(self.env.only_universal_variables());
         assert!(self.env.encloses((&assumptions, &goal)));
 
+        // Prove the goal using the given judgment + assumptions.
         let cs = judgment_fn(
             self.decls.clone(),
             self.env.clone(),
             assumptions.clone(),
             goal.clone(),
         );
+
+        // Each member `c \in cs` is a valid way corresponds
+        // to a set of constraints which, if true, mean the goal is true.
+        //
+        // i.e., `\forall c \in cs. (c => (assumptions => goal))`
         let cs = cs.into_set()?;
+
+        // The set of constraints is always non-empty or else the judgment is considered to have failed.
+        assert!(!cs.is_empty());
 
         // If there is anything *unconditionally true*, that's great
         if cs.iter().any(|c| c.unconditionally_true()) {
@@ -589,46 +607,60 @@ impl TypeckEnv {
         // So what we do is we look for a *minimal result* -- if there isn't one,
         // for now, we fail with ambiguity.
 
-        let mut known_true_constraints = cs.iter().filter(|c| c.known_true);
+        // Convert these to pending-outlives; if conversion fails, bail because we don't know
+        // whether it would be more minimal than the others or not.
+        let mut pending_outlives_sets = vec![];
+        for c in &cs {
+            // Ignore constraints that only prove the goal "might" be true, irrelevant here
+            if !c.known_true {
+                continue;
+            }
 
-        let mut minimal_result: Option<BTreeSet<PendingOutlives>> = Some(BTreeSet::default());
-
-        while let Some(c) = known_true_constraints.next() {
             // We already filtered this above
             assert!(c.known_true);
 
             // We don't have any existential variables, so there can't be a substitution
             assert!(c.substitution().is_empty());
 
-            // If we fail to convert any of the goals to PendingOutlives, we should not proceed.
-            let Some(c_outlives) = self.convert_to_pending_outlives(&location, c) else {
-                minimal_result = None;
-                break;
-            };
-
-            if let Some(ref previous_minimal_result) = minimal_result {
-                if !c_outlives.is_subset(&previous_minimal_result)
-                    && !previous_minimal_result.is_subset(&c_outlives)
-                {
-                    // If neither is subset of the other, give up
-                    minimal_result = None;
-                    break;
-                } else if c_outlives.is_subset(&previous_minimal_result) {
-                    minimal_result = Some(c_outlives);
-                }
+            match self.convert_to_pending_outlives(&location, c) {
+                Some(p_o) => pending_outlives_sets.push(p_o),
+                None => bail!("failed to convert `{c:?}` to pending-outlives"),
             }
         }
 
-        match minimal_result {
-            Some(c) => {
-                self.pending_outlives.extend(c);
-                Ok(())
+        // Find the minimal set of the remaining solutions.
+        let mut pending_outlives_iter = pending_outlives_sets.into_iter();
+        let Some(mut pending_outlives_minimal) = pending_outlives_iter.next() else {
+            bail!("final constraint set had only ambiguous elements: {cs:#?}")
+        };
+        while let Some(pending_outlives) = pending_outlives_iter.next() {
+            // If these outlives constraints are not ordered with respect to `pending_outlives_minimal`, then bail.
+            if !pending_outlives.is_subset(&pending_outlives_minimal)
+                && !pending_outlives_minimal.is_subset(&pending_outlives)
+            {
+                bail!(
+                    "no relationship between `{pending_outlives:?}` and `{pending_outlives_minimal:?}`"
+                );
             }
-            None => bail!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}"),
+
+            // If this set of outlives is a subset of the previous minimal, then use it instead.
+            if pending_outlives.is_subset(&pending_outlives_minimal) {
+                pending_outlives_minimal = pending_outlives;
+            }
         }
+
+        self.pending_outlives.extend(pending_outlives_minimal);
+        Ok(())
     }
 
-    // Convert the pending goals into a series of `PendingOutlives`
+    // Convert the pending goals into a series of `PendingOutlives`.
+    //
+    // The `Constraints` struct contains a set of "pending where-clauses"
+    // which must still be proven. In practice, the final result of the
+    // top-level judgments we use in the type checker should only have
+    // pending outlives requests. This function checks that this is true,
+    // converting to a set of `PendingOutlives`, and returns `None` if
+    // any other sort of where-clause is found.
     fn convert_to_pending_outlives(
         &self,
         location: &Location,
