@@ -5,10 +5,9 @@ fn test_assign_statement_local_only() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -30,8 +29,8 @@ fn test_assign_constant() {
         [
             crate Foo {
                 fn foo () -> u8 = minirust() -> v0 {
+                    let v0: u8;
                     exists {
-                        let v0: u8;
                         let v1: u16;
                         let v2: u32;
                         let v3: u64;
@@ -74,8 +73,8 @@ fn test_switch_statment() {
         [
             crate Foo {
                 fn foo () -> u32 = minirust() -> v0 {
+                    let v0: u32;
                     exists {
-                        let v0: u32;
                         let v1: u32;
 
                         bb0: {
@@ -119,10 +118,9 @@ fn test_goto_terminator() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {}
                             goto bb1;
@@ -163,10 +161,9 @@ fn test_call_terminator() {
         [
             crate Foo {
                 fn foo(u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -177,10 +174,9 @@ fn test_call_terminator() {
                 };
 
                 fn bar(u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -217,10 +213,9 @@ fn test_place_mention_statement() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 place_mention(local(v0));
@@ -243,9 +238,9 @@ fn test_storage_live_dead() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
                         let v2: u32;
 
                         bb0: {
@@ -276,9 +271,9 @@ fn test_struct() {
                 }
 
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
                         let v2: Dummy;
 
                         bb0: {
@@ -304,10 +299,9 @@ fn test_no_next_bb_for_call_terminator() {
         [
             crate Foo {
                 fn foo(u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -318,8 +312,8 @@ fn test_no_next_bb_for_call_terminator() {
                 };
 
                 fn bar() -> u32 = minirust() -> v0 {
+                    let v0: u32;
                     exists {
-                        let v0: u32;
                         let v1: u32;
 
                         bb0: {
@@ -352,10 +346,9 @@ fn test_invalid_assign_statement() {
         [
             crate Foo {
                 fn foo (u32) -> () = minirust(v1) -> v0 {
+                    let v0: ();
+                    let v1: u32;
                     exists {
-                        let v0: ();
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -389,9 +382,8 @@ fn test_invalid_assign_constant() {
         [
             crate Foo {
                 fn foo () -> usize = minirust() -> v0 {
+                    let v0: usize;
                     exists {
-                        let v0: usize;
-
                         bb0: {
                             statements {
                                 local(v0) = constant(5: u32);
@@ -425,10 +417,9 @@ fn test_invalid_local_in_place_mention() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 place_mention(local(v2));
@@ -451,9 +442,8 @@ fn test_undeclared_local_in_function_arg() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
                     exists {
-                        let v0: u32;
-
                         bb0: {
                             statements {
                             }
@@ -486,7 +476,7 @@ fn test_undeclared_local_in_return_place() {
             }
         ]
         []
-        expect_test::expect!["Function return place v0 is not declared, consider declaring them with `let v0: type;`"]
+        expect_test::expect!["return variable v0 is not declared, consider declaring them with `let v0: type;`"]
     )
 }
 
@@ -497,10 +487,9 @@ fn test_invalid_goto_bbid() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {}
                             goto bb1;
@@ -522,8 +511,8 @@ fn test_call_invalid_fn() {
         [
             crate Foo {
                 fn bar() -> u32 = minirust() -> v0 {
+                    let v0: u32;
                     exists {
-                        let v0: u32;
                         let v1: u32;
 
                         bb0: {
@@ -549,10 +538,9 @@ fn test_pass_non_subtype_arg() {
         [
             crate Foo {
                 fn foo(u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -563,10 +551,9 @@ fn test_pass_non_subtype_arg() {
                 };
 
                 fn bar(()) -> () = minirust(v1) -> v0 {
+                    let v0: ();
+                    let v1: ();
                     exists {
-                        let v0: ();
-                        let v1: ();
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -605,10 +592,9 @@ fn test_invalid_next_bbid_for_call_terminator() {
         [
             crate Foo {
                 fn foo(u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -619,8 +605,8 @@ fn test_invalid_next_bbid_for_call_terminator() {
                 };
 
                 fn bar() -> u32 = minirust() -> v0 {
+                    let v0: u32;
                     exists {
-                        let v0: u32;
                         let v1: u32;
 
                         bb0: {
@@ -653,10 +639,9 @@ fn test_incompatible_return_type() {
         [
             crate Foo {
                 fn foo (()) -> u32 = minirust(v1) -> v0 {
+                    let v0: ();
+                    let v1: ();
                     exists {
-                        let v0: ();
-                        let v1: ();
-
                         bb0: {
                             statements {
                                 local(v0) = load(local(v1));
@@ -691,9 +676,9 @@ fn test_function_arg_number_mismatch() {
         [
             crate Foo {
                 fn foo () -> () = minirust(v1) -> v0 {
+                    let v0: ();
+                    let v1: ();
                     exists {
-                        let v0: ();
-                        let v1: ();
                     }
                 };
             }
@@ -712,9 +697,8 @@ fn test_uninitialised_return_type() {
         [
             crate Foo {
                 fn foo () -> u32 = minirust() -> v0 {
+                    let v0: u32;
                     exists {
-                        let v0: u32;
-
                         bb0: {
                             statements {
                             }
@@ -739,9 +723,8 @@ fn test_invalid_value_in_switch_terminator() {
         [
             crate Foo {
                 fn foo () -> bool = minirust() -> v0 {
+                    let v0: bool;
                     exists {
-                        let v0: bool;
-
                         bb0: {
                             statements {
                                 local(v0) = constant(false);
@@ -786,10 +769,9 @@ fn test_ret_place_storage_dead() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 StorageDead(v1);
@@ -812,10 +794,9 @@ fn test_fn_arg_storage_dead() {
         [
             crate Foo {
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
-
                         bb0: {
                             statements {
                                 StorageDead(v0);
@@ -842,9 +823,9 @@ fn test_invalid_struct_field() {
                 }
 
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
                         let v2: Dummy;
 
                         bb0: {
@@ -875,9 +856,9 @@ fn test_field_projection_root_non_adt() {
                 }
 
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
                         let v2: Dummy;
 
                         bb0: {
@@ -908,9 +889,9 @@ fn test_struct_wrong_type_in_initialisation() {
                 }
 
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
                         let v2: Dummy;
 
                         bb0: {
@@ -948,9 +929,9 @@ fn test_non_adt_ty_for_struct() {
             crate Foo {
 
                 fn foo (u32) -> u32 = minirust(v1) -> v0 {
+                    let v0: u32;
+                    let v1: u32;
                     exists {
-                        let v0: u32;
-                        let v1: u32;
                         let v2: u32;
 
                         bb0: {
@@ -965,6 +946,42 @@ fn test_non_adt_ty_for_struct() {
             }
         ]
         []
+        expect_test::expect!["The type used in ValueExpression::Struct must be adt"]
+    )
+}
+
+/// Test a Rust function like
+///
+/// ```rust,ignore
+/// fn pick<'a>(x: &'a (u32, u32)) - &'a u32 {
+///     let tmp = x;
+///     tmp
+/// }
+/// ```
+#[test]
+fn test_ref_identity() {
+    // Rust test
+    crate::assert_ok!(
+        [
+            crate Foo {
+                fn foo<lt a>(&a u32) -> &a u32 = minirust(v1) -> v0 {
+                    let v0: &a u32;
+                    let v1: &a u32;
+
+                    exists<lt r0> {
+                        let v2: &r0 u32;
+
+                        bb0: {
+                            statements {
+                                local(v2) = load(local(v1));
+                                local(v0) = load(local(v2));
+                            }
+                            return;
+                        }
+                    }
+                };
+            }
+        ]
         expect_test::expect!["The type used in ValueExpression::Struct must be adt"]
     )
 }
