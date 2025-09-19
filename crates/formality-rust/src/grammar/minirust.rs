@@ -1,6 +1,6 @@
 use formality_core::{id, UpcastFrom};
 use formality_macros::term;
-use formality_types::grammar::{Parameter, ScalarId, Ty};
+use formality_types::grammar::{Binder, Parameter, ScalarId, Ty};
 
 use crate::grammar::minirust::ConstTypePair::*;
 use crate::grammar::FnId;
@@ -36,15 +36,60 @@ id!(FieldId);
 //   bb1:
 //     return;
 // }
+//
 
 /// Based on [MiniRust statements](https://github.com/minirust/minirust/blob/9ae11cc202d040f08bc13ec5254d3d41d5f3cc25/spec/lang/syntax.md#statements-terminators).
+///
+/// The `exists` is used to capture region inference variables.
+/// In the compiler, every region that appears outside the signature
+/// gets a fresh inference variable. In a-mir-formality, we let the
+/// user tell us how many inference variables there are. Lucky us.
+///
+/// So a Rust function like
+///
+/// ```rust,ignore
+/// fn pick<'a>(x: &'a (u32, u32)) - &'a u32 { let tmp = &x.0; tmp }
+/// ```
+///
+/// might wind up with MIR like this -- note the `r0` and `r1`
+/// variables
+///
+/// ```rust,ignore
+/// fn pick<'a>(x: &'a (u32, u32)) -> &'a u32 = minirust(v1) -> v0 {
+///   exists<'r0, 'r1> {
+///     let v0: &'a u32;
+///     let v1: &'a (u32, u32);
+///     let v2: &'r0 u32;
+///
+///     bb0:
+///       v2 = &'r1 x.0
+///       v0 = v2
+///
+///     bb1:
+///       return;
+///   }
+/// }
+/// ```
+///
+/// You can think of the role of the type checker as proving:
+///
+/// * For all `'a`
+///     * There exists lifetimes `r0`, `r1`
+///         * Such that the body is well-typed
 #[term(minirust($,args) -> $ret {
-    $*locals
-    $*blocks
+    exists $binder
 })]
 pub struct Body {
     pub args: Vec<LocalId>,
     pub ret: LocalId,
+    pub binder: Binder<BodyBound>,
+}
+
+#[term({
+    $*locals
+    $*blocks
+})]
+pub struct BodyBound {
     pub locals: Vec<LocalDecl>,
     pub blocks: Vec<BasicBlock>,
 }
