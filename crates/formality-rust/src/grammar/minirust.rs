@@ -55,10 +55,16 @@ id!(FieldId);
 /// variables
 ///
 /// ```rust,ignore
-/// fn pick<'a>(x: &'a (u32, u32)) -> &'a u32 = minirust(v1) -> v0 {
+/// fn pick<'a>(v1) -> v0 = minirust(v1) -> v0 {
+///   // Local variables that represent the return type
+///   // and the function parameters are declared first.
+///   //
+///   // Their types do not have region inference variables
+///   // in scope.
+///   let v0: &'a u32;
+///   let v1: &'a (u32, u32);
+///
 ///   exists<'r0, 'r1> {
-///     let v0: &'a u32;
-///     let v1: &'a (u32, u32);
 ///     let v2: &'r0 u32;
 ///
 ///     bb0:
@@ -77,11 +83,16 @@ id!(FieldId);
 ///     * There exists lifetimes `r0`, `r1`
 ///         * Such that the body is well-typed
 #[term(minirust($,args) -> $ret {
+    // First declare types etc parameters and return values
+    $*params
+
+    // then declare the body
     exists $binder
 })]
 pub struct Body {
     pub args: Vec<LocalId>,
     pub ret: LocalId,
+    pub params: Vec<LocalDecl>,
     pub binder: Binder<BodyBound>,
 }
 

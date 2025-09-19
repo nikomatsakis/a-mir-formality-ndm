@@ -152,7 +152,10 @@ impl Check<'_> {
     {
         let assumptions: Wcs = assumptions.to_wcs();
 
-        assert!(env.only_universal_variables());
+        assert!(
+            env.only_universal_variables(),
+            "env contains existential variables `{env:?}`"
+        );
         assert!(env.encloses((&assumptions, &goal)));
 
         let cs = judgment_fn(

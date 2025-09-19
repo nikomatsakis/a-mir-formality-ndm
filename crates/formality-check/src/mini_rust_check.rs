@@ -4,11 +4,11 @@ use std::iter::zip;
 use formality_core::{judgment_fn, Downcast, Fallible, Map, Upcast};
 use formality_prove::{prove_normalize, AdtDeclBoundData, AdtDeclVariant, Constraints, Decls, Env};
 use formality_rust::grammar::minirust::ArgumentExpression::{ByValue, InPlace};
-use formality_rust::grammar::minirust::PlaceExpression::*;
 use formality_rust::grammar::minirust::ValueExpression::{Constant, Fn, Load, Struct};
 use formality_rust::grammar::minirust::{
     self, ArgumentExpression, BasicBlock, BbId, LocalId, PlaceExpression, ValueExpression,
 };
+use formality_rust::grammar::minirust::{BodyBound, PlaceExpression::*};
 use formality_rust::grammar::{FnBoundData, Program};
 use formality_types::grammar::{
     CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, VariantId, Wcs,
@@ -27,49 +27,50 @@ impl Check<'_> {
         declared_input_tys: Vec<Ty>,
         crate_id: &CrateId,
     ) -> Fallible<()> {
-        // Type-check:
-        //
-        // (1) Check that all the types declared for each local variable are well-formed
-        // (2) Check whether the number of declared function parameters matches the number of arguments provided.
-        // (3) Check that the type of the returned local is compatible with the declared return type
-        // (4) Check that the statements in the body are valid
+        // ----------------------------------------------------------------------
+        // Type check the fn signature
 
         let output_ty: Ty = output_ty.upcast();
 
-        // (1) Check that all the types declared for each local variable are well-formed
-        for lv in &body.locals {
+        //  Check that all the types declared for each local variable are well-formed
+        for lv in &body.params {
             self.prove_goal(&env, &fn_assumptions, lv.ty.well_formed())?;
         }
 
-        // Check whether the local_id in function arguments are declared.
-        for function_arg_id in &body.args {
-            if body
-                .locals
-                .iter()
-                .find(|declared_decl| declared_decl.id == *function_arg_id)
-                .is_none()
-            {
-                bail!("Function argument {:?} is not declared, consider declaring them with `let {:?}: type;`", function_arg_id, function_arg_id);
-            }
-        }
-
-        // Check whether the local_id in the return place are declared.
-        if body
-            .locals
-            .iter()
-            .find(|declared_decl| declared_decl.id == body.ret)
-            .is_none()
-        {
-            bail!("Function return place {:?} is not declared, consider declaring them with `let {:?}: type;`", body.ret, body.ret);
-        }
-
-        let local_variables: Map<LocalId, Ty> = body
-            .locals
+        let parameters: Map<LocalId, Ty> = body
+            .params
             .iter()
             .map(|lv| (lv.id.clone(), lv.ty.clone()))
             .collect();
 
-        // (2) Check whether the number of declared function parameters matches the number of arguments provided.
+        // Check whether the local_id in function arguments are declared.
+        for function_arg_id in &body.args {
+            if !parameters.contains_key(function_arg_id) {
+                bail!("Function argument {:?} is not declared, consider declaring them with `let {:?}: type;`", function_arg_id, function_arg_id);
+            }
+        }
+        let Some(body_ret_ty) = parameters.get(&body.ret) else {
+            bail!("return variable {:?} is not declared, consider declaring them with `let {:?}: type;`", body.ret, body.ret);
+        };
+
+        // Check if the actual return type is the subtype of the declared return type.
+        self.prove_goal(&env, fn_assumptions, Relation::sub(body_ret_ty, &output_ty))?;
+
+        // ----------------------------------------------------------------------
+        // Type check the fn body
+
+        // Create inference variables for each of the regions bound in the MIR body.
+        let mut env = env.clone();
+        let BodyBound { locals, blocks } = env.instantiate_existentially(&body.binder);
+
+        // Create list of local variables, beginning with the parameters, and then adding in the
+        // local function variables that (may) reference existential lifetimes.
+        let local_variables: Map<LocalId, Ty> = parameters
+            .into_iter()
+            .chain(locals.iter().map(|lv| (lv.id.clone(), lv.ty.clone())))
+            .collect();
+
+        // Check whether the number of declared function parameters matches the number of arguments provided.
         if declared_input_tys.len() != body.args.len() {
             bail!(
                 "Function argument number mismatch: expected {} arguments, but found {}",
@@ -78,19 +79,12 @@ impl Check<'_> {
             );
         }
 
-        // (3) Check if the actual return type is the subtype of the declared return type.
-        self.prove_goal(
-            &env,
-            fn_assumptions,
-            Relation::sub(&local_variables[&body.ret], &output_ty),
-        )?;
-
         let mut env = TypeckEnv {
             program: self.program,
             env: env.clone(),
             output_ty,
             local_variables,
-            blocks: body.blocks.clone(),
+            blocks: &blocks,
             ret_id: body.ret,
             ret_place_is_initialised: false,
             declared_input_tys,
@@ -101,9 +95,9 @@ impl Check<'_> {
             decls: self.decls.clone(),
         };
 
-        // (4) Check statements in body are valid
-        for block in body.blocks {
-            env.check_block(fn_assumptions, &block)?;
+        // Check that basic blocks are well-typed
+        for block in &blocks {
+            env.check_block(fn_assumptions, block)?;
         }
 
         Ok(())
@@ -457,7 +451,7 @@ struct TypeckEnv<'p> {
     local_variables: Map<LocalId, Ty>,
 
     /// All basic blocks of current body.
-    blocks: Vec<BasicBlock>,
+    blocks: &'p Vec<BasicBlock>,
 
     /// local_id of return place,
     ret_id: LocalId,
