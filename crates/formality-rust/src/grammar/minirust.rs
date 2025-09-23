@@ -92,6 +92,8 @@ id!(FieldId);
 pub struct Body {
     pub args: Vec<LocalId>,
     pub ret: LocalId,
+    // params contain function parameters and return local
+    // as their types does not contain region inference variable.
     pub params: Vec<LocalDecl>,
     pub binder: Binder<BodyBound>,
 }
@@ -101,6 +103,7 @@ pub struct Body {
     $*blocks
 })]
 pub struct BodyBound {
+    // locals contain every locals other than function parameters and return local.
     pub locals: Vec<LocalDecl>,
     pub blocks: Vec<BasicBlock>,
 }
