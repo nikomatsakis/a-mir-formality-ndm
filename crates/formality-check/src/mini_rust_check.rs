@@ -54,6 +54,7 @@ impl Check<'_> {
         };
 
         // Check if the actual return type is the subtype of the declared return type.
+        // FIXME(tiif): should this be subtype? I think v0's type should always equivalent to the return type?
         self.prove_goal(&env, fn_assumptions, Relation::sub(body_ret_ty, &output_ty))?;
 
         // ----------------------------------------------------------------------
@@ -512,6 +513,11 @@ impl TypeckEnv<'_> {
     /// Prove the goal with the function `judgment_fn`,
     /// adding any pending outlive constraints that are required
     /// for the goal to be true into `self.pending_outlives`.
+    ///
+    /// One of the difference between this prove_judgment and the one in impl Check is
+    /// that this version can accept existential variable, which is needed for handling lifetime.
+    /// In the compiler, we insert existential variables for all
+    /// lifetimes that appear in the MIR body, and I expect we will do the same here.
     fn prove_judgment<G>(
         &mut self,
         location: Location,
@@ -524,11 +530,6 @@ impl TypeckEnv<'_> {
     {
         let assumptions: Wcs = assumptions.to_wcs();
 
-        // TODO: This assertion states that there are no existential variables
-        // (i.e., no type/lifetime inference is required). This is not going to remain
-        // true much longer. In the compiler, we insert existential variables for all
-        // lifetimes that appear in the MIR body, and I expect we will do the same here.
-        assert!(self.env.only_universal_variables());
         assert!(self.env.encloses((&assumptions, &goal)));
 
         // Prove the goal using the given judgment + assumptions.
