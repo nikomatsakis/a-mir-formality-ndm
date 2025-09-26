@@ -42,7 +42,9 @@ judgment_fn! {
     ) => Constraints {
         debug(a, b, assumptions, env)
 
-        trivial(a == b => Constraints::none(env))
+        trivial(a == b => {
+            Constraints::none(env)
+        })
 
         // 'static outlives us all
         (

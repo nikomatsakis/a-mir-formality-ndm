@@ -85,8 +85,12 @@ pub fn prove(
     tracing::debug!(?result_set);
 
     // Map the results back to the "unminimized" form ("reconstitute").
-    result_set.map(|r| {
+    let maxified = result_set.map(|r| {
         assert!(r.is_valid_extension_of(&env));
         min.reconstitute(r)
-    })
+    });
+
+    tracing::debug!(?maxified);
+
+    maxified
 }

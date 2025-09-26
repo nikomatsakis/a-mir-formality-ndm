@@ -129,7 +129,7 @@ judgment_fn! {
         )
 
         (
-            (prove_sub(decls, env, assumptions, a, b) => c)
+            (prove_sub(decls, env, assumptions, &a, &b) => c)
             ----------------------------- ("subtype")
             (prove_wc(decls, env, assumptions, WcData::Relation(Relation::Sub(a, b))) => c)
         )
