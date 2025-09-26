@@ -950,17 +950,17 @@ fn test_non_adt_ty_for_struct() {
     )
 }
 
-/// Test a Rust function like
+/// Basic pass test for lifetime.
 ///
+/// The test is equivalent to:
 /// ```rust,ignore
-/// fn pick<'a>(x: &'a (u32, u32)) - &'a u32 {
-///     let tmp = x;
-///     tmp
+/// fn pick<'a>(v1: &'a u32) -> &'a u32 {
+///     let v2 = v1;
+///     v2
 /// }
 /// ```
 #[test]
 fn test_ref_identity() {
-    // Rust test
     crate::assert_ok!(
         [
             crate Foo {
@@ -982,6 +982,75 @@ fn test_ref_identity() {
                 };
             }
         ]
-        expect_test::expect!["The type used in ValueExpression::Struct must be adt"]
+        expect_test::expect!["()"]
+    )
+}
+
+/// FIXME(tiif): this should not pass, I think Relation::sub does not consider lifetime yet?
+/// Basic fail test for lifetime.
+///
+/// The test is equivalent to:
+/// ```rust,ignore
+/// fn pick<'a, 'b>(v1: &'a u32) -> &'b u32 {
+///     let v2 = v1;
+///     v2
+/// }
+/// ```
+#[test]
+fn test_ref_not_subtype() {
+    crate::assert_ok!(
+        [
+            crate Foo {
+                fn foo<lt a, lt b>(&a u32) -> &b u32 = minirust(v1) -> v0 {
+                    let v0: &b u32;
+                    let v1: &a u32;
+
+                    exists<lt r0> {
+                        let v2: &r0 u32;
+
+                        bb0: {
+                            statements {
+                                local(v2) = load(local(v1));
+                                local(v0) = load(local(v2));
+                            }
+                            return;
+                        }
+                    }
+                };
+            }
+        ]
+        expect_test::expect!["()"]
+    )
+}
+
+/// Test ref and deref
+/// FIXME(tiif): This is not implemented yet
+#[test]
+#[ignore]
+fn test_ref_deref() {
+    crate::assert_ok!(
+        [
+            crate Foo {
+
+                fn foo () -> u32 = minirust() -> v0 {
+                    let v0: u32;
+                    exists<lt a> {
+                        let v1: u32;
+                        let v2: &a u32;
+                        let v3: u32;
+
+                        bb0: {
+                            statements {
+                                local(v1) = constant(3: u32);
+                                local(v2) = &(local(v1));
+                                local(v3) = load(*(load(local(v2))));
+                            }
+                            return;
+                        }
+                    }
+                };
+            }
+        ]
+        expect_test::expect![["()"]]
     )
 }

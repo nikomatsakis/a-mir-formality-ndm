@@ -92,6 +92,8 @@ id!(FieldId);
 pub struct Body {
     pub args: Vec<LocalId>,
     pub ret: LocalId,
+    // params contain function parameters and return local
+    // as their types does not contain region inference variable.
     pub params: Vec<LocalDecl>,
     pub binder: Binder<BodyBound>,
 }
@@ -101,6 +103,7 @@ pub struct Body {
     $*blocks
 })]
 pub struct BodyBound {
+    // locals contain every locals other than function parameters and return local.
     pub locals: Vec<LocalDecl>,
     pub blocks: Vec<BasicBlock>,
 }
@@ -206,9 +209,12 @@ pub enum ValueExpression {
     // GetDiscriminant
     #[grammar(load($v0))]
     Load(PlaceExpression),
-    // AddrOf
-    // UnOp
-    // BinOp
+    // Similar to AddrOf in MiniRust, but we don't deal with other
+    // pointer type such as raw pointer and box yet.
+    #[grammar(&($v0))]
+    Ref(PlaceExpression), // AddrOf
+                          // UnOp
+                          // BinOp
 }
 
 #[term]
@@ -265,7 +271,8 @@ impl ConstTypePair {
 pub enum PlaceExpression {
     #[grammar(local($v0))]
     Local(LocalId),
-    // Deref(Arc<ValueExpression>),
+    #[grammar(*($v0))] // TODO: change syntax?
+    Deref(Arc<ValueExpression>),
     // Project to a field.
     #[grammar($v0)]
     Field(FieldProjection),
