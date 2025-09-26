@@ -996,9 +996,9 @@ fn test_ref_identity() {
 ///     v2
 /// }
 /// ```
-#[test]
+#[formality_core::test]
 fn test_ref_not_subtype() {
-    crate::assert_ok!(
+    crate::assert_err!(
         [
             crate Foo {
                 fn foo<lt a, lt b>(&a u32) -> &b u32 = minirust(v1) -> v0 {
@@ -1019,7 +1019,9 @@ fn test_ref_not_subtype() {
                 };
             }
         ]
-        expect_test::expect!["()"]
+        [
+        ]
+        expect_test::expect!["failed to prove `{@ wf(&!lt_1 u32)}` given `{}`: got {Constraints { env: Env { variables: [!lt_1, !lt_2], bias: Soundness, pending: [u32 : !lt_1, u32 : !lt_1] }, known_true: true, substitution: {} }}"]
     )
 }
 

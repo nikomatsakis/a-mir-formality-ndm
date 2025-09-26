@@ -145,7 +145,7 @@ impl Minimization {
         }
 
         let Constraints {
-            env: _,
+            env: env_in,
             known_true,
             substitution,
         } = constraints;
@@ -155,6 +155,11 @@ impl Minimization {
                 (env2out_subst.map_var(x).unwrap(), env2out_subst.apply(&p))
             })
             .collect();
+
+        for pending_in in env_in.pending() {
+            env_out = env_out.with_pending(env2out_subst.apply(pending_in));
+        }
+
         Constraints {
             env: env_out,
             known_true,

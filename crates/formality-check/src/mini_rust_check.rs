@@ -101,6 +101,11 @@ impl Check<'_> {
             env.check_block(fn_assumptions, block)?;
         }
 
+        // XXX need to check these!
+        if !env.pending_outlives.is_empty() {
+            bail!("unproven outlives relationships found: {:#?}", env.pending_outlives)
+        }
+
         Ok(())
     }
 }
