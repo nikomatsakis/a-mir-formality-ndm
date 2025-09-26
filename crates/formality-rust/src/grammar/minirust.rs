@@ -209,9 +209,12 @@ pub enum ValueExpression {
     // GetDiscriminant
     #[grammar(load($v0))]
     Load(PlaceExpression),
-    // AddrOf
-    // UnOp
-    // BinOp
+    // Similar to AddrOf in MiniRust, but we don't deal with other
+    // pointer type such as raw pointer and box yet.
+    #[grammar(&($v0))]
+    Ref(PlaceExpression), // AddrOf
+                          // UnOp
+                          // BinOp
 }
 
 #[term]
@@ -268,7 +271,8 @@ impl ConstTypePair {
 pub enum PlaceExpression {
     #[grammar(local($v0))]
     Local(LocalId),
-    // Deref(Arc<ValueExpression>),
+    #[grammar(*($v0))] // TODO: change syntax?
+    Deref(Arc<ValueExpression>),
     // Project to a field.
     #[grammar($v0)]
     Field(FieldProjection),

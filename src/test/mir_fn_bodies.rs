@@ -1022,3 +1022,35 @@ fn test_ref_not_subtype() {
         expect_test::expect!["()"]
     )
 }
+
+/// Test ref and deref
+/// FIXME(tiif): This is not implemented yet
+#[test]
+#[ignore]
+fn test_ref_deref() {
+    crate::assert_ok!(
+        [
+            crate Foo {
+
+                fn foo () -> u32 = minirust() -> v0 {
+                    let v0: u32;
+                    exists<lt a> {
+                        let v1: u32;
+                        let v2: &a u32;
+                        let v3: u32;
+
+                        bb0: {
+                            statements {
+                                local(v1) = constant(3: u32);
+                                local(v2) = &(local(v1));
+                                local(v3) = load(*(load(local(v2))));
+                            }
+                            return;
+                        }
+                    }
+                };
+            }
+        ]
+        expect_test::expect![["()"]]
+    )
+}
