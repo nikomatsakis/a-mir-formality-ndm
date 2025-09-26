@@ -4,7 +4,7 @@ use std::iter::zip;
 use formality_core::{judgment_fn, Downcast, Fallible, Map, Upcast};
 use formality_prove::{prove_normalize, AdtDeclBoundData, AdtDeclVariant, Constraints, Decls, Env};
 use formality_rust::grammar::minirust::ArgumentExpression::{ByValue, InPlace};
-use formality_rust::grammar::minirust::ValueExpression::{Constant, Fn, Load, Struct};
+use formality_rust::grammar::minirust::ValueExpression::{Constant, Fn, Load, Ref, Struct};
 use formality_rust::grammar::minirust::{
     self, ArgumentExpression, BasicBlock, BbId, LocalId, PlaceExpression, ValueExpression,
 };
@@ -124,7 +124,7 @@ impl TypeckEnv<'_> {
         match statement {
             minirust::Statement::Assign(place_expression, value_expression) => {
                 // Check if the place expression is well-formed.
-                let place_ty = self.check_place(place_expression)?;
+                let place_ty = self.check_place(fn_assumptions, place_expression)?;
 
                 // Check if the value expression is well-formed.
                 let value_ty = self.check_value(fn_assumptions, value_expression)?;
@@ -139,7 +139,7 @@ impl TypeckEnv<'_> {
             }
             minirust::Statement::PlaceMention(place_expression) => {
                 // Check if the place expression is well-formed.
-                self.check_place(place_expression)?;
+                self.check_place(fn_assumptions, place_expression)?;
                 // FIXME: check that access the place is allowed per borrowck rules
             }
             minirust::Statement::StorageLive(local_id) => {
@@ -209,7 +209,7 @@ impl TypeckEnv<'_> {
                 }
 
                 // Check whether ret place is well-formed.
-                let actual_return_ty = self.check_place(ret)?;
+                let actual_return_ty = self.check_place(fn_assumptions, ret)?;
 
                 // Check if the fn's declared return type is a subtype of the type of the local variable `ret`
                 self.prove_goal(
@@ -251,7 +251,7 @@ impl TypeckEnv<'_> {
     }
 
     // Check if the place expression is well-formed, and return the type of the place expression.
-    fn check_place(&mut self, place: &PlaceExpression) -> Fallible<Ty> {
+    fn check_place(&mut self, fn_assumptions: &Wcs, place: &PlaceExpression) -> Fallible<Ty> {
         let place_ty;
         match place {
             Local(local_id) => {
@@ -265,7 +265,9 @@ impl TypeckEnv<'_> {
                 place_ty = ty;
             }
             Field(field_projection) => {
-                let ty = self.check_place(&field_projection.root).unwrap();
+                let ty = self
+                    .check_place(fn_assumptions, &field_projection.root)
+                    .unwrap();
 
                 // FIXME(tiif): We eventually want to do normalization here, so check_place should be
                 // a judgment fn.
@@ -293,6 +295,12 @@ impl TypeckEnv<'_> {
 
                 place_ty = fields[field_projection.index].ty.clone();
             }
+            Deref(value_expr) => {
+                // FIXME(tiif): If ValueExpression::Ref return a type with lifetime,
+                // we should remove the lifetime from the type here?
+                self.check_value(fn_assumptions, value_expr)?;
+                todo!()
+            }
         }
         Ok(place_ty.clone())
     }
@@ -313,7 +321,7 @@ impl TypeckEnv<'_> {
         let value_ty;
         match value {
             Load(place_expression) => {
-                value_ty = self.check_place(place_expression)?;
+                value_ty = self.check_place(fn_assumptions, place_expression)?;
                 Ok(value_ty)
             }
             Fn(fn_id) => {
@@ -408,6 +416,11 @@ impl TypeckEnv<'_> {
 
                 Ok(ty.clone())
             }
+            Ref(place_expr) => {
+                self.check_place(fn_assumptions, place_expr)?;
+                // FIXME(tiif): We need to assign a lifetime here?
+                todo!()
+            }
         }
     }
 
@@ -422,7 +435,7 @@ impl TypeckEnv<'_> {
                 ty = self.check_value(fn_assumptions, val_expr)?;
             }
             InPlace(place_expr) => {
-                ty = self.check_place(place_expr)?;
+                ty = self.check_place(fn_assumptions, place_expr)?;
             }
         }
         Ok(ty)
