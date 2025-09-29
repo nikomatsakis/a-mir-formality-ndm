@@ -1,5 +1,6 @@
 use super::env::Env;
 use formality_core::{cast_impl, visit::CoreVisit, Downcast, Upcast, UpcastFrom};
+use formality_types::grammar::Relation;
 use formality_types::{
     grammar::{ExistentialVar, Parameter, Substitution, Variable},
     rust::Visit,
@@ -49,6 +50,15 @@ impl Constraints {
 
     pub fn unconditionally_true(&self) -> bool {
         self.known_true && self.substitution.is_empty() && self.env.pending().is_empty()
+    }
+
+    pub fn only_contains_pending_outlives(&self) -> bool {
+        for pending in self.env.pending() {
+            let Some(Relation::Outlives(_a, _b)) = pending.downcast::<Relation>() else {
+                return false;
+            };
+        }
+        true
     }
 
     /// Construct a set of constraints from a set of substitutions and the previous environment.

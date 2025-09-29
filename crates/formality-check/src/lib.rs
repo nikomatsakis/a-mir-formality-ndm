@@ -169,6 +169,13 @@ impl Check<'_> {
             return Ok(());
         }
 
+        // FIMXE(tiif): temporary fix, feels wrong
+        // This is basically ignoring every pending outlives on function parameter
+        // and return type.
+        if cs.iter().any(|c| c.only_contains_pending_outlives()) {
+            return Ok(());
+        }
+
         bail!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}")
     }
 
