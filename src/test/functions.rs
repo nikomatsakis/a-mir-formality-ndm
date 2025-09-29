@@ -28,6 +28,9 @@ fn ok() {
     )
 }
 
+// FIXME(tiif): Remove this comment after discussion
+// Without the temporary fix, this test will fail when trying to prove
+// &a T is well-formed.
 #[test]
 fn lifetime() {
     crate::assert_ok!(
