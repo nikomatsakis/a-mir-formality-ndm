@@ -52,6 +52,11 @@ impl Wcs {
             .upcasted()
             .collect()
     }
+
+    /// Iterate over where-clauses
+    pub fn iter(&self) -> impl Iterator<Item = Wc> + use<'_> {
+        self.into_iter()
+    }
 }
 
 impl<'w> IntoIterator for &'w Wcs {

@@ -459,52 +459,52 @@ impl TypeckEnv<'_> {
     }
 }
 
-struct TypeckEnv<'p> {
+pub struct TypeckEnv<'p> {
     /// Program being typechecked that contains this functon
-    program: &'p Program,
+    pub program: &'p Program,
 
     /// The environment (set of universal, existential variables)
-    env: Env,
+    pub env: Env,
 
     /// The declared return type from the function signature.
-    output_ty: Ty,
+    pub output_ty: Ty,
 
     /// Type of each local variable, as declared.
-    local_variables: Map<LocalId, Ty>,
+    pub local_variables: Map<LocalId, Ty>,
 
     /// All basic blocks of current body.
-    blocks: &'p Vec<BasicBlock>,
+    pub blocks: &'p Vec<BasicBlock>,
 
     /// local_id of return place,
-    ret_id: LocalId,
+    pub ret_id: LocalId,
 
     /// Record if the return place has been initialised.
-    ret_place_is_initialised: bool,
+    pub ret_place_is_initialised: bool,
 
     /// All declared argument type of current function.
-    declared_input_tys: Vec<Ty>,
+    pub declared_input_tys: Vec<Ty>,
 
     /// All information of callee.
-    callee_input_tys: Map<FnId, FnBoundData>,
+    pub callee_input_tys: Map<FnId, FnBoundData>,
 
     /// The id of the crate where this function resides.
     /// We need this to access information about other functions
     /// declared in the current crate.
-    crate_id: CrateId,
+    pub crate_id: CrateId,
 
     /// LocalId of function argument.
-    fn_args: Vec<LocalId>,
+    pub fn_args: Vec<LocalId>,
 
     /// As we conduct the type check, we accumulate outlives constraints here
     /// to hand off to the borrow checker later.
-    pending_outlives: Vec<PendingOutlives>,
+    pub pending_outlives: Vec<PendingOutlives>,
 
-    decls: Decls,
+    pub decls: Decls,
 }
 
 /// A pending outlives constraint that we incurred during typechecking.
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
-struct PendingOutlives {
+pub struct PendingOutlives {
     /// The location where this outlives obligation was incurred.
     location: Location,
 
@@ -516,7 +516,7 @@ struct PendingOutlives {
 }
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
-struct Location;
+pub struct Location;
 
 impl TypeckEnv<'_> {
     /// Prove the goal in this environment, adding any pending outlive constraints that are required
