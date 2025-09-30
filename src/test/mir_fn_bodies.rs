@@ -1,3 +1,5 @@
+use formality_core::test;
+
 /// Test assign statement with locals at rhs.
 #[test]
 fn test_assign_statement_local_only() {
