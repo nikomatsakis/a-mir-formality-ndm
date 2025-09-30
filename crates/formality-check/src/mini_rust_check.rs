@@ -103,7 +103,10 @@ impl Check<'_> {
 
         // XXX need to check these!
         if !env.pending_outlives.is_empty() {
-            bail!("unproven outlives relationships found: {:#?}", env.pending_outlives)
+            bail!(
+                "unproven outlives relationships found: {:#?}",
+                env.pending_outlives
+            )
         }
 
         Ok(())

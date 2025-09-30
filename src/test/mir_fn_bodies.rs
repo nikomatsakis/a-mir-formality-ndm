@@ -1019,8 +1019,10 @@ fn test_ref_not_subtype() {
                 };
             }
         ]
+
         [
         ]
+
         expect_test::expect!["failed to prove `{@ wf(&!lt_1 u32)}` given `{}`: got {Constraints { env: Env { variables: [!lt_1, !lt_2], bias: Soundness, pending: [u32 : !lt_1, u32 : !lt_1] }, known_true: true, substitution: {} }}"]
     )
 }
