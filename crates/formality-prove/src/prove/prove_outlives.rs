@@ -1,7 +1,7 @@
 use formality_core::judgment_fn;
-use formality_types::grammar::{LtData, Parameter, Relation, Wcs};
+use formality_types::grammar::{LtData, Parameter, Relation, RigidTy, TyData, Wcs};
 
-use crate::decls::Decls;
+use crate::{decls::Decls, prove};
 
 use super::{constraints::Constraints, env::Env};
 
@@ -50,6 +50,13 @@ judgment_fn! {
         (
             ----------------------------- ("static outlives everything")
             (prove_outlives(_decls, _env, _assumptions, LtData::Static, _b) => Constraints::none(env))
+        )
+
+        // A rigid type `r` outlives `b` if all of `r`'s parameters outlive `b`
+        (
+            (prove(decls, env, assumptions, Wcs::all_outlives(parameters, b)) => c)
+            ----------------------------- ("rigid types")
+            (prove_outlives(decls, env, assumptions, RigidTy { name: _, parameters }, b) => c)
         )
 
         // Rather than proving `'a: 'b` locally, we can add it to the environment
