@@ -35,7 +35,10 @@ fn lifetime() {
         [
             crate Foo {
                 // fn one_lt_arg<'a, T>(_: &'a T) -> () {}
-                fn one_lt_arg<lt a, ty T>(&a T) -> () { trusted }
+                fn one_lt_arg<lt a, ty T>(&a T) -> ()
+                where
+                    T: a, // FIXME(#202): Implied bounds should not have to be explicit
+                { trusted }
             }
         ]
         expect_test::expect![["()"]]
