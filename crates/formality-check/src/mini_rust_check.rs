@@ -424,10 +424,9 @@ impl TypeckEnv<'_> {
 
                 Ok(ty.clone())
             }
-            Ref(place_expr) => {
-                self.check_place(fn_assumptions, place_expr)?;
-                // FIXME(tiif): We need to assign a lifetime here?
-                todo!()
+            Ref(borrow_lt, place_expr) => {
+                let place_ty = self.check_place(fn_assumptions, place_expr)?;
+                Ok(place_ty.ref_ty(borrow_lt))
             }
         }
     }

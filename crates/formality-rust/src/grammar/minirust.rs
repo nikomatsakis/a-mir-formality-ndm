@@ -1,6 +1,6 @@
 use formality_core::{id, UpcastFrom};
 use formality_macros::term;
-use formality_types::grammar::{Binder, Parameter, ScalarId, Ty};
+use formality_types::grammar::{Binder, Lt, Parameter, ScalarId, Ty};
 
 use crate::grammar::minirust::ConstTypePair::*;
 use crate::grammar::FnId;
@@ -211,8 +211,8 @@ pub enum ValueExpression {
     Load(PlaceExpression),
     // Similar to AddrOf in MiniRust, but we don't deal with other
     // pointer type such as raw pointer and box yet.
-    #[grammar(&($v0))]
-    Ref(PlaceExpression), // AddrOf
+    #[grammar(&$v0 ($v1))]
+    Ref(Lt, PlaceExpression), // AddrOf
                           // UnOp
                           // BinOp
 }

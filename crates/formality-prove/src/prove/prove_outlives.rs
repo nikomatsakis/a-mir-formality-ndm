@@ -1,5 +1,5 @@
 use formality_core::judgment_fn;
-use formality_types::grammar::{LtData, Parameter, Relation, RigidTy, TyData, Wcs};
+use formality_types::grammar::{LtData, Parameter, Relation, RigidTy, Wcs};
 
 use crate::{decls::Decls, prove};
 

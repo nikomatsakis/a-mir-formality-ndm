@@ -963,7 +963,7 @@ fn test_non_adt_ty_for_struct() {
 /// ```
 #[test]
 fn test_ref_identity() {
-    crate::assert_ok!(
+    crate::assert_err!(
         [
             crate Foo {
                 fn foo<lt a>(&a u32) -> &a u32 = minirust(v1) -> v0 {
@@ -984,7 +984,49 @@ fn test_ref_identity() {
                 };
             }
         ]
-        expect_test::expect!["()"]
+
+        [
+            // FIXME: we haven't written the code to deal with outlives relations yet
+            "unproven outlives relationships found",
+        ]
+
+        expect_test::expect![[r#"
+            unproven outlives relationships found: [
+                PendingOutlives {
+                    location: Location,
+                    a: Lt(
+                        Lt {
+                            data: Variable(
+                                !lt_1,
+                            ),
+                        },
+                    ),
+                    b: Lt(
+                        Lt {
+                            data: Variable(
+                                ?lt_2,
+                            ),
+                        },
+                    ),
+                },
+                PendingOutlives {
+                    location: Location,
+                    a: Lt(
+                        Lt {
+                            data: Variable(
+                                ?lt_2,
+                            ),
+                        },
+                    ),
+                    b: Lt(
+                        Lt {
+                            data: Variable(
+                                !lt_1,
+                            ),
+                        },
+                    ),
+                },
+            ]"#]]
     )
 }
 
@@ -1023,9 +1065,47 @@ fn test_ref_not_subtype() {
         ]
 
         [
+            // FIXME: we haven't written the code to deal with outlives relations yet
+            "unproven outlives relationships found",
         ]
 
-        expect_test::expect!["failed to prove `{@ wf(&!lt_1 u32)}` given `{}`: got {Constraints { env: Env { variables: [!lt_1, !lt_2], bias: Soundness, pending: [u32 : !lt_1, u32 : !lt_1] }, known_true: true, substitution: {} }}"]
+        expect_test::expect![[r#"
+            unproven outlives relationships found: [
+                PendingOutlives {
+                    location: Location,
+                    a: Lt(
+                        Lt {
+                            data: Variable(
+                                !lt_1,
+                            ),
+                        },
+                    ),
+                    b: Lt(
+                        Lt {
+                            data: Variable(
+                                ?lt_3,
+                            ),
+                        },
+                    ),
+                },
+                PendingOutlives {
+                    location: Location,
+                    a: Lt(
+                        Lt {
+                            data: Variable(
+                                ?lt_3,
+                            ),
+                        },
+                    ),
+                    b: Lt(
+                        Lt {
+                            data: Variable(
+                                !lt_2,
+                            ),
+                        },
+                    ),
+                },
+            ]"#]]
     )
 }
 

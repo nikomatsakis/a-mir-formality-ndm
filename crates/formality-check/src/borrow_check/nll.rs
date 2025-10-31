@@ -1,12 +1,9 @@
 use formality_core::{
-    variable::{
-        CoreUniversalVar,
-        CoreVariable::{BoundVar, ExistentialVar, UniversalVar},
-    },
+    variable::CoreUniversalVar,
     Fallible, Set,
 };
 use formality_types::{
-    grammar::{ParameterKind, Variable, Wc, WcData, Wcs},
+    grammar::Wcs,
     rust::FormalityLang,
 };
 
@@ -119,108 +116,18 @@ enum LifetimeValue {
 // There is a path (L0, L1, L2) from the loan to the statement.
 // This fails type check because the entire path is a member of that lifetime.
 //
-// XXX Niko's plan:
+// Our strategy:
 //
-// * Find all paths `(L_0...L_n)` from a loan with lifetime `'0` to a statement violating that loan
-// * Prove that each location `L_i \in (L_0..L_n)` along that path is not a member of `'0`
-// * We further need to prove something about universals :) 
-
+// * For each statement that creates a loan L:
+//   * We will "prove" the loan is not violated, which requires:
+//     * Enumerating the paths that start at L and stopping when we reach either
+//       (a) node in which the loan is not live or (b) a node with no successors or
+//       (c) a cycle.
 
 /// The borrow checker's job is to pick up where the type-checker left off:
 /// Given the `TypeckEnv`, which includes a (populated) list of `pending_outlives`
 /// constraints, it attempts to find values for the existential lifetime variables (inference variables)
 /// that satisfy those pending-outlives constraints and which meet the borrow checker's rules.
-pub fn borrow_check(typeck_env: &TypeckEnv<'_>, fn_assumptions: &Wcs) -> Fallible<()> {
-    /*
-
-        // Good:
-        fn foo<'a>(x: &'a (String, String)) -> &'a String {
-            &x.0
-
-            // Coming in to borrow check we have two constraints to solve:
-            //
-            // * `'a: '0`
-            // * `'0: 'a`
-            //
-            // For `'a: '0` to hold, we must prove that for all constraints `'0: 'X`, `'a: 'X`
-            // We can prove `'a: 'a` (identity).
-            // So we are happy.
-        }
-
-        // Bad:
-        fn bar<'a,'b>(x: &'a (String, String)) -> &'b String {
-            &x.0
-
-            // Coming in to borrow check we have two constraints to solve:
-            //
-            // * `'a: '0`
-            // * `'0: 'b`
-            //
-            // For `'a: '0` to hold, we must prove that for all constraints `'0: 'X`, `'a: 'X`.
-            // But we cannot prove `'a: 'b`.
-            // So we error.
-        }
-
-     */
-
-
-    // Extract the list of inference variables.
-    let inference_variables = typeck_env
-        .env
-        .variables()
-        .iter()
-        .filter_map(|v| match v {
-            ExistentialVar(core_existential_var) => Some(core_existential_var.clone()),
-            UniversalVar(_) | BoundVar(_) => None,
-        })
-        .collect::<Vec<_>>();
-
-    // We expect to only find lifetime inference variables in the type-check environment.
-    assert!(inference_variables
-        .iter()
-        .all(|v| v.kind == ParameterKind::Lt));
-
-    // XXX: Next week -- can we reformulate this as a more declarative set of judgments, instead?
-
-    // Figure out the outlives that we assume to be true
-    fn_assumptions.iter().filter_map(to_outlives_assumption).collect();
-
-    // For now, the "value" of an inference variable is
-    let mut inference_variable_values = vec![LifetimeValue::Empty; inference_variables.len()];
-
-    // Fixed point computation to infer values of the inference variables
-    let mut changed = true;
-    while !changed {
-        changed = false;
-
-        for p in &typeck_env.pending_outlives {
-            // enforce this outlives requirement, modifying inference_variable_values to make it true
-            // possible reporting an error
-        }
-    }
-
-    Ok(())
-}
-
-fn to_outlives_assumption(
-    wc: Wc,
-) -> Option<OutlivesAssumption> {
-    match wc.data() {
-        WcData::Relation(relation) => todo!(),
-        WcData::Predicate(predicate) => todo!(),
-        WcData::ForAll(core_binder) => todo!(),
-        WcData::Implies(wcs, wc) => todo!(),
-    }
-}
-
-pub struct OutlivesAssumption {
-    a: LifetimeValue,
-    b: LifetimeValue,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum LifetimeValue {
-    Empty,
-    Static,
-    Placeholder(CoreUniversalVar<FormalityLang>),
+pub fn borrow_check(_typeck_env: &TypeckEnv<'_>, _fn_assumptions: &Wcs) -> Fallible<()> {
+    Ok(()) // FIXME
 }
