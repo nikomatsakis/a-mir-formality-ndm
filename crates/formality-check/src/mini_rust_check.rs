@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::iter::zip;
 use std::sync::Arc;
 
-use formality_core::{judgment_fn, Downcast, Fallible, Map, Upcast};
+use formality_core::{Downcast, Fallible, Map, Upcast, cast_impl, judgment_fn};
 use formality_prove::{prove_normalize, AdtDeclBoundData, AdtDeclVariant, Constraints, Decls, Env};
 use formality_rust::grammar::minirust::ArgumentExpression::{ByValue, InPlace};
 use formality_rust::grammar::minirust::ValueExpression::{Constant, Fn, Load, Ref, Struct};
@@ -479,6 +479,7 @@ impl TypeckEnv {
     }
 }
 
+#[derive(PartialEq, PartialOrd, Eq, Ord, Debug, Clone, Hash)]
 pub struct TypeckEnv {
     /// Program being typechecked that contains this functon
     pub program: Arc<Program>,
@@ -522,8 +523,10 @@ pub struct TypeckEnv {
     pub decls: Decls,
 }
 
+cast_impl!(TypeckEnv);
+
 /// A pending outlives constraint that we incurred during typechecking.
-#[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone, Hash)]
 pub struct PendingOutlives {
     /// The location where this outlives obligation was incurred.
     location: Location,
@@ -535,7 +538,7 @@ pub struct PendingOutlives {
     b: Parameter,
 }
 
-#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone, Hash)]
 pub struct Location;
 
 impl TypeckEnv {

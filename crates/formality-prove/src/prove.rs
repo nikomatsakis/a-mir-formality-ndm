@@ -1,4 +1,4 @@
-mod combinators;
+pub mod combinators;
 mod constraints;
 mod env;
 mod is_local;

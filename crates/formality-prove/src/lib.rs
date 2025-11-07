@@ -20,6 +20,7 @@ pub use prove::prove_normalize::prove_normalize;
 pub use prove::Constraints;
 pub use prove::{is_definitely_not_proveable, may_not_be_provable, negation_via_failure};
 pub use prove::{Bias, Env};
+pub use prove::combinators;
 
 #[cfg(test)]
 mod test;

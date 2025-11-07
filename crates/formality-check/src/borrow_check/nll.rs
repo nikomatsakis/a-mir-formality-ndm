@@ -1,10 +1,12 @@
 use formality_core::{
-    Fallible, Set, judgment_fn, variable::CoreUniversalVar
+    Cons, Fallible, Set, judgment_fn, variable::CoreUniversalVar
 };
+use formality_rust::grammar::minirust::{BasicBlock, Statement, Terminator, ValueExpression};
 use formality_types::{
     grammar::Wcs,
     rust::FormalityLang,
 };
+use formality_prove::combinators::for_all;
 
 use crate::mini_rust_check::{Location, TypeckEnv};
 
@@ -129,4 +131,111 @@ enum LifetimeValue {
 /// that satisfy those pending-outlives constraints and which meet the borrow checker's rules.
 pub fn borrow_check(_typeck_env: &TypeckEnv, _fn_assumptions: &Wcs) -> Fallible<()> {
     Ok(()) // FIXME
+}
+
+judgment_fn! {
+    /// Prove that any loans issued in this basic block are respected.
+    fn loans_in_basic_block_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        block: BasicBlock
+    ) => () {
+        debug(block, fn_assumptions, env)
+
+        (
+            (loans_in_statements_respected(env, &fn_assumptions, statements) => ())
+            (loans_in_terminator_respected(env, &fn_assumptions, terminator) => ())
+            --- ("basic block")
+            (loans_in_basic_block_respected(env, fn_assumptions, BasicBlock { id: _, statements, terminator }) => ())
+        )
+    }
+}
+judgment_fn! {
+    /// Prove that any loans issued in this statement are respected.
+    fn loans_in_statements_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        statements: Vec<Statement>
+    ) => () {
+        debug(statements, fn_assumptions, env)
+
+        (
+            --- ("none")
+            (loans_in_statements_respected(_env, _assumptions, ()) => ())
+        )
+
+        (
+            (loans_in_statement_respected(&env, &fn_assumptions, head) => ())
+            (loans_in_statements_respected(&env, &fn_assumptions, &tail) => ())
+            --- ("cons")
+            (loans_in_statements_respected(env, fn_assumptions, Cons(head, tail)) => ())
+        )
+    }
+}
+
+
+judgment_fn! {
+    /// Prove that any loans issued in this statement are respected.
+    fn loans_in_terminator_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        terminator: Terminator
+    ) => () {
+        debug(terminator, fn_assumptions, env)
+
+        (
+            // does not issue any loans
+            --- ("goto")
+            (loans_in_terminator_respected(_env, _assumptions, Terminator::Goto(_)) => ())
+        )
+
+    }
+}
+
+judgment_fn! {
+    /// Prove that any loans issued in this statement are respected.
+    fn loans_in_statement_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        statement: Statement
+    ) => () {
+        debug(statement, fn_assumptions, env)
+
+        (
+            // does not issue any loans
+            --- ("storage-live")
+            (loans_in_statement_respected(_env, _assumptions, Statement::StorageLive(_)) => ())
+        )
+
+        (
+            // does not issue any loans
+            --- ("storage-dead")
+            (loans_in_statement_respected(_env, _assumptions, Statement::StorageDead(_)) => ())
+        )
+
+        (
+            // does not issue any loans
+            --- ("place-mention")
+            (loans_in_statement_respected(_env, _assumptions, Statement::PlaceMention(_)) => ())
+        )
+
+        (
+            (loans_in_value_expression_respected(env, assumptions, value) => ())
+            --- ("assign")
+            (loans_in_statement_respected(env, assumptions, Statement::Assign(_place, value)) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// Prove that any loans issued in this statement are respected.
+    fn loans_in_value_expression_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        value: ValueExpression
+    ) => () {
+        debug(value, fn_assumptions, env)
+
+
+    }
 }
