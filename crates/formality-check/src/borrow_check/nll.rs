@@ -1,6 +1,5 @@
 use formality_core::{
-    variable::CoreUniversalVar,
-    Fallible, Set,
+    Fallible, Set, judgment_fn, variable::CoreUniversalVar
 };
 use formality_types::{
     grammar::Wcs,
@@ -128,6 +127,6 @@ enum LifetimeValue {
 /// Given the `TypeckEnv`, which includes a (populated) list of `pending_outlives`
 /// constraints, it attempts to find values for the existential lifetime variables (inference variables)
 /// that satisfy those pending-outlives constraints and which meet the borrow checker's rules.
-pub fn borrow_check(_typeck_env: &TypeckEnv<'_>, _fn_assumptions: &Wcs) -> Fallible<()> {
+pub fn borrow_check(_typeck_env: &TypeckEnv, _fn_assumptions: &Wcs) -> Fallible<()> {
     Ok(()) // FIXME
 }

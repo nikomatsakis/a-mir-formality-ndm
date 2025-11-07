@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::iter::zip;
+use std::sync::Arc;
 
 use formality_core::{judgment_fn, Downcast, Fallible, Map, Upcast};
 use formality_prove::{prove_normalize, AdtDeclBoundData, AdtDeclVariant, Constraints, Decls, Env};
@@ -11,7 +12,7 @@ use formality_rust::grammar::minirust::{
 use formality_rust::grammar::minirust::{BodyBound, PlaceExpression::*};
 use formality_rust::grammar::{FnBoundData, Program};
 use formality_types::grammar::{
-    CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, VariantId, Wcs,
+    AdtId, CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, TyData, VariantId, Wcs
 };
 
 use crate::{Check, CrateItem, Debug, ProvenSet, ToWcs, Visit};
@@ -63,6 +64,7 @@ impl Check<'_> {
         // Create inference variables for each of the regions bound in the MIR body.
         let mut env = env.clone();
         let BodyBound { locals, blocks } = env.instantiate_existentially(&body.binder);
+        let blocks = Arc::new(blocks);
 
         // Create list of local variables, beginning with the parameters, and then adding in the
         // local function variables that (may) reference existential lifetimes.
@@ -81,11 +83,11 @@ impl Check<'_> {
         }
 
         let mut env = TypeckEnv {
-            program: self.program,
+            program: Arc::new(self.program.clone()), // FIXME
             env: env.clone(),
             output_ty,
             local_variables,
-            blocks: &blocks,
+            blocks: blocks.clone(),
             ret_id: body.ret,
             ret_place_is_initialised: false,
             declared_input_tys,
@@ -97,7 +99,7 @@ impl Check<'_> {
         };
 
         // Check that basic blocks are well-typed
-        for block in &blocks {
+        for block in &*blocks {
             env.check_block(fn_assumptions, block)?;
         }
 
@@ -113,7 +115,7 @@ impl Check<'_> {
     }
 }
 
-impl TypeckEnv<'_> {
+impl TypeckEnv {
     fn check_block(&mut self, fn_assumptions: &Wcs, block: &minirust::BasicBlock) -> Fallible<()> {
         for statement in &block.statements {
             self.check_statement(fn_assumptions, statement)?;
@@ -304,10 +306,29 @@ impl TypeckEnv<'_> {
                 place_ty = fields[field_projection.index].ty.clone();
             }
             Deref(value_expr) => {
-                // FIXME(tiif): If ValueExpression::Ref return a type with lifetime,
-                // we should remove the lifetime from the type here?
-                self.check_value(fn_assumptions, value_expr)?;
-                todo!()
+                match self.check_value(fn_assumptions, value_expr)?.data() {
+                    TyData::RigidTy(rigid_ty) => match &rigid_ty.name {
+                        RigidName::Ref(_ref_kind) => {
+                            place_ty = rigid_ty.parameters[1].as_ty().expect("well-kinded reference").clone();
+                        }
+                        RigidName::AdtId(adt_id) => {
+                            if *adt_id == AdtId::new("Box") {
+                                todo!("box magic")
+                            }
+                            bail!("cannot deref an ADT of type {adt_id:?}")
+                        }
+                        RigidName::ScalarId(_) |
+                        RigidName::Tuple(_) |
+                        RigidName::FnPtr(_) |
+                        RigidName::FnDef(_) => {
+                            bail!("cannot deref a value of type {rigid_ty:?}")
+                        }
+                    },
+                    
+                    TyData::AliasTy(_alias_ty) => todo!("alias normalization"),
+                    TyData::PredicateTy(_predicate_ty) => todo!("predicate types"),
+                    TyData::Variable(_core_variable) => panic!("type inference variables unexpected"),
+                }
             }
         }
         Ok(place_ty.clone())
@@ -458,9 +479,9 @@ impl TypeckEnv<'_> {
     }
 }
 
-pub struct TypeckEnv<'p> {
+pub struct TypeckEnv {
     /// Program being typechecked that contains this functon
-    pub program: &'p Program,
+    pub program: Arc<Program>,
 
     /// The environment (set of universal, existential variables)
     pub env: Env,
@@ -472,7 +493,7 @@ pub struct TypeckEnv<'p> {
     pub local_variables: Map<LocalId, Ty>,
 
     /// All basic blocks of current body.
-    pub blocks: &'p Vec<BasicBlock>,
+    pub blocks: Arc<Vec<BasicBlock>>,
 
     /// local_id of return place,
     pub ret_id: LocalId,
@@ -517,7 +538,7 @@ pub struct PendingOutlives {
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Location;
 
-impl TypeckEnv<'_> {
+impl TypeckEnv {
     /// Prove the goal in this environment, adding any pending outlive constraints that are required
     /// for the goal to be true into `self.pending_outlives`.
     fn prove_goal(
