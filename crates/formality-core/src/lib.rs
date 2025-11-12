@@ -41,6 +41,7 @@ pub mod visit;
 
 pub use cast::{Downcast, DowncastFrom, DowncastTo, Downcasted, To, Upcast, UpcastFrom, Upcasted};
 pub use collections::Cons;
+pub use collections::Union;
 pub use collections::Deduplicate;
 pub use collections::Map;
 pub use collections::Set;

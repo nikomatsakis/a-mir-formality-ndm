@@ -13,6 +13,7 @@ use formality_types::{
     grammar::{CrateId, Fallible, Wcs},
     rust::Visit,
 };
+use formality_types::rust::FormalityLang;
 
 mod borrow_check;
 mod mini_rust_check;

@@ -271,8 +271,10 @@ impl ConstTypePair {
 pub enum PlaceExpression {
     #[grammar(local($v0))]
     Local(LocalId),
+
     #[grammar(*($v0))] // TODO: change syntax?
-    Deref(Arc<ValueExpression>),
+    Deref(Arc<PlaceExpression>), // XXX: we depart from MiniRust here and require a place
+
     // Project to a field.
     #[grammar($v0)]
     Field(FieldProjection),
@@ -286,4 +288,10 @@ pub struct FieldProjection {
     pub root: Arc<PlaceExpression>,
     /// The field to project to.
     pub index: usize,
+}
+
+impl UpcastFrom<LocalId> for PlaceExpression {
+    fn upcast_from(term: LocalId) -> Self {
+        PlaceExpression::Local(term)
+    }
 }

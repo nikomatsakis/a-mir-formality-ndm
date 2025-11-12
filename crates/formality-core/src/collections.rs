@@ -233,6 +233,33 @@ tuple_upcast!(Vec: A, B, C);
 tuple_upcast!(Vec: A, B, C, D);
 
 /// This type exists to be used in judgment functions.
+/// You can upcast a `Union((a, b))` to a `Set<T>`.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Union<T>(pub T);
+
+/// Upcast from a tuple of iterable things into a collection.
+/// Downcasting doesn't work, because how would we know how many
+/// things to put in each collection? But see `Cons` below.
+#[allow(non_snake_case)]
+impl<A, B, T> UpcastFrom<Union<(A, B)>> for Set<T>
+where
+    A: IntoIterator + Clone,
+    A::Item: Upcast<T>,
+
+    B: IntoIterator + Clone,
+    B::Item: Upcast<T>,
+
+    T: Ord + Clone,
+{
+    fn upcast_from(Union((a, b)): Union<(A, B)>) -> Self {
+        let c = None.into_iter();
+        let c = c.chain(a.upcasted());
+        let c = c.chain(b.upcasted());
+        c.collect()
+    }
+}
+
+/// This type exists to be used in judgment functions.
 /// You can upcast/downcast a `Vec` or `Set` to `Cons(head, tail)`
 /// where `head` will be the first item in the collection
 /// and tail will be a collection with the remaining items.

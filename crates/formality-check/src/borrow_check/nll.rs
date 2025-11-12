@@ -1,14 +1,14 @@
 use formality_core::{
-    Cons, Fallible, Set, judgment_fn, variable::CoreUniversalVar
+    Cons, Fallible, Set, judgment_fn, variable::CoreUniversalVar, term
 };
-use formality_rust::grammar::minirust::{BasicBlock, Statement, Terminator, ValueExpression};
+use formality_rust::grammar::minirust::{BasicBlock, PlaceExpression, Statement, Terminator, ValueExpression};
 use formality_types::{
-    grammar::Wcs,
+    grammar::{Lt, RefKind, Wcs},
     rust::FormalityLang,
 };
 use formality_prove::combinators::for_all;
 
-use crate::mini_rust_check::{Location, TypeckEnv};
+use crate::{borrow_check::liveness::LivePlaces, mini_rust_check::{Location, TypeckEnv}};
 
 /// So what is a lifetime? The NLL answer is that a lifetime corresponds to one of the following:
 /// 
@@ -138,7 +138,7 @@ judgment_fn! {
     fn loans_in_basic_block_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        block: BasicBlock
+        block: BasicBlock,
     ) => () {
         debug(block, fn_assumptions, env)
 
@@ -150,6 +150,7 @@ judgment_fn! {
         )
     }
 }
+
 judgment_fn! {
     /// Prove that any loans issued in this statement are respected.
     fn loans_in_statements_respected(
@@ -172,7 +173,6 @@ judgment_fn! {
         )
     }
 }
-
 
 judgment_fn! {
     /// Prove that any loans issued in this statement are respected.
@@ -237,5 +237,128 @@ judgment_fn! {
         debug(value, fn_assumptions, env)
 
 
+    }
+}
+
+pub type Loans = Set<Loan>;
+
+#[term]
+
+struct Loan {
+    lt: Lt,
+    place: PlaceExpression,
+    kind: RefKind,
+}
+
+
+judgment_fn! {
+    /// Prove that any loans issued in this statement are respected.
+    fn borrow_check_statement(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loaned_on_entry: Loans,
+        live_after: LivePlaces,
+        statement: Statement,
+    ) => Loans {
+        debug(statement, loaned_on_entry, live_after, assumptions, env)
+
+        (
+            (place_not_borrowed_by_any(env, assumptions, &loaned, live_after, local_id) => ())
+            --- ("storage-dead")
+            (borrow_check_statement(env, assumptions, loaned, live_after, Statement::StorageDead(local_id)) => &loaned)
+        )
+    }
+}
+
+
+
+judgment_fn! {
+    /// Prove that none of the borrows in `borrowed` does not affect `place`.
+    fn place_not_borrowed_by_any(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loaned: Set<Loan>,
+        live_after: LivePlaces,
+        accessed_place: PlaceExpression,
+    ) => () {
+        debug(accessed_place, loaned, live_after, assumptions, env)
+
+        (
+            // Clearly, `place` is not borrowed if nothing has been borrowed.
+            --- ("no borrows")
+            (place_not_borrowed_by_any(_env, _assumptions, (), _live_after, _place) => ())
+        )
+
+        (
+            (place_not_borrowed_by(&env, &assumptions, head, &live_after, &place) => ())
+            (place_not_borrowed_by_any(&env, &assumptions, &tail, &live_after, &place) => ())
+            --- ("no borrows")
+            (place_not_borrowed_by_any(env, assumptions, Cons(head, tail), live_after, place) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// Prove that the borrow `borrow` does not affect `place`.
+    fn place_not_borrowed_by(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        loan: Loan,
+        live_after: LivePlaces,
+        accessed_place: PlaceExpression,
+    ) => () {
+        debug(accessed_place, loan, live_after, fn_assumptions, env)
+
+        (
+            (place_disjoint_from_place(loan.place, accessed_place) => ())
+            --- ("borrows of disjoint places")
+            (place_not_borrowed_by(_env, _assumptions, loan, _live_after, accessed_place) => ())
+        )
+
+        (
+            --- ("borrow not live -- no live places")
+            (place_not_borrowed_by(_env, _assumptions, _loan, (), _accessed_place) => ())
+        )
+
+        (
+            (place_not_borrowed_by_live_variable(&env, &assumptions, &head, &loan, &accessed_place) => ())
+            (place_not_borrowed_by(&env, &assumptions, &loan, &tail, &accessed_place) => ())
+            --- ("borrow not live -- live place")
+            (place_not_borrowed_by(env, assumptions, loan, Cons(head, tail), accessed_place) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// Prove that `accessed_place` can still be accessed even though `live_place` is live and the borrow occurs.
+    fn place_not_borrowed_by_live_variable(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        live_place: PlaceExpression,
+        borrowed_place: Loan,
+        accessed_place: PlaceExpression,
+    ) => () {
+        debug(accessed_place, borrowed_place, live_place, assumptions, env)
+
+    }
+}
+
+judgment_fn! {
+    fn place_disjoint_from_place(
+        place1: PlaceExpression,
+        place2: PlaceExpression,
+    ) => () {
+        debug(place1, place2)
+
+        (   
+            (if local1 != local2)         
+            --- ("different locals")
+            (place_disjoint_from_place(
+                PlaceExpression::Local(local1),
+                PlaceExpression::Local(local2),
+            ) => ())
+        )
+
+        // ... fill this in ...
     }
 }
