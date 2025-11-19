@@ -261,7 +261,7 @@ impl TypeckEnv {
     }
 
     // Check if the place expression is well-formed, and return the type of the place expression.
-    fn check_place(&mut self, fn_assumptions: &Wcs, place: &PlaceExpression) -> Fallible<Ty> {
+    pub(crate) fn check_place(&mut self, fn_assumptions: &Wcs, place: &PlaceExpression) -> Fallible<Ty> {
         let place_ty;
         match place {
             Local(local_id) => {
@@ -306,7 +306,7 @@ impl TypeckEnv {
                 place_ty = fields[field_projection.index].ty.clone();
             }
             Deref(value_expr) => {
-                match self.check_value(fn_assumptions, value_expr)?.data() {
+                match self.check_place(fn_assumptions, value_expr)?.data() {
                     TyData::RigidTy(rigid_ty) => match &rigid_ty.name {
                         RigidName::Ref(_ref_kind) => {
                             place_ty = rigid_ty.parameters[1].as_ty().expect("well-kinded reference").clone();
@@ -529,13 +529,13 @@ cast_impl!(TypeckEnv);
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone, Hash)]
 pub struct PendingOutlives {
     /// The location where this outlives obligation was incurred.
-    location: Location,
+    pub location: Location,
 
     /// The `a` in `a: b`
-    a: Parameter,
+    pub a: Parameter,
 
     /// The `b` in `a: b`
-    b: Parameter,
+    pub b: Parameter,
 }
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone, Hash)]

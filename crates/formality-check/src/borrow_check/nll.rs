@@ -1,14 +1,16 @@
+use std::future::Pending;
+
 use formality_core::{
-    Cons, Fallible, Set, judgment_fn, variable::CoreUniversalVar, term
+    Cons, Fallible, Set, judgment_fn, set, term, variable::{CoreUniversalVar, CoreVariable}
 };
-use formality_rust::grammar::minirust::{BasicBlock, PlaceExpression, Statement, Terminator, ValueExpression};
+use formality_rust::grammar::minirust::{BasicBlock, FieldProjection, PlaceExpression, Statement, Terminator, ValueExpression};
 use formality_types::{
-    grammar::{Lt, RefKind, Wcs},
-    rust::FormalityLang,
+    grammar::{Lt, Parameter, PredicateTy, RefKind, RigidTy, Ty, TyData, Wcs},
+    rust::{FormalityLang, term},
 };
 use formality_prove::combinators::for_all;
 
-use crate::{borrow_check::liveness::LivePlaces, mini_rust_check::{Location, TypeckEnv}};
+use crate::{borrow_check::liveness::LivePlaces, mini_rust_check::{Location, PendingOutlives, TypeckEnv}};
 
 /// So what is a lifetime? The NLL answer is that a lifetime corresponds to one of the following:
 /// 
@@ -62,7 +64,7 @@ enum LifetimeValue {
 //
 // Or to say it another way:
 //
-// * For every path (L_0...L_n) that leads from a loan L to a statement S that violates the terms of L,
+// * For every path (L_0...L_n) that leads from a loan L to a statement (S that violates the terms of L),
 //   there is some node L_i on the path that is not a member of the loan's lifetime.
 //
 // # Example
@@ -125,6 +127,28 @@ enum LifetimeValue {
 //       (a) node in which the loan is not live or (b) a node with no successors or
 //       (c) a cycle.
 
+/// A place that is being accessed and the way in which it is being accessed.
+#[term]
+struct Access {
+    /// The kind of access
+    kind: AccessKind,
+
+    /// The place being accessed
+    place: PlaceExpression
+}
+
+#[term]
+enum AccessKind {
+    /// Reading the value in the place
+    Read,
+
+    /// Writing a value to the place
+    Write,
+
+    /// Moving a value out of a place
+    Move,
+}
+
 /// The borrow checker's job is to pick up where the type-checker left off:
 /// Given the `TypeckEnv`, which includes a (populated) list of `pending_outlives`
 /// constraints, it attempts to find values for the existential lifetime variables (inference variables)
@@ -138,13 +162,15 @@ judgment_fn! {
     fn loans_in_basic_block_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
+        loans_live_on_entry: Vec<Loan>,
         block: BasicBlock,
-    ) => () {
+        places_live_on_exit: LivePlaces,
+    ) => Vec<Loan> {
         debug(block, fn_assumptions, env)
 
         (
-            (loans_in_statements_respected(env, &fn_assumptions, statements) => ())
-            (loans_in_terminator_respected(env, &fn_assumptions, terminator) => ())
+            (loans_in_statements_respected(&env, &fn_assumptions, statements) => ())
+            (loans_in_terminator_respected(&env, &fn_assumptions, &terminator) => ())
             --- ("basic block")
             (loans_in_basic_block_respected(env, fn_assumptions, BasicBlock { id: _, statements, terminator }) => ())
         )
@@ -156,8 +182,10 @@ judgment_fn! {
     fn loans_in_statements_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        statements: Vec<Statement>
-    ) => () {
+        loans_live_on_entry: Vec<Loan>,
+        statements: Vec<Statement>,
+        places_live_on_exit: LivePlaces,
+    ) => Vec<Loan> {
         debug(statements, fn_assumptions, env)
 
         (
@@ -179,7 +207,9 @@ judgment_fn! {
     fn loans_in_terminator_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        terminator: Terminator
+        loans_live_on_entry: Vec<Loan>,
+        terminator: Terminator,
+        places_live_on_exit: LivePlaces,
     ) => () {
         debug(terminator, fn_assumptions, env)
 
@@ -197,7 +227,9 @@ judgment_fn! {
     fn loans_in_statement_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        statement: Statement
+        loans_live_on_entry: Vec<Loan>,
+        statement: Statement,
+        places_live_on_exit: LivePlaces,
     ) => () {
         debug(statement, fn_assumptions, env)
 
@@ -221,6 +253,40 @@ judgment_fn! {
 
         (
             (loans_in_value_expression_respected(env, assumptions, value) => ())
+            
+            // When you assign to a place, you need to know that
+            //
+            // * for every loan L that is live (tbd later), you need to know:
+            //   * the place being assigned to is not the same place that was borrowed to create L
+            //
+            // But when is a loan live?
+            //
+            // * There is a path P in the CFG from the borrow expression that created the loan L in the region R_L
+            // * There is a live variable whose type includes a region R
+            // * Along the path P, there is some live variable that includes a region that is "descended from" R_L
+
+            // Example:
+            //
+            // ```
+            // let p: &'p u32 = &'b x.0; // Loan L with lifetime
+            //                  ------- the borrow of `x.0`
+            //                  ------- this expression has the type `&'b u32`
+            //        ------- creates an outlive relation `'b: 'p`
+            // ...
+            // x.0 = 42; // must check that p does not borrow x.
+            // read(p);  // `p` is live
+            // ```
+
+            // What we want in English:
+            //
+            // - For every loan L that is invalidated by assigning to Place:
+            //   - For every live place Place_live:
+            //     - For every region R_live appearing in the type of Place_live:
+            //       - For every reachable nodes R_reachable in the outlives graph from L.lt
+            //         - R_reachable ≠ R_live
+
+
+
             --- ("assign")
             (loans_in_statement_respected(env, assumptions, Statement::Assign(_place, value)) => ())
         )
@@ -232,7 +298,9 @@ judgment_fn! {
     fn loans_in_value_expression_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        value: ValueExpression
+        loans_live_on_entry: Vec<Loan>,
+        value: ValueExpression,
+        places_live_on_exit: LivePlaces,
     ) => () {
         debug(value, fn_assumptions, env)
 
@@ -242,14 +310,19 @@ judgment_fn! {
 
 pub type Loans = Set<Loan>;
 
+/// Represents a loan that resulted from executing a borrow expression like `&'0 place`.
 #[term]
 
 struct Loan {
+    /// The region `'0` of the resulting reference from this borrow.
     lt: Lt,
+
+    /// The place being borrowed.
     place: PlaceExpression,
+
+    /// The kind of borrow (shared, mutable, etc).
     kind: RefKind,
 }
-
 
 judgment_fn! {
     /// Prove that any loans issued in this statement are respected.
@@ -274,91 +347,207 @@ judgment_fn! {
 
 judgment_fn! {
     /// Prove that none of the borrows in `borrowed` does not affect `place`.
-    fn place_not_borrowed_by_any(
+    fn access_permitted_by_loans(
         env: TypeckEnv,
         assumptions: Wcs,
-        loaned: Set<Loan>,
-        live_after: LivePlaces,
-        accessed_place: PlaceExpression,
+        loans_live_before_access: Set<Loan>,
+        access: Access,
+        places_live_after_access: LivePlaces,
     ) => () {
         debug(accessed_place, loaned, live_after, assumptions, env)
 
         (
-            // Clearly, `place` is not borrowed if nothing has been borrowed.
-            --- ("no borrows")
-            (place_not_borrowed_by_any(_env, _assumptions, (), _live_after, _place) => ())
+            --- ("no loans")
+            (access_permitted_by_loans(_env, _assumptions, (), _place, _places_live_after_access) => ())
         )
 
         (
-            (place_not_borrowed_by(&env, &assumptions, head, &live_after, &place) => ())
-            (place_not_borrowed_by_any(&env, &assumptions, &tail, &live_after, &place) => ())
-            --- ("no borrows")
-            (place_not_borrowed_by_any(env, assumptions, Cons(head, tail), live_after, place) => ())
+            (access_permitted_by_loan(&env, &assumptions, loan_head, &access, &places_live_after_access) => ())
+            (access_permitted_by_loans(&env, &assumptions, &loans_tail, &access, &places_live_after_access) => ())
+            --- ("cons")
+            (access_permitted_by_loans(env, assumptions, Cons(loan_head, loans_tail), access, places_live_after_access) => ())
         )
     }
 }
 
 judgment_fn! {
     /// Prove that the borrow `borrow` does not affect `place`.
-    fn place_not_borrowed_by(
+    fn access_permitted_by_loan(
         env: TypeckEnv,
-        fn_assumptions: Wcs,
+        assumptions: Wcs,
         loan: Loan,
-        live_after: LivePlaces,
-        accessed_place: PlaceExpression,
+        access: Access,
+        places_live_after_access: LivePlaces,
     ) => () {
-        debug(accessed_place, loan, live_after, fn_assumptions, env)
+        debug(accessed_place, loan, live_after, assumptions, env)
 
         (
-            (place_disjoint_from_place(loan.place, accessed_place) => ())
+            (if place_disjoint_from_place(loan.place, accessed_place))
             --- ("borrows of disjoint places")
-            (place_not_borrowed_by(_env, _assumptions, loan, _live_after, accessed_place) => ())
+            (access_permitted_by_loan(_env, _assumptions, loan, accessed_place, _places_live_after_access) => ())
         )
 
         (
             --- ("borrow not live -- no live places")
-            (place_not_borrowed_by(_env, _assumptions, _loan, (), _accessed_place) => ())
+            (access_permitted_by_loan(_env, _assumptions, _loan, _accessed_place, ()) => ())
         )
 
         (
-            (place_not_borrowed_by_live_variable(&env, &assumptions, &head, &loan, &accessed_place) => ())
-            (place_not_borrowed_by(&env, &assumptions, &loan, &tail, &accessed_place) => ())
+            (access_permitted_by_loans_in_live_place(&env, &assumptions, &live_place_head, &loan, &accessed_place) => ())
+            (place_not_borrowed_by(&env, &assumptions, &loan, &live_places_tail, &accessed_place) => ())
             --- ("borrow not live -- live place")
-            (place_not_borrowed_by(env, assumptions, loan, Cons(head, tail), accessed_place) => ())
+            (access_permitted_by_loan(env, assumptions, loan, accessed_place, Cons(live_place_head, live_places_tail)) => ())
         )
     }
 }
 
 judgment_fn! {
     /// Prove that `accessed_place` can still be accessed even though `live_place` is live and the borrow occurs.
-    fn place_not_borrowed_by_live_variable(
+    fn access_permitted_by_loans_in_live_place(
         env: TypeckEnv,
         assumptions: Wcs,
+        loan: Loan,
+        access: Access,
         live_place: PlaceExpression,
-        borrowed_place: Loan,
-        accessed_place: PlaceExpression,
     ) => () {
-        debug(accessed_place, borrowed_place, live_place, assumptions, env)
+        debug(loan, access, live_place, assumptions, env)
 
-    }
-}
-
-judgment_fn! {
-    fn place_disjoint_from_place(
-        place1: PlaceExpression,
-        place2: PlaceExpression,
-    ) => () {
-        debug(place1, place2)
-
-        (   
-            (if local1 != local2)         
-            --- ("different locals")
-            (place_disjoint_from_place(
-                PlaceExpression::Local(local1),
-                PlaceExpression::Local(local2),
+        (
+            --- ("read-shared is ok")
+            (access_permitted_by_loans_in_live_place(
+                _env,
+                _assumptions,
+                Loan { kind: RefKind::Shared, .. },
+                Access { kind: AccessKind::Read, .. },
+                _live_place,
             ) => ())
         )
 
-        // ... fill this in ...
+        (
+            (let outlived_by_loan = transitively_outlived_by(&env, &loan.lt))
+            (let live_place_ty = env.check_place(&assumptions, &live_place)?)
+            (let live_in_place = live_regions_from_place_ty(&env, &live_place_ty))
+            // For next time:
+            // * think about universal variables
+            // * check that the loan does not outlive any of the live regions in the place
+            --- ("loan is not live")
+            (access_permitted_by_loans_in_live_place(
+                env,
+                assumptions,
+                Loan { kind: RefKind::Mut, .. },
+                Access { kind: _, place: place_accessed },
+                live_place,
+            ) => ())
+        )
     }
+}
+
+/// Given a region `r`, find a set of all regions `r1` where `r: r1` transitively
+/// according to the `pending_outlives` in `env`.
+fn transitively_outlived_by(
+    env: &TypeckEnv,
+    start_lt: &Lt,
+) -> Set<Lt> {
+    let mut reachable = Set::new();
+
+    reachable.insert(start_lt.clone());
+    let mut worklist = vec![start_lt.clone()];
+
+    while let Some(current) = worklist.pop() {
+        for PendingOutlives { location: _, a, b } in env.pending_outlives.iter() {
+            if a == current {
+                if reachable.insert(b.clone()) {
+                    worklist.push(b.clone());
+                }
+            }
+        }
+    }
+
+    reachable
+}
+
+/// Given a region `r`, find a set of all regions `r1` where `r: r1` transitively
+/// according to the `pending_outlives` in `env`.
+fn live_regions_from_place_ty(
+    env: &TypeckEnv,
+    ty: &Ty,
+) -> Set<Lt> {
+    match ty.data() {
+        // Given a type like `Foo<'a, 'b, T>`, we would wind up with a set `{a, b}`.
+        TyData::RigidTy(RigidTy { name: _, parameters }) => parameters.iter().flat_map(|parameter| match parameter {
+            Parameter::Ty(ty_parameter) => live_regions_from_place_ty(env, ty_parameter),
+            Parameter::Lt(lt_parameter) => set![lt_parameter.clone()],
+            Parameter::Const(_) => set![], // FIXME: what *do* we do with const expressions *anyway*?
+        }).collect(),
+
+        TyData::AliasTy(_alias_ty) => todo!("oh crapola let's think about this later"),
+
+        TyData::PredicateTy(predicate_ty) => match predicate_ty {
+            // We can ignore binders like the `'a` here, so just peek over them.
+            // The bound regions will show up as bound variables below.
+            //
+            // e.g., `for<'a> fn(&'a u32)`
+            PredicateTy::ForAll(binder) => {
+                live_regions_from_place_ty(env, &binder.peek())
+            }
+        },
+
+        TyData::Variable(core_variable) => match core_variable {
+            // a generic type variable like `T` in `fn foo<T>`
+            CoreVariable::UniversalVar(_) => set![],
+
+            // an inference variable like `_` -- we don't expect this
+            CoreVariable::ExistentialVar(_) => panic!("do not expect existentials in borrow checker"),
+
+            // e.g., the `'a' in `for<'a> fn(&'a u32)` -- this we can ignore because they don't represent a live borrow
+            CoreVariable::BoundVar(_) => set![],
+        },
+    }
+}
+
+fn place_disjoint_from_place(
+    place_a: &PlaceExpression,
+    place_b: &PlaceExpression,
+) -> bool {
+    let prefixes_a = place_prefixes(place_a);
+    let prefixes_b = place_prefixes(place_b);
+    !prefixes_a.contains(place_b) && !prefixes_b.contains(place_a)
+}
+
+/// Returns a set containing `place` and all prefixes of `place`.
+fn place_prefixes(
+    place: &PlaceExpression,
+) -> Set<PlaceExpression> {
+    let mut prefixes = Set::new();
+    let mut current = place;
+    loop {
+        prefixes.insert(current.clone());
+        match current {
+            PlaceExpression::Local(_) => break,
+            PlaceExpression::Deref(place_expression) => current = place_expression,
+            PlaceExpression::Field(FieldProjection { root, .. }) => current = root,
+        }
+    }
+    prefixes
+}
+
+#[test]
+fn test_locals_are_disjoint() {
+    let place_a: PlaceExpression = term("local(a)");
+    let place_b: PlaceExpression = term("local(b)");
+    assert!(place_disjoint_from_place(&place_a, &place_b));
+}
+
+#[test]
+fn test_local_plus_field() {
+    let place_a: PlaceExpression = term("local(a)");
+    let place_b: PlaceExpression = term("local(a).0");
+    assert!(!place_disjoint_from_place(&place_a, &place_b));
+}
+
+#[test]
+fn test_two_different_fields() {
+    let place_a: PlaceExpression = term("local(a).0");
+    let place_b: PlaceExpression = term("local(a).1");
+    assert!(place_disjoint_from_place(&place_a, &place_b));
 }
