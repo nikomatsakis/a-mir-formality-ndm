@@ -260,6 +260,22 @@ impl TypeckEnv {
         Ok(())
     }
 
+    /// Hacky method that type-checks a place that has already been type-checked.
+    /// Asserts therefore that the resulting pending outlives were already pending.
+    /// 
+    /// I am a horrible monster and I pray for death, but I have no other option. --nikomatsakis
+    pub(crate) fn check_place_hackola(&self, fn_assumptions: &Wcs, place: &PlaceExpression) -> Fallible<Ty> {
+        let mut env = self.clone();
+        let ty = env.check_place(fn_assumptions, place)?;
+        for outlives in &env.pending_outlives {
+            if !self.pending_outlives.contains(&outlives) {
+                panic!("unexpected outlives constraint generated during check_place: {:?}", outlives);
+            }
+        }
+        Ok(ty)
+    }
+
+
     // Check if the place expression is well-formed, and return the type of the place expression.
     pub(crate) fn check_place(&mut self, fn_assumptions: &Wcs, place: &PlaceExpression) -> Fallible<Ty> {
         let place_ty;
@@ -704,6 +720,16 @@ impl TypeckEnv {
         }
 
         Some(c_outlives)
+    }
+
+    /// Instantiate the given binder universally in this environment,
+    pub fn instantiate_universally<T>(&self, binder: &formality_core::Binder<T>) -> (T, TypeckEnv)
+    where
+        T: Clone,
+    {
+        let mut env= self.env.clone();
+        let value = env.instantiate_universally(binder);
+        (value, TypeckEnv { env, ..self.clone() } )
     }
 }
 

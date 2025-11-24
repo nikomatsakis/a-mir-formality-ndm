@@ -5,7 +5,7 @@ use formality_core::{
 };
 use formality_rust::grammar::minirust::{BasicBlock, FieldProjection, PlaceExpression, Statement, Terminator, ValueExpression};
 use formality_types::{
-    grammar::{Lt, Parameter, PredicateTy, RefKind, RigidTy, Ty, TyData, Wcs},
+    grammar::{AliasTy, Lt, LtData, Parameter, ParameterKind, PredicateTy, RefKind, RigidTy, Ty, TyData, Variable, Wcs},
     rust::{FormalityLang, term},
 };
 use formality_prove::combinators::for_all;
@@ -379,7 +379,7 @@ judgment_fn! {
         access: Access,
         places_live_after_access: LivePlaces,
     ) => () {
-        debug(accessed_place, loan, live_after, assumptions, env)
+        debug(loan, access, places_live_after_access, assumptions, env)
 
         (
             (if place_disjoint_from_place(loan.place, accessed_place))
@@ -388,66 +388,339 @@ judgment_fn! {
         )
 
         (
-            --- ("borrow not live -- no live places")
-            (access_permitted_by_loan(_env, _assumptions, _loan, _accessed_place, ()) => ())
+            // e.g. something like `let x = &y; read(y); ...` is ok even if `x` is live
+            --- ("read-shared is ok")
+            (access_permitted_by_loan(
+                _env,
+                _assumptions,
+                Loan { kind: RefKind::Shared, .. },
+                Access { kind: AccessKind::Read, .. },
+                _live_places,
+            ) => ())
         )
 
         (
-            (access_permitted_by_loans_in_live_place(&env, &assumptions, &live_place_head, &loan, &accessed_place) => ())
-            (place_not_borrowed_by(&env, &assumptions, &loan, &live_places_tail, &accessed_place) => ())
-            --- ("borrow not live -- live place")
-            (access_permitted_by_loan(env, assumptions, loan, accessed_place, Cons(live_place_head, live_places_tail)) => ())
+            (if !place_disjoint_from_place(loan.place, accessed_place))! // just for convenience
+            (loan_not_required_by_live_places(env, assumptions, loan, places_live_after_access) => ())
+            (loan_cannot_outlive_universal_regions(env, assumptions, loan) => ())
+            --- ("borrows of disjoint places")
+            (access_permitted_by_loan(_env, _assumptions, loan, accessed_place, _places_live_after_access) => ())
+        )
+    }
+}
+
+// EXAMPLE
+//
+// trait Foo { type Bar<'a>; }
+//
+// fn generic1<T: Foo>() {
+//     let r = &'a ...;
+//     let p: <T as Foo>::Bar<'a> = ...;
+//     // if `p` is live, then `'a` must be live
+// }
+//
+// fn generic2<T: Foo>() where for<'x> T: Foo<Bar<'x> = u32> {
+//     let r = &'a ...;
+//     let p: <T as Foo>::Bar<'a> = ...;
+//     // if `p` is live, then `'a` doesn't have to be live
+// }
+//
+// fn generic3<T: Foo, U>() where for<'x> T: Foo<Bar<'x> = U> {
+//     let r = &'a ...;
+//     let p: <T as Foo>::Bar<'a> = ...;
+//     // if `p` is live, then `'a` doesn't have to be live
+// }
+
+// Design note:
+//
+// We decided to formulate this in "positive" form -- i.e., prove the loan is not required vs searching for liveness -- because of the interaction
+// with alias types that we foresee.
+//
+// One observation w.r.t. alias types: one question that comes up is what we consider live - the unnormalized or normalized alias.
+// We realized that since we're in borrow checking, we should *always* be able to normalize an alias, but we likely still want to formulate these rules for both.
+// However, this provides some insight into what regions are live in the unnormalized form, particularly relevant to outlives bounds on opaque types.
+// Particularly, the live regions in the *unnormalized* form should be a superset of all live regions found in the *normalized* form.
+
+judgment_fn! {
+    /// Prove that the loan does not outlive any universal regions.
+    fn loan_cannot_outlive_universal_regions(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loan: Loan,
+    ) => () {
+        debug(loan, assumptions, env)
+        
+        // Observation: we don't look at the `assumptions`
+        //
+        // ```
+        // fn foo<'a>()
+        // where
+        //     for<'b> Vec<&'b ()>: 'a, // <-- we would not consider this
+        // {
+        // }
+        // ```
+        //
+        // if we DID consider this, it would imply that all
+        // borrows are always live.
+        //
+        // This is an interesting corner cases.
+
+        (
+            (let outlived_by_loan = transitively_outlived_by(&env, &loan.lt))
+            (if outlived_by_loan.iter().all(|lt| match lt.data() {
+                LtData::Static => false,
+                LtData::Variable(Variable::UniversalVar(_)) => false,
+                LtData::Variable(Variable::ExistentialVar(_)) => true,
+                LtData::Variable(Variable::BoundVar(_)) => panic!("cannot outlive a bound var"),
+            }))
+            --- ("loan_not_required_by_universal_regions")
+            (loan_cannot_outlive_universal_regions(env, assumptions, loan) => ())
         )
     }
 }
 
 judgment_fn! {
-    /// Prove that `accessed_place` can still be accessed even though `live_place` is live and the borrow occurs.
-    fn access_permitted_by_loans_in_live_place(
+    /// Prove that the `loan` is not required to be live by
+    /// an access to any of the places in `places_live_after_access`.
+    ///
+    /// For each `place_live \in places_live_after_acecess`...
+    ///
+    ///    let x = &'lt_loan place_borrowed;
+    ///    ...
+    ///    access(place_accessed); // conflicts with the borrow
+    ///    ...
+    ///    access(place_live)
+    ///
+    /// ...show that `place_live` does not require data derived from `x`.
+    fn loan_not_required_by_live_places(
         env: TypeckEnv,
         assumptions: Wcs,
         loan: Loan,
-        access: Access,
-        live_place: PlaceExpression,
+        places_live_after_access: LivePlaces,
     ) => () {
-        debug(loan, access, live_place, assumptions, env)
+        debug(loan, places_live_after_access, assumptions, env)
 
         (
-            --- ("read-shared is ok")
-            (access_permitted_by_loans_in_live_place(
-                _env,
-                _assumptions,
-                Loan { kind: RefKind::Shared, .. },
-                Access { kind: AccessKind::Read, .. },
-                _live_place,
-            ) => ())
+            --- ("borrow not live -- no live places")
+            (loan_not_required_by_live_places(_env, _assumptions, loan, ()) => ())
         )
 
         (
-            (let outlived_by_loan = transitively_outlived_by(&env, &loan.lt))
-            (let live_place_ty = env.check_place(&assumptions, &live_place)?)
-            (let live_in_place = live_regions_from_place_ty(&env, &live_place_ty))
-            // For next time:
-            // * think about universal variables
-            // * check that the loan does not outlive any of the live regions in the place
-            --- ("loan is not live")
-            (access_permitted_by_loans_in_live_place(
+            (loan_not_required_by_live_place(&env, &assumptions, &loan, &live_place_head) => ())
+            (loan_not_required_by_live_places(&env, &assumptions, &loan, &live_places_tail) => ())
+            --- ("borrow not live -- live place")
+            (loan_not_required_by_live_places(env, assumptions, loan, Cons(live_place_head, live_places_tail)) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// For some `place_live` where
+    ///
+    ///    let x = &'lt_loan place_borrowed;
+    ///    ...
+    ///    access(place_accessed); // conflicts with the borrow
+    ///    ...
+    ///    access(place_live) // <-- an access like this occurs later
+    ///
+    /// ...show that `place_live` does not require data derived from `x`.
+    fn loan_not_required_by_live_place(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loan: Loan,
+        live_place: PlaceExpression,
+    ) => () {
+        debug(loan, live_place, assumptions, env)
+
+        (
+            (let live_place_ty = env.check_place_hackola(&assumptions, &live_place)?)
+            (loan_not_required_by_parameter(env, assumptions, loan, live_place_ty) => ())
+            --- ("loan is not required by type")
+            (loan_not_required_by_live_place(
                 env,
                 assumptions,
-                Loan { kind: RefKind::Mut, .. },
-                Access { kind: _, place: place_accessed },
+                loan,
                 live_place,
             ) => ())
         )
     }
 }
 
+judgment_fn! {
+    /// For some `place_live` which has type `place_live_ty` where
+    ///
+    ///    let x = &'lt_loan place_borrowed;
+    ///    ...
+    ///    access(place_accessed); // conflicts with the borrow
+    ///    ...
+    ///    access(place_live) // <-- an access like this occurs later
+    ///
+    /// ...show that `place_live_ty` does not require data derived from `x`.
+    fn loan_not_required_by_parameter(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loan: Loan,
+        live_parameter: Parameter,
+    ) => () {
+        debug(loan, live_parameter, assumptions, env)
+
+        (
+            (loan_not_required_by_parameters(env, assumptions, loan, parameters) => ())
+            --- ("rigid-ty")
+            (loan_not_required_by_parameter(env, assumptions, loan, RigidTy { name: _, parameters }) => ())
+        )
+
+        (
+            // Per <https://rust-lang.github.io/rfcs/1214-projections-lifetimes-and-wf.html>,
+            // if we can prove that the loan is not required by any of the aliases's parameters,
+            // then we know it is not required by the alias, even if we can't normalize the alias.
+            //
+            // FIXME(incomplete): We should adjust to account for the bounds we know to hold on the alias
+            // which might allow us to prove the loan is not required in other ways.
+            //
+            // In the compiler we also use bivariance in some bizarre hacky way here, but I *think* that's
+            // just a hack because we always have ALL lifetime parameters, even though we don't really need
+            // them all.
+            (loan_not_required_by_parameters(env, assumptions, loan, parameters) => ())
+            --- ("alias-ty RFC 1214")
+            (loan_not_required_by_parameter(env, assumptions, loan, AliasTy { name: _, parameters }) => ())
+        )
+
+        // (
+        //     // (if we can normalize to T)
+        //     // (and we can prove it of T)
+        //     // (we are happy)
+        //     --- ("alias-ty normalization")
+        //     (loan_not_required_by_parameter(env, assumptions, loan, AliasTy { name: _, parameters }) => ())
+        // )
+
+        (
+            (let (parameter, env1) = env.instantiate_universally(&binder))
+            (loan_not_required_by_parameter(env1, assumptions, loan, parameter) => ())
+            --- ("for-all-type")
+            (loan_not_required_by_parameter(env, assumptions, loan, PredicateTy::ForAll(binder)) => ())
+        )
+
+        (
+            // All the loans in the universal type were decided by the caller
+            // and hence cannot possibly include THIS loan.
+            //
+            // This is a subtle rule, and this condition is enforced
+            // elsewhere, but it is needed to make this clause correct on its own.
+            // Consider the following scenario:
+            //
+            // ```
+            // fn foo<'a, T>(q: T) {
+            //     let mut p = 22;
+            //     let r = &'a p;     // <-- note that this is explicitly annotated with 'a
+            //     p += 1;
+            //     use(q);
+            // }
+            // ```
+            //
+            // Now, `q` is live, and hence `T` is live. The question is
+            // whether `T` may reference the borrow that resulted from
+            // `&'a p`. In this example, it does not, but consider the next one:
+            //
+            // ```
+            // fn foo<'a, T>(q: T)
+            // where T: Trait<'a>,
+            // {
+            //     let mut p = 22;
+            //     let r = &'a p; 
+            //     T::observe(&q, r);    // <-- note that this is explicitly annotated with 'a
+            //     p += 1;
+            //     use(q);
+            // }
+            // ```
+            //
+            // Here, `T::observe(&q, r)` might have "squirreled away" the reference `r`
+            // and thus the loan may in fact be accessed when we `use(q)`.
+            //
+            // By enforcing that the loan does not escape to any universal region,
+            // we ensure this is not a problem.
+            (loan_cannot_outlive_universal_regions(env, assumptions, loan) => ())
+            --- ("universal-variable")
+            (loan_not_required_by_parameter(env, assumptions, loan, Variable::UniversalVar(v)) => ())
+        )
+
+        (
+            //
+            // ```
+            // let mut x = 22;
+            // let p = &'0 x;
+            // let q: &'1 x = p; // requires `'0: '1`
+            // x += 1;
+            // use(q); // could this use data derived from `p`? (obviously yes)
+            // ```
+            //
+            // In this case, we would be invoked here with `'1`.
+            (loan_cannot_outlive(env, assumptions, loan, live_lt) => ())
+            --- ("universal-variable")
+            (loan_not_required_by_parameter(env, assumptions, loan, live_lt: Lt) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// Prove that the loan does not outlive any universal regions.
+    fn loan_cannot_outlive(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loan: Loan,
+        lifetime: Lt,
+    ) => () {
+        debug(loan, lifetime, assumptions, env)
+        
+        (
+            (let outlived_by_loan = transitively_outlived_by(&env, &loan.lt))
+            (if outlived_by_loan.contains(&lifetime))
+            --- ("loan_cannot_outlive")
+            (loan_cannot_outlive(env, _assumptions, loan, lifetime) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// For some `place_live` which has type `place_live_ty` where
+    ///
+    ///    let x = &'lt_loan place_borrowed;
+    ///    ...
+    ///    access(place_accessed); // conflicts with the borrow
+    ///    ...
+    ///    access(place_live) // <-- an access like this occurs later
+    ///
+    /// ...show that `place_live_ty` does not require data derived from `x`.
+    fn loan_not_required_by_parameters(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loan: Loan,
+        live_parameters: Vec<Parameter>,
+    ) => () {
+        debug(loan, live_parameters, assumptions, env)
+
+        (
+            --- ("nil")
+            (loan_not_required_by_parameters(_env, _assumptions, _loan, ()) => ())
+        )
+
+        (
+            (loan_not_required_by_parameter(&env, &assumptions, &loan, head) => ())
+            (loan_not_required_by_parameters(&env, &assumptions, &loan, &tail) => ())
+            --- ("cons")
+            (loan_not_required_by_parameters(env, assumptions, loan, Cons(head, tail)) => ())
+        )
+    }
+}
+
+
 /// Given a region `r`, find a set of all regions `r1` where `r: r1` transitively
 /// according to the `pending_outlives` in `env`.
 fn transitively_outlived_by(
     env: &TypeckEnv,
     start_lt: &Lt,
-) -> Set<Lt> {
+) -> Set<Parameter> {
+    let start_lt = Parameter::lt(start_lt);
     let mut reachable = Set::new();
 
     reachable.insert(start_lt.clone());
@@ -455,7 +728,7 @@ fn transitively_outlived_by(
 
     while let Some(current) = worklist.pop() {
         for PendingOutlives { location: _, a, b } in env.pending_outlives.iter() {
-            if a == current {
+            if *a == current {
                 if reachable.insert(b.clone()) {
                     worklist.push(b.clone());
                 }
