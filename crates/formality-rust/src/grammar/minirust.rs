@@ -213,8 +213,8 @@ pub enum ValueExpression {
     // pointer type such as raw pointer and box yet.
     #[grammar(&$v0 $v1)]
     Ref(Lt, PlaceExpression), // AddrOf
-                          // UnOp
-                          // BinOp
+                              // UnOp
+                              // BinOp
 }
 
 #[term]
@@ -280,6 +280,43 @@ pub enum PlaceExpression {
     Field(FieldProjection),
     // Index
     // Downcast
+}
+
+impl PlaceExpression {
+    /// True if `self` is a prefix of `other` (e.g., `a.b` is a prefix of `a.b` and `a.b.c` but not `a`)
+    pub fn is_prefix_of(&self, mut other: &PlaceExpression) -> bool {
+        loop {
+            if self == other {
+                break true;
+            }
+
+            if let Some(p) = other.prefix() {
+                other = p;
+            } else {
+                break false;
+            }
+        }
+    }
+
+    /// Returns the next prefix of `self` (if any)
+    pub fn prefix(&self) -> Option<&PlaceExpression> {
+        match self {
+            PlaceExpression::Local(_) => None,
+            PlaceExpression::Deref(base) => Some(base),
+            PlaceExpression::Field(FieldProjection { root, index: _ }) => Some(root),
+        }
+    }
+
+    /// Returns all prefixes of `self` (if any)
+    pub fn all_prefixes(&self) -> Vec<&PlaceExpression> {
+        let mut v = vec![self];
+        let mut p = self;
+        while let Some(q) = p.prefix() {
+            v.push(q);
+            p = q;
+        }
+        v
+    }
 }
 
 #[term($root.$index)]

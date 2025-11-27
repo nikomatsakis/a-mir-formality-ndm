@@ -1,44 +1,50 @@
-use std::future::Pending;
-
 use formality_core::{
-    Cons, Fallible, Set, judgment_fn, set, term, variable::{CoreUniversalVar, CoreVariable}
+    judgment_fn, set, term,
+    variable::{CoreUniversalVar, CoreVariable},
+    Cons, Fallible, Set,
 };
-use formality_rust::grammar::minirust::{BasicBlock, FieldProjection, PlaceExpression, Statement, Terminator, ValueExpression};
+use formality_rust::grammar::minirust::{
+    BasicBlock, FieldProjection, PlaceExpression, Statement, Terminator, ValueExpression,
+};
 use formality_types::{
-    grammar::{AliasTy, Lt, LtData, Parameter, ParameterKind, PredicateTy, RefKind, RigidTy, Ty, TyData, Variable, Wcs},
-    rust::{FormalityLang, term},
+    grammar::{
+        AliasTy, Lt, LtData, Parameter, PredicateTy, RefKind, RigidTy, Ty, TyData, Variable, Wcs,
+    },
+    rust::{term, FormalityLang},
 };
-use formality_prove::combinators::for_all;
 
-use crate::{borrow_check::liveness::LivePlaces, mini_rust_check::{Location, PendingOutlives, TypeckEnv}};
+use crate::{
+    borrow_check::liveness::LivePlaces,
+    mini_rust_check::{Location, PendingOutlives, TypeckEnv},
+};
 
 /// So what is a lifetime? The NLL answer is that a lifetime corresponds to one of the following:
-/// 
+///
 /// * `Locations`: Some subset `locations` of the current function body
 /// * `Universals`: Some non-empty subset of the currently in-scope universal lifetime variables
-/// 
-/// # Sublife rules 
-/// 
+///
+/// # Sublife rules
+///
 /// * Any lifetime `U` in `Universals` outlives all lifetimes `L` in `Locations`
-/// * 
-/// 
+/// *
+///
 /// # Example
-/// 
+///
 /// Consider this function:
-/// 
+///
 /// ```rust
 /// fn foo<'a>(x: &'a mut (u32,)) {
 ///     // Loc L0
 ///     let p: &'0 u32 = &x.0;
-/// 
+///
 ///     // Loc L1
 ///     print(p);
-/// 
+///
 ///     // Loc L2
 ///     x.0 += 1;
 /// }
 /// ```
-/// 
+///
 /// * The set of universal variables is `{'static, 'a}`.
 /// * The set of locations is `{L0, L1, L2}`.
 /// * When the *user writes* `'a`, that refers to the lifetime `Universals('a)`
@@ -77,12 +83,12 @@ enum LifetimeValue {
 // fn foo<'a>(x: &'a mut (u32,)) {
 //     // Loc L0
 //     let p: &'0 u32 = &'0 x.0; // Loan L has lifetime Locations(L0, L1)
-// 
+//
 //     // Loc L1
 //     print(p);
-// 
+//
 //     // Loc L2
-//     x.0 += 1; // 
+//     x.0 += 1; //
 // }
 // ```
 //
@@ -103,15 +109,15 @@ enum LifetimeValue {
 // fn foo<'a>(x: &'a mut (u32,)) {
 //     // Loc L0
 //     let p: &'0 u32 = &x.0; // Loan L has lifetime Locations(L0, L1)
-// 
+//
 //     // Loc L1
 //     print(p);
-// 
+//
 //     // Loc L2
 //     x.0 += 1;
 //
 //     // Loc L3
-//     print(p); 
+//     print(p);
 // }
 // ```
 //
@@ -134,7 +140,7 @@ struct Access {
     kind: AccessKind,
 
     /// The place being accessed
-    place: PlaceExpression
+    place: PlaceExpression,
 }
 
 #[term]
@@ -169,10 +175,16 @@ judgment_fn! {
         debug(block, fn_assumptions, env)
 
         (
-            (loans_in_statements_respected(&env, &fn_assumptions, statements) => ())
-            (loans_in_terminator_respected(&env, &fn_assumptions, &terminator) => ())
+            (loans_in_statements_respected(
+                &env,
+                &fn_assumptions,
+                loans_live_on_entry,
+                statements,
+                places_live_on_exit.before(&terminator),
+            ) => loans_after_statements)
+            (loans_in_terminator_respected(&env, &fn_assumptions, loans_after_statements, &terminator, places_live_on_exit) => ())
             --- ("basic block")
-            (loans_in_basic_block_respected(env, fn_assumptions, BasicBlock { id: _, statements, terminator }) => ())
+            (loans_in_basic_block_respected(env, fn_assumptions, loans_live_on_entry, BasicBlock { id: _, statements, terminator }, places_live_on_exit) => ())
         )
     }
 }
@@ -216,7 +228,7 @@ judgment_fn! {
         (
             // does not issue any loans
             --- ("goto")
-            (loans_in_terminator_respected(_env, _assumptions, Terminator::Goto(_)) => ())
+            (loans_in_terminator_respected(_env, _assumptions, _loans_live_on_entry, Terminator::Goto(_), _places_live_on_exit) => ())
         )
 
     }
@@ -253,7 +265,7 @@ judgment_fn! {
 
         (
             (loans_in_value_expression_respected(env, assumptions, value) => ())
-            
+
             // When you assign to a place, you need to know that
             //
             // * for every loan L that is live (tbd later), you need to know:
@@ -343,8 +355,6 @@ judgment_fn! {
     }
 }
 
-
-
 judgment_fn! {
     /// Prove that none of the borrows in `borrowed` does not affect `place`.
     fn access_permitted_by_loans(
@@ -354,7 +364,7 @@ judgment_fn! {
         access: Access,
         places_live_after_access: LivePlaces,
     ) => () {
-        debug(accessed_place, loaned, live_after, assumptions, env)
+        debug(loans_live_before_access, access, places_live_after_access, assumptions, env)
 
         (
             --- ("no loans")
@@ -449,7 +459,7 @@ judgment_fn! {
         loan: Loan,
     ) => () {
         debug(loan, assumptions, env)
-        
+
         // Observation: we don't look at the `assumptions`
         //
         // ```
@@ -627,7 +637,7 @@ judgment_fn! {
             // where T: Trait<'a>,
             // {
             //     let mut p = 22;
-            //     let r = &'a p; 
+            //     let r = &'a p;
             //     T::observe(&q, r);    // <-- note that this is explicitly annotated with 'a
             //     p += 1;
             //     use(q);
@@ -671,7 +681,7 @@ judgment_fn! {
         lifetime: Lt,
     ) => () {
         debug(loan, lifetime, assumptions, env)
-        
+
         (
             (let outlived_by_loan = transitively_outlived_by(&env, &loan.lt))
             (if outlived_by_loan.contains(&lifetime))
@@ -713,13 +723,9 @@ judgment_fn! {
     }
 }
 
-
 /// Given a region `r`, find a set of all regions `r1` where `r: r1` transitively
 /// according to the `pending_outlives` in `env`.
-fn transitively_outlived_by(
-    env: &TypeckEnv,
-    start_lt: &Lt,
-) -> Set<Parameter> {
+fn transitively_outlived_by(env: &TypeckEnv, start_lt: &Lt) -> Set<Parameter> {
     let start_lt = Parameter::lt(start_lt);
     let mut reachable = Set::new();
 
@@ -741,17 +747,20 @@ fn transitively_outlived_by(
 
 /// Given a region `r`, find a set of all regions `r1` where `r: r1` transitively
 /// according to the `pending_outlives` in `env`.
-fn live_regions_from_place_ty(
-    env: &TypeckEnv,
-    ty: &Ty,
-) -> Set<Lt> {
+fn live_regions_from_place_ty(env: &TypeckEnv, ty: &Ty) -> Set<Lt> {
     match ty.data() {
         // Given a type like `Foo<'a, 'b, T>`, we would wind up with a set `{a, b}`.
-        TyData::RigidTy(RigidTy { name: _, parameters }) => parameters.iter().flat_map(|parameter| match parameter {
-            Parameter::Ty(ty_parameter) => live_regions_from_place_ty(env, ty_parameter),
-            Parameter::Lt(lt_parameter) => set![lt_parameter.clone()],
-            Parameter::Const(_) => set![], // FIXME: what *do* we do with const expressions *anyway*?
-        }).collect(),
+        TyData::RigidTy(RigidTy {
+            name: _,
+            parameters,
+        }) => parameters
+            .iter()
+            .flat_map(|parameter| match parameter {
+                Parameter::Ty(ty_parameter) => live_regions_from_place_ty(env, ty_parameter),
+                Parameter::Lt(lt_parameter) => set![lt_parameter.clone()],
+                Parameter::Const(_) => set![], // FIXME: what *do* we do with const expressions *anyway*?
+            })
+            .collect(),
 
         TyData::AliasTy(_alias_ty) => todo!("oh crapola let's think about this later"),
 
@@ -760,9 +769,7 @@ fn live_regions_from_place_ty(
             // The bound regions will show up as bound variables below.
             //
             // e.g., `for<'a> fn(&'a u32)`
-            PredicateTy::ForAll(binder) => {
-                live_regions_from_place_ty(env, &binder.peek())
-            }
+            PredicateTy::ForAll(binder) => live_regions_from_place_ty(env, &binder.peek()),
         },
 
         TyData::Variable(core_variable) => match core_variable {
@@ -770,7 +777,9 @@ fn live_regions_from_place_ty(
             CoreVariable::UniversalVar(_) => set![],
 
             // an inference variable like `_` -- we don't expect this
-            CoreVariable::ExistentialVar(_) => panic!("do not expect existentials in borrow checker"),
+            CoreVariable::ExistentialVar(_) => {
+                panic!("do not expect existentials in borrow checker")
+            }
 
             // e.g., the `'a' in `for<'a> fn(&'a u32)` -- this we can ignore because they don't represent a live borrow
             CoreVariable::BoundVar(_) => set![],
@@ -778,19 +787,14 @@ fn live_regions_from_place_ty(
     }
 }
 
-fn place_disjoint_from_place(
-    place_a: &PlaceExpression,
-    place_b: &PlaceExpression,
-) -> bool {
+fn place_disjoint_from_place(place_a: &PlaceExpression, place_b: &PlaceExpression) -> bool {
     let prefixes_a = place_prefixes(place_a);
     let prefixes_b = place_prefixes(place_b);
     !prefixes_a.contains(place_b) && !prefixes_b.contains(place_a)
 }
 
 /// Returns a set containing `place` and all prefixes of `place`.
-fn place_prefixes(
-    place: &PlaceExpression,
-) -> Set<PlaceExpression> {
+fn place_prefixes(place: &PlaceExpression) -> Set<PlaceExpression> {
     let mut prefixes = Set::new();
     let mut current = place;
     loop {
