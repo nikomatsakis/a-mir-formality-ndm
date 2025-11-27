@@ -4,7 +4,7 @@ use formality_core::{
     Cons, Fallible, Set,
 };
 use formality_rust::grammar::minirust::{
-    BasicBlock, FieldProjection, PlaceExpression, Statement, Terminator, ValueExpression,
+    BasicBlock, BbId, FieldProjection, PlaceExpression, Statement, Terminator, ValueExpression,
 };
 use formality_types::{
     grammar::{
@@ -14,48 +14,25 @@ use formality_types::{
 };
 
 use crate::{
-    borrow_check::liveness::LivePlaces,
+    borrow_check::liveness::{
+        places_live_before_basic_blocks, places_live_before_statement,
+        places_live_before_statements, places_live_before_terminator, places_live_before_value,
+        places_live_before_values, Assignment, LiveBefore, LivePlaces,
+    },
     mini_rust_check::{Location, PendingOutlives, TypeckEnv},
 };
 
-/// So what is a lifetime? The NLL answer is that a lifetime corresponds to one of the following:
-///
-/// * `Locations`: Some subset `locations` of the current function body
-/// * `Universals`: Some non-empty subset of the currently in-scope universal lifetime variables
-///
-/// # Sublife rules
-///
-/// * Any lifetime `U` in `Universals` outlives all lifetimes `L` in `Locations`
-/// *
-///
-/// # Example
-///
-/// Consider this function:
-///
-/// ```rust
-/// fn foo<'a>(x: &'a mut (u32,)) {
-///     // Loc L0
-///     let p: &'0 u32 = &x.0;
-///
-///     // Loc L1
-///     print(p);
-///
-///     // Loc L2
-///     x.0 += 1;
-/// }
-/// ```
-///
-/// * The set of universal variables is `{'static, 'a}`.
-/// * The set of locations is `{L0, L1, L2}`.
-/// * When the *user writes* `'a`, that refers to the lifetime `Universals('a)`
-/// * The minimal value of `'0` is the lifetime `Locations(L0, L1)`
-/// * Our subtyping rules hold that `Universals('a)` outlives `Locations(L0, L1)`
-///     * idea is: universal variables correspond to "some portion of the caller's fn body"
-///       which necessarily includes the call to `foo` and therefore includes the entire
-///       fn body of `foo`
-enum LifetimeValue {
-    Locations(Set<Location>),
-    Universals(Set<CoreUniversalVar<FormalityLang>>),
+/// Represents a loan that resulted from executing a borrow expression like `&'0 place`.
+#[term]
+struct Loan {
+    /// The region `'0` of the resulting reference from this borrow.
+    lt: Lt,
+
+    /// The place being borrowed.
+    place: PlaceExpression,
+
+    /// The kind of borrow (shared, mutable, etc).
+    kind: RefKind,
 }
 
 // Given this, the goal of the borrow checker (in some sense) is to find a minimal `LifetimeValue`
@@ -159,8 +136,16 @@ enum AccessKind {
 /// Given the `TypeckEnv`, which includes a (populated) list of `pending_outlives`
 /// constraints, it attempts to find values for the existential lifetime variables (inference variables)
 /// that satisfy those pending-outlives constraints and which meet the borrow checker's rules.
-pub fn borrow_check(_typeck_env: &TypeckEnv, _fn_assumptions: &Wcs) -> Fallible<()> {
-    Ok(()) // FIXME
+pub fn borrow_check(env: &TypeckEnv, fn_assumptions: &Wcs) -> Fallible<()> {
+    // Start the check from the entry block.
+    //
+    // The judgment requires that loans in all blocks
+    // reachable from the start are also respected.
+    let Some(start_bb) = env.blocks.first() else {
+        return Ok(());
+    };
+    loans_in_basic_block_respected(env, fn_assumptions, (), &start_bb.id).check_proven()?;
+    Ok(())
 }
 
 judgment_fn! {
@@ -168,48 +153,44 @@ judgment_fn! {
     fn loans_in_basic_block_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        loans_live_on_entry: Vec<Loan>,
-        block: BasicBlock,
-        places_live_on_exit: LivePlaces,
-    ) => Vec<Loan> {
-        debug(block, fn_assumptions, env)
+        loans_live_on_entry: Set<Loan>,
+        bb_id: BbId,
+    ) => () {
+        debug(loans_live_on_entry, bb_id, fn_assumptions, env)
 
         (
+            (let BasicBlock { id: _, statements, terminator } = env.basic_block(&bb_id)?)
             (loans_in_statements_respected(
                 &env,
                 &fn_assumptions,
-                loans_live_on_entry,
+                loans_live,
                 statements,
-                places_live_on_exit.before(&terminator),
-            ) => loans_after_statements)
-            (loans_in_terminator_respected(&env, &fn_assumptions, loans_after_statements, &terminator, places_live_on_exit) => ())
+                places_live_before_terminator(&env, &terminator),
+            ) => loans_live)
+            (loans_in_terminator_respected(&env, &fn_assumptions, loans_live, &terminator) => ())
             --- ("basic block")
-            (loans_in_basic_block_respected(env, fn_assumptions, loans_live_on_entry, BasicBlock { id: _, statements, terminator }, places_live_on_exit) => ())
+            (loans_in_basic_block_respected(env, fn_assumptions, loans_live, bb_id) => ())
         )
     }
 }
 
 judgment_fn! {
-    /// Prove that any loans issued in this statement are respected.
-    fn loans_in_statements_respected(
+    /// Prove that any loans issued in this basic block are respected.
+    fn loans_in_basic_blocks_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        loans_live_on_entry: Vec<Loan>,
-        statements: Vec<Statement>,
-        places_live_on_exit: LivePlaces,
-    ) => Vec<Loan> {
-        debug(statements, fn_assumptions, env)
+        loans_live_on_entry: Set<Loan>,
+        bb_ids: Vec<BbId>,
+    ) => () {
+        debug(loans_live_on_entry, bb_ids, fn_assumptions, env)
+
+        trivial(bb_ids.is_empty() => ())
 
         (
-            --- ("none")
-            (loans_in_statements_respected(_env, _assumptions, ()) => ())
-        )
-
-        (
-            (loans_in_statement_respected(&env, &fn_assumptions, head) => ())
-            (loans_in_statements_respected(&env, &fn_assumptions, &tail) => ())
+            (loans_in_basic_block_respected(&env, &assumptions, &loans_live, head) => ())
+            (loans_in_basic_blocks_respected(&env, &assumptions, &loans_live, &tail) => ())
             --- ("cons")
-            (loans_in_statements_respected(env, fn_assumptions, Cons(head, tail)) => ())
+            (loans_in_basic_blocks_respected(env, assumptions, loans_live, Cons(head, tail)) => ())
         )
     }
 }
@@ -219,18 +200,89 @@ judgment_fn! {
     fn loans_in_terminator_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        loans_live_on_entry: Vec<Loan>,
+        loans_live_on_entry: Set<Loan>,
         terminator: Terminator,
-        places_live_on_exit: LivePlaces,
     ) => () {
-        debug(terminator, fn_assumptions, env)
+        debug(loans_live_on_entry, terminator, fn_assumptions, env)
 
         (
-            // does not issue any loans
+            (loans_in_basic_block_respected(env, assumptions, loans_live, bb) => ())
             --- ("goto")
-            (loans_in_terminator_respected(_env, _assumptions, _loans_live_on_entry, Terminator::Goto(_), _places_live_on_exit) => ())
+            (loans_in_terminator_respected(env, assumptions, loans_live, Terminator::Goto(bb)) => ())
         )
 
+        (
+            (let successors: Vec<BbId> = switch_targets
+                .iter()
+                .map(|t| &t.target)
+                .chain(Some(&fallback))
+                .cloned()
+                .collect())
+            (let places_live = places_live_before_basic_blocks(&env, &successors))
+            (loans_in_value_expression_respected(&env, &assumptions, loans_live, switch_value, places_live) => loans_live)
+            (loans_in_basic_blocks_respected(&env, &assumptions, &loans_live, &successors) => ())
+            --- ("switch")
+            (loans_in_terminator_respected(env, assumptions, loans_live, Terminator::Switch { switch_value, switch_targets, fallback }) => ())
+        )
+
+        (
+            --- ("return")
+            (loans_in_terminator_respected(_env, _assumptions, _loans_live, Terminator::Return) => ())
+        )
+
+        (
+            (let places_live = places_live_before_basic_blocks(&env, &next_block))
+
+            (loans_in_value_expression_respected(
+                &env,
+                &assumptions,
+                loans_live,
+                callee,
+                (arguments, Assignment(&ret)).live_before(env, places_live.clone()),
+            ) => loans_live)
+
+            (loans_in_argument_expressions_respected(
+                &env,
+                &assumptions,
+                loans_live,
+                &arguments,
+                Assignment(&ret).live_before(env, places_live.clone()),
+            ) => loans_live)
+
+            --- ("call")
+            (loans_in_terminator_respected(env, assumptions, loans_live, Terminator::Call { callee, generic_arguments, arguments, ret, next_block }) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// Prove that any loans issued in this statement are respected.
+    fn loans_in_statements_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        loans_live_on_entry: Set<Loan>,
+        statements: Vec<Statement>,
+        places_live_on_exit: LivePlaces,
+    ) => Set<Loan> {
+        debug(loans_live_on_entry, statements, places_live_on_exit, fn_assumptions, env)
+
+        (
+            --- ("none")
+            (loans_in_statements_respected(_env, _assumptions, loans_live, (), _places_live) => loans_live)
+        )
+
+        (
+            (loans_in_statement_respected(&env,
+                &fn_assumptions,
+                loans_live,
+                head,
+                places_live_before_statements(&env, &tail, places_live_on_exit.clone()),
+            ) => loans_live)
+
+            (loans_in_statements_respected(&env, &fn_assumptions, loans_live, &tail, &places_live_on_exit) => loans_live)
+            --- ("cons")
+            (loans_in_statements_respected(env, fn_assumptions, loans_live, Cons(head, tail), places_live_on_exit) => loans_live)
+        )
     }
 }
 
@@ -239,118 +291,114 @@ judgment_fn! {
     fn loans_in_statement_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        loans_live_on_entry: Vec<Loan>,
+        loans_live_on_entry: Set<Loan>,
         statement: Statement,
         places_live_on_exit: LivePlaces,
-    ) => () {
-        debug(statement, fn_assumptions, env)
+    ) => Set<Loan> {
+        debug(loans_live_on_entry, statement, places_live_on_exit, fn_assumptions, env)
 
         (
             // does not issue any loans
             --- ("storage-live")
-            (loans_in_statement_respected(_env, _assumptions, Statement::StorageLive(_)) => ())
+            (loans_in_statement_respected(_env, _assumptions, loans_live, Statement::StorageLive(_), _places_live) => loans_live)
         )
 
         (
             // does not issue any loans
             --- ("storage-dead")
-            (loans_in_statement_respected(_env, _assumptions, Statement::StorageDead(_)) => ())
+            (loans_in_statement_respected(_env, _assumptions, loans_live, Statement::StorageDead(_), _places_live) => loans_live)
         )
 
         (
-            // does not issue any loans
+            // FIXME: Is `AccessKind::Read` correct?
+            (access_permitted_by_loans(env, assumptions, &loans_live, Access { kind: AccessKind::Read, place: place_accessed }, places_live) => ())
             --- ("place-mention")
-            (loans_in_statement_respected(_env, _assumptions, Statement::PlaceMention(_)) => ())
+            (loans_in_statement_respected(_env, assumptions, loans_live, Statement::PlaceMention(place_accessed), places_live) => loans_live)
         )
 
         (
-            (loans_in_value_expression_respected(env, assumptions, value) => ())
+            (loans_in_value_expression_respected(&env, &assumptions, loans_live, &value_rhs, &places_live) => loans_live)
 
-            // When you assign to a place, you need to know that
-            //
-            // * for every loan L that is live (tbd later), you need to know:
-            //   * the place being assigned to is not the same place that was borrowed to create L
-            //
-            // But when is a loan live?
-            //
-            // * There is a path P in the CFG from the borrow expression that created the loan L in the region R_L
-            // * There is a live variable whose type includes a region R
-            // * Along the path P, there is some live variable that includes a region that is "descended from" R_L
-
-            // Example:
-            //
-            // ```
-            // let p: &'p u32 = &'b x.0; // Loan L with lifetime
-            //                  ------- the borrow of `x.0`
-            //                  ------- this expression has the type `&'b u32`
-            //        ------- creates an outlive relation `'b: 'p`
-            // ...
-            // x.0 = 42; // must check that p does not borrow x.
-            // read(p);  // `p` is live
-            // ```
-
-            // What we want in English:
-            //
-            // - For every loan L that is invalidated by assigning to Place:
-            //   - For every live place Place_live:
-            //     - For every region R_live appearing in the type of Place_live:
-            //       - For every reachable nodes R_reachable in the outlives graph from L.lt
-            //         - R_reachable ≠ R_live
-
-
-
+            (access_permitted_by_loans(
+                &env,
+                &assumptions,
+                &loans_live,
+                Access { kind: AccessKind::Write, place: place_lhs.clone() },
+                places_live_before_value(&env, &value_rhs, places_live.clone()),
+            ) => ())
             --- ("assign")
-            (loans_in_statement_respected(env, assumptions, Statement::Assign(_place, value)) => ())
+            (loans_in_statement_respected(env, assumptions, loans_live, Statement::Assign(place_lhs, value_rhs), places_live) => &loans_live)
         )
     }
 }
 
 judgment_fn! {
-    /// Prove that any loans issued in this statement are respected.
+    /// Prove that any loans issued in thes value expressions (evaluated in this order) are respected.
+    fn loans_in_value_expressions_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        loans_live_on_entry: Set<Loan>,
+        values: Vec<ValueExpression>,
+        places_live_on_exit: LivePlaces,
+    ) => Set<Loan> {
+        debug(loans_live_on_entry, values, places_live_on_exit, fn_assumptions, env)
+
+        (
+            --- ("nil")
+            (loans_in_value_expressions_respected(_env, _assumptions, loans_live, (), _places_live) => loans_live)
+        )
+
+        (
+            (loans_in_value_expression_respected(
+                &env,
+                &assumptions,
+                loans_live,
+                head,
+                places_live_before_values(&env, &tail, places_live.clone()),
+            ) => loans_live)
+            (loans_in_value_expressions_respected(&env, &assumptions, loans_live, &tail, &places_live) => loans_live)
+            --- ("cons")
+            (loans_in_value_expressions_respected(env, assumptions, loans_live, Cons(head, tail), places_live) => loans_live)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Prove that any loans issued in this value expression are respected.
     fn loans_in_value_expression_respected(
         env: TypeckEnv,
         fn_assumptions: Wcs,
-        loans_live_on_entry: Vec<Loan>,
+        loans_live_on_entry: Set<Loan>,
         value: ValueExpression,
         places_live_on_exit: LivePlaces,
-    ) => () {
-        debug(value, fn_assumptions, env)
-
-
-    }
-}
-
-pub type Loans = Set<Loan>;
-
-/// Represents a loan that resulted from executing a borrow expression like `&'0 place`.
-#[term]
-
-struct Loan {
-    /// The region `'0` of the resulting reference from this borrow.
-    lt: Lt,
-
-    /// The place being borrowed.
-    place: PlaceExpression,
-
-    /// The kind of borrow (shared, mutable, etc).
-    kind: RefKind,
-}
-
-judgment_fn! {
-    /// Prove that any loans issued in this statement are respected.
-    fn borrow_check_statement(
-        env: TypeckEnv,
-        assumptions: Wcs,
-        loaned_on_entry: Loans,
-        live_after: LivePlaces,
-        statement: Statement,
-    ) => Loans {
-        debug(statement, loaned_on_entry, live_after, assumptions, env)
+    ) => Set<Loan> {
+        debug(loans_live_on_entry, value, places_live_on_exit, fn_assumptions, env)
 
         (
-            (place_not_borrowed_by_any(env, assumptions, &loaned, live_after, local_id) => ())
-            --- ("storage-dead")
-            (borrow_check_statement(env, assumptions, loaned, live_after, Statement::StorageDead(local_id)) => &loaned)
+            --- ("constant-or-fn")
+            (loans_in_value_expression_respected(_env, _assumptions, loans_live, ValueExpression::Constant(_) | ValueExpression::Fn(_), _places_live) => loans_live)
+        )
+
+        (
+            (access_permitted_by_loans(&env, &assumptions, &loans_live, Access::new(AccessKind::Read, &place), places_live) => ())
+            --- ("load")
+            (loans_in_value_expression_respected(env, assumptions, loans_live, ValueExpression::Load(place), places_live) => &loans_live)
+        )
+
+        (
+            (loans_in_value_expressions_respected(env, assumptions, loans_live, fields, places_live) => loans_live)
+            --- ("struct")
+            (loans_in_value_expression_respected(env, assumptions, loans_live, ValueExpression::Struct(fields, _ty), places_live) => loans_live)
+        )
+
+        (
+            // In order to create a `&`-borrow, we need the place to be live
+            (access_permitted_by_loans(&env, &assumptions, &loans_live, Access::new(AccessKind::Read, &place), places_live) => ())
+
+            // The new loan that we are creating
+            (let loan = Loan::new(&lt, &place, RefKind::Shared))
+            --- ("struct")
+            (loans_in_value_expression_respected(env, assumptions, loans_live, ValueExpression::Ref(lt, place), places_live) => Cons(loan, &loans_live))
         )
     }
 }
@@ -477,14 +525,28 @@ judgment_fn! {
 
         (
             (let outlived_by_loan = transitively_outlived_by(&env, &loan.lt))
-            (if outlived_by_loan.iter().all(|lt| match lt.data() {
-                LtData::Static => false,
-                LtData::Variable(Variable::UniversalVar(_)) => false,
-                LtData::Variable(Variable::ExistentialVar(_)) => true,
-                LtData::Variable(Variable::BoundVar(_)) => panic!("cannot outlive a bound var"),
+            (if outlived_by_loan.iter().all(|p| match p {
+                // If `'0: T` then `'0` must hold for entire fn body...
+                Parameter::Ty(_) => false,
+
+                Parameter::Lt(lt) => match lt.data() {
+                    // If `'0: 'static` then `'0` must hold for entire fn body...
+                    LtData::Static => false,
+
+                    // If `'0: 'a` for some lifetime parameter `'a`, then `'0` must hold for entire fn body...
+                    LtData::Variable(Variable::UniversalVar(_)) => false,
+
+                    // If `'0: '1`, that's fine.
+                    LtData::Variable(Variable::ExistentialVar(_)) => true,
+
+                    LtData::Variable(Variable::BoundVar(_)) => panic!("cannot outlive a bound var"),
+                },
+
+                // Not really clear what this would mean
+                Parameter::Const(_) => panic!("cannot outlive a constant"),
             }))
             --- ("loan_not_required_by_universal_regions")
-            (loan_cannot_outlive_universal_regions(env, assumptions, loan) => ())
+            (loan_cannot_outlive_universal_regions(env, _assumptions, loan) => ())
         )
     }
 }

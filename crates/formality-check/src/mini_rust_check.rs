@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::iter::zip;
 use std::sync::Arc;
 
-use formality_core::{Downcast, Fallible, Map, Upcast, cast_impl, judgment_fn};
+use formality_core::{cast_impl, judgment_fn, Downcast, Fallible, Map, Upcast};
 use formality_prove::{prove_normalize, AdtDeclBoundData, AdtDeclVariant, Constraints, Decls, Env};
 use formality_rust::grammar::minirust::ArgumentExpression::{ByValue, InPlace};
 use formality_rust::grammar::minirust::ValueExpression::{Constant, Fn, Load, Ref, Struct};
@@ -12,7 +12,7 @@ use formality_rust::grammar::minirust::{
 use formality_rust::grammar::minirust::{BodyBound, PlaceExpression::*};
 use formality_rust::grammar::{FnBoundData, Program};
 use formality_types::grammar::{
-    AdtId, CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, TyData, VariantId, Wcs
+    AdtId, CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, TyData, VariantId, Wcs,
 };
 
 use crate::{Check, CrateItem, Debug, ProvenSet, ToWcs, Visit};
@@ -262,22 +262,32 @@ impl TypeckEnv {
 
     /// Hacky method that type-checks a place that has already been type-checked.
     /// Asserts therefore that the resulting pending outlives were already pending.
-    /// 
+    ///
     /// I am a horrible monster and I pray for death, but I have no other option. --nikomatsakis
-    pub(crate) fn check_place_hackola(&self, fn_assumptions: &Wcs, place: &PlaceExpression) -> Fallible<Ty> {
+    pub(crate) fn check_place_hackola(
+        &self,
+        fn_assumptions: &Wcs,
+        place: &PlaceExpression,
+    ) -> Fallible<Ty> {
         let mut env = self.clone();
         let ty = env.check_place(fn_assumptions, place)?;
         for outlives in &env.pending_outlives {
             if !self.pending_outlives.contains(&outlives) {
-                panic!("unexpected outlives constraint generated during check_place: {:?}", outlives);
+                panic!(
+                    "unexpected outlives constraint generated during check_place: {:?}",
+                    outlives
+                );
             }
         }
         Ok(ty)
     }
 
-
     // Check if the place expression is well-formed, and return the type of the place expression.
-    pub(crate) fn check_place(&mut self, fn_assumptions: &Wcs, place: &PlaceExpression) -> Fallible<Ty> {
+    pub(crate) fn check_place(
+        &mut self,
+        fn_assumptions: &Wcs,
+        place: &PlaceExpression,
+    ) -> Fallible<Ty> {
         let place_ty;
         match place {
             Local(local_id) => {
@@ -321,31 +331,32 @@ impl TypeckEnv {
 
                 place_ty = fields[field_projection.index].ty.clone();
             }
-            Deref(value_expr) => {
-                match self.check_place(fn_assumptions, value_expr)?.data() {
-                    TyData::RigidTy(rigid_ty) => match &rigid_ty.name {
-                        RigidName::Ref(_ref_kind) => {
-                            place_ty = rigid_ty.parameters[1].as_ty().expect("well-kinded reference").clone();
+            Deref(value_expr) => match self.check_place(fn_assumptions, value_expr)?.data() {
+                TyData::RigidTy(rigid_ty) => match &rigid_ty.name {
+                    RigidName::Ref(_ref_kind) => {
+                        place_ty = rigid_ty.parameters[1]
+                            .as_ty()
+                            .expect("well-kinded reference")
+                            .clone();
+                    }
+                    RigidName::AdtId(adt_id) => {
+                        if *adt_id == AdtId::new("Box") {
+                            todo!("box magic")
                         }
-                        RigidName::AdtId(adt_id) => {
-                            if *adt_id == AdtId::new("Box") {
-                                todo!("box magic")
-                            }
-                            bail!("cannot deref an ADT of type {adt_id:?}")
-                        }
-                        RigidName::ScalarId(_) |
-                        RigidName::Tuple(_) |
-                        RigidName::FnPtr(_) |
-                        RigidName::FnDef(_) => {
-                            bail!("cannot deref a value of type {rigid_ty:?}")
-                        }
-                    },
-                    
-                    TyData::AliasTy(_alias_ty) => todo!("alias normalization"),
-                    TyData::PredicateTy(_predicate_ty) => todo!("predicate types"),
-                    TyData::Variable(_core_variable) => panic!("type inference variables unexpected"),
-                }
-            }
+                        bail!("cannot deref an ADT of type {adt_id:?}")
+                    }
+                    RigidName::ScalarId(_)
+                    | RigidName::Tuple(_)
+                    | RigidName::FnPtr(_)
+                    | RigidName::FnDef(_) => {
+                        bail!("cannot deref a value of type {rigid_ty:?}")
+                    }
+                },
+
+                TyData::AliasTy(_alias_ty) => todo!("alias normalization"),
+                TyData::PredicateTy(_predicate_ty) => todo!("predicate types"),
+                TyData::Variable(_core_variable) => panic!("type inference variables unexpected"),
+            },
         }
         Ok(place_ty.clone())
     }
@@ -539,6 +550,16 @@ pub struct TypeckEnv {
     pub decls: Decls,
 }
 
+impl TypeckEnv {
+    pub fn basic_block(&self, bb_id: &BbId) -> Fallible<&BasicBlock> {
+        Ok(self
+            .blocks
+            .iter()
+            .find(|bb| bb.id == *bb_id)
+            .ok_or_else(|| anyhow::anyhow!("Basic block {:?} not found", bb_id))?)
+    }
+}
+
 cast_impl!(TypeckEnv);
 
 /// A pending outlives constraint that we incurred during typechecking.
@@ -727,9 +748,15 @@ impl TypeckEnv {
     where
         T: Clone,
     {
-        let mut env= self.env.clone();
+        let mut env = self.env.clone();
         let value = env.instantiate_universally(binder);
-        (value, TypeckEnv { env, ..self.clone() } )
+        (
+            value,
+            TypeckEnv {
+                env,
+                ..self.clone()
+            },
+        )
     }
 }
 
