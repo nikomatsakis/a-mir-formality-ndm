@@ -1,4 +1,4 @@
-use formality_core::{fixed_point, Set, SetExt};
+use formality_core::{fixed_point, Set, SetExt, Upcast};
 use formality_rust::grammar::minirust::{
     ArgumentExpression, BasicBlock, BbId, PlaceExpression, Statement, Terminator, ValueExpression,
 };
@@ -58,7 +58,7 @@ pub fn places_live_before_terminator(env: &TypeckEnv, terminator: &Terminator) -
                 Some(bb_id) => places_live_before_basic_block(env, bb_id),
                 None => LivePlaces::default(),
             };
-            places_live = places_live_before_assigning(env, ret, places_live);
+            places_live = Assignment(ret).live_before(env, places_live);
             places_live = arguments.live_before(env, places_live);
             places_live = callee.live_before(env, places_live);
             places_live
@@ -71,34 +71,35 @@ pub trait LiveBefore {
     /// Given a term `term` and a set of places `places_live` that are live after `term` executes,
     /// returns the set of places live BEFORE `term`. This will include all places in `places_live`
     /// minus any places overwritten by `term`, plus any places accessed.
-    fn live_before(&self, env: &TypeckEnv, places_live: LivePlaces) -> LivePlaces;
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces;
 }
 
 impl<A: LiveBefore, B: LiveBefore> LiveBefore for (A, B) {
-    fn live_before(&self, env: &TypeckEnv, mut places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
         let (a, b) = self;
-        places_live = b.live_before(env, places_live);
+        let places_live = b.live_before(env, places_live);
         a.live_before(env, places_live)
     }
 }
 
 impl<A: LiveBefore, B: LiveBefore, C: LiveBefore> LiveBefore for (A, B, C) {
-    fn live_before(&self, env: &TypeckEnv, mut places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
         let (a, b, c) = self;
-        places_live = c.live_before(env, places_live);
-        places_live = b.live_before(env, places_live);
+        let places_live = c.live_before(env, places_live);
+        let places_live = b.live_before(env, places_live);
         a.live_before(env, places_live)
     }
 }
 
 impl<T: ?Sized + LiveBefore> LiveBefore for &T {
-    fn live_before(&self, env: &TypeckEnv, places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
         T::live_before(self, env, places_live)
     }
 }
 
 impl<T: LiveBefore> LiveBefore for [T] {
-    fn live_before(&self, env: &TypeckEnv, mut places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
+        let mut places_live: LivePlaces = places_live.upcast();
         for element in self.iter().rev() {
             places_live = T::live_before(element, env, places_live);
         }
@@ -107,13 +108,14 @@ impl<T: LiveBefore> LiveBefore for [T] {
 }
 
 impl<T: LiveBefore> LiveBefore for Vec<T> {
-    fn live_before(&self, env: &TypeckEnv, places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
         <[T]>::live_before(self, env, places_live)
     }
 }
 
 impl<T: LiveBefore> LiveBefore for Option<T> {
-    fn live_before(&self, env: &TypeckEnv, places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
+        let places_live = places_live.upcast();
         match self {
             Some(t) => t.live_before(env, places_live),
             None => places_live,
@@ -122,7 +124,8 @@ impl<T: LiveBefore> LiveBefore for Option<T> {
 }
 
 impl LiveBefore for Statement {
-    fn live_before(&self, env: &TypeckEnv, mut places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
+        let mut places_live = places_live.upcast();
         match self {
             Statement::Assign(place_expression, value_expression) => {
                 places_live = Assignment(place_expression).live_before(env, places_live);
@@ -138,7 +141,8 @@ impl LiveBefore for Statement {
 }
 
 impl LiveBefore for ValueExpression {
-    fn live_before(&self, env: &TypeckEnv, places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
+        let places_live = places_live.upcast();
         match self {
             ValueExpression::Constant(_) => places_live,
             ValueExpression::Fn(_) => places_live,
@@ -156,14 +160,15 @@ impl LiveBefore for ValueExpression {
 }
 
 impl LiveBefore for PlaceExpression {
-    fn live_before(&self, _env: &TypeckEnv, mut places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, _env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
+        let mut places_live = places_live.upcast();
         places_live.insert(self.clone());
         places_live
     }
 }
 
 impl LiveBefore for ArgumentExpression {
-    fn live_before(&self, env: &TypeckEnv, places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
         match self {
             ArgumentExpression::ByValue(value_expression) => {
                 value_expression.live_before(env, places_live)
@@ -183,7 +188,8 @@ impl LiveBefore for ArgumentExpression {
 pub struct Assignment<'a>(pub &'a PlaceExpression);
 
 impl LiveBefore for Assignment<'_> {
-    fn live_before(&self, _env: &TypeckEnv, mut places_live: LivePlaces) -> LivePlaces {
+    fn live_before(&self, _env: &TypeckEnv, places_live: impl Upcast<LivePlaces>) -> LivePlaces {
+        let mut places_live = places_live.upcast();
         let Assignment(place_assigned) = self;
         places_live.retain(|p| !place_assigned.is_prefix_of(p));
         places_live

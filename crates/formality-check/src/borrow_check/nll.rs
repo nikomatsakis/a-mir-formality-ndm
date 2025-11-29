@@ -1,25 +1,18 @@
-use formality_core::{
-    judgment_fn, set, term,
-    variable::{CoreUniversalVar, CoreVariable},
-    Cons, Fallible, Set,
-};
+use formality_core::{judgment_fn, set, term, variable::CoreVariable, Cons, Fallible, Set, Upcast};
 use formality_rust::grammar::minirust::{
-    BasicBlock, BbId, FieldProjection, PlaceExpression, Statement, Terminator, ValueExpression,
+    ArgumentExpression, BasicBlock, BbId, FieldProjection, PlaceExpression, Statement, Terminator,
+    ValueExpression,
 };
-use formality_types::{
-    grammar::{
-        AliasTy, Lt, LtData, Parameter, PredicateTy, RefKind, RigidTy, Ty, TyData, Variable, Wcs,
-    },
-    rust::{term, FormalityLang},
+use formality_types::grammar::{
+    AliasTy, Lt, LtData, Parameter, PredicateTy, RefKind, RigidTy, Ty, TyData, Variable, Wcs,
 };
 
 use crate::{
     borrow_check::liveness::{
-        places_live_before_basic_blocks, places_live_before_statement,
-        places_live_before_statements, places_live_before_terminator, places_live_before_value,
-        places_live_before_values, Assignment, LiveBefore, LivePlaces,
+        places_live_before_basic_blocks, places_live_before_terminator, Assignment, LiveBefore,
+        LivePlaces,
     },
-    mini_rust_check::{Location, PendingOutlives, TypeckEnv},
+    mini_rust_check::{PendingOutlives, TypeckEnv},
 };
 
 /// Represents a loan that resulted from executing a borrow expression like `&'0 place`.
@@ -238,7 +231,7 @@ judgment_fn! {
                 &assumptions,
                 loans_live,
                 callee,
-                (arguments, Assignment(&ret)).live_before(env, places_live.clone()),
+                (&arguments, Assignment(&ret)).live_before(&env, &places_live),
             ) => loans_live)
 
             (loans_in_argument_expressions_respected(
@@ -246,11 +239,34 @@ judgment_fn! {
                 &assumptions,
                 loans_live,
                 &arguments,
-                Assignment(&ret).live_before(env, places_live.clone()),
+                Assignment(&ret).live_before(&env, &places_live),
             ) => loans_live)
 
+            (loans_in_next_block_respected(&env, &assumptions, loans_live, &next_block) => ())
             --- ("call")
-            (loans_in_terminator_respected(env, assumptions, loans_live, Terminator::Call { callee, generic_arguments, arguments, ret, next_block }) => ())
+            (loans_in_terminator_respected(env, assumptions, loans_live, Terminator::Call { callee, generic_arguments: _, arguments, ret, next_block }) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    fn loans_in_next_block_respected(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loans_live_on_entry: Set<Loan>,
+        next_block: Option<BbId>,
+    ) => () {
+        debug(loans_live_on_entry, next_block, assumptions, env)
+
+        (
+            (loans_in_basic_block_respected(env, assumptions, loans_live, bb_id) => ())
+            --- ("Some(_)")
+            (loans_in_next_block_respected(env, assumptions, loans_live, Some::<BbId>(bb_id)) => ())
+        )
+
+        (
+            --- ("None")
+            (loans_in_next_block_respected(_env, _assumptions, _loans_live, None::<BbId>) => ())
         )
     }
 }
@@ -276,7 +292,7 @@ judgment_fn! {
                 &fn_assumptions,
                 loans_live,
                 head,
-                places_live_before_statements(&env, &tail, places_live_on_exit.clone()),
+                tail.live_before(&env, &places_live_on_exit),
             ) => loans_live)
 
             (loans_in_statements_respected(&env, &fn_assumptions, loans_live, &tail, &places_live_on_exit) => loans_live)
@@ -313,21 +329,77 @@ judgment_fn! {
             // FIXME: Is `AccessKind::Read` correct?
             (access_permitted_by_loans(env, assumptions, &loans_live, Access { kind: AccessKind::Read, place: place_accessed }, places_live) => ())
             --- ("place-mention")
-            (loans_in_statement_respected(_env, assumptions, loans_live, Statement::PlaceMention(place_accessed), places_live) => loans_live)
+            (loans_in_statement_respected(_env, assumptions, loans_live, Statement::PlaceMention(place_accessed), places_live) => &loans_live)
         )
 
         (
-            (loans_in_value_expression_respected(&env, &assumptions, loans_live, &value_rhs, &places_live) => loans_live)
+            (loans_in_value_expression_respected(
+                &env,
+                &assumptions,
+                loans_live,
+                &value_rhs,
+                Assignment(&place_lhs).live_before(&env, &places_live),
+            ) => loans_live)
 
             (access_permitted_by_loans(
                 &env,
                 &assumptions,
                 &loans_live,
-                Access { kind: AccessKind::Write, place: place_lhs.clone() },
-                places_live_before_value(&env, &value_rhs, places_live.clone()),
+                Access::new(AccessKind::Write, &place_lhs),
+                &places_live,
             ) => ())
             --- ("assign")
             (loans_in_statement_respected(env, assumptions, loans_live, Statement::Assign(place_lhs, value_rhs), places_live) => &loans_live)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Prove that any loans issued in thes value expressions (evaluated in this order) are respected.
+    fn loans_in_argument_expressions_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        loans_live_on_entry: Set<Loan>,
+        values: Vec<ArgumentExpression>,
+        places_live_on_exit: LivePlaces,
+    ) => Set<Loan> {
+        debug(loans_live_on_entry, values, places_live_on_exit, fn_assumptions, env)
+
+        (
+            --- ("nil")
+            (loans_in_argument_expressions_respected(_env, _assumptions, loans_live, (), _places_live) => loans_live)
+        )
+
+        (
+            (loans_in_argument_expression_respected(&env, &assumptions, loans_live, head, tail.live_before(&env, &places_live)) => loans_live)
+            (loans_in_argument_expressions_respected(&env, &assumptions, loans_live, &tail, &places_live) => loans_live)
+            --- ("cons")
+            (loans_in_argument_expressions_respected(env, assumptions, loans_live, Cons(head, tail), places_live) => loans_live)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Prove that any loans issued in thes value expressions (evaluated in this order) are respected.
+    fn loans_in_argument_expression_respected(
+        env: TypeckEnv,
+        fn_assumptions: Wcs,
+        loans_live_on_entry: Set<Loan>,
+        value: ArgumentExpression,
+        places_live_on_exit: LivePlaces,
+    ) => Set<Loan> {
+        debug(loans_live_on_entry, value, places_live_on_exit, fn_assumptions, env)
+
+        (
+            (access_permitted_by_loans(env, assumptions, &loans_live, Access::new(AccessKind::Move, expr), places_live) => ())
+            --- ("in-place")
+            (loans_in_argument_expression_respected(env, assumptions, loans_live, ArgumentExpression::InPlace(expr), places_live) => &loans_live)
+        )
+
+        (
+            (loans_in_value_expression_respected(env, assumptions, loans_live, expr, places_live) => loans_live)
+            --- ("by-value")
+            (loans_in_argument_expression_respected(env, assumptions, loans_live, ArgumentExpression::ByValue(expr), places_live) => loans_live)
         )
     }
 }
@@ -354,8 +426,9 @@ judgment_fn! {
                 &assumptions,
                 loans_live,
                 head,
-                places_live_before_values(&env, &tail, places_live.clone()),
+                tail.live_before(&env, &places_live),
             ) => loans_live)
+
             (loans_in_value_expressions_respected(&env, &assumptions, loans_live, &tail, &places_live) => loans_live)
             --- ("cons")
             (loans_in_value_expressions_respected(env, assumptions, loans_live, Cons(head, tail), places_live) => loans_live)
@@ -440,9 +513,9 @@ judgment_fn! {
         debug(loan, access, places_live_after_access, assumptions, env)
 
         (
-            (if place_disjoint_from_place(loan.place, accessed_place))
-            --- ("borrows of disjoint places")
-            (access_permitted_by_loan(_env, _assumptions, loan, accessed_place, _places_live_after_access) => ())
+            (if place_disjoint_from_place(&loan.place, &access.place))
+            --- ("borrow of disjoint places")
+            (access_permitted_by_loan(_env, _assumptions, loan, access, _places_live_after_access) => ())
         )
 
         (
@@ -458,11 +531,11 @@ judgment_fn! {
         )
 
         (
-            (if !place_disjoint_from_place(loan.place, accessed_place))! // just for convenience
-            (loan_not_required_by_live_places(env, assumptions, loan, places_live_after_access) => ())
-            (loan_cannot_outlive_universal_regions(env, assumptions, loan) => ())
+            (if !place_disjoint_from_place(&loan.place, &access.place))! // just for convenience
+            (loan_not_required_by_live_places(env, assumptions, &loan, places_live_after_access) => ())
+            (loan_cannot_outlive_universal_regions(env, assumptions, &loan) => ())
             --- ("borrows of disjoint places")
-            (access_permitted_by_loan(_env, _assumptions, loan, accessed_place, _places_live_after_access) => ())
+            (access_permitted_by_loan(_env, _assumptions, loan, access, _places_live_after_access) => ())
         )
     }
 }
@@ -574,7 +647,7 @@ judgment_fn! {
 
         (
             --- ("borrow not live -- no live places")
-            (loan_not_required_by_live_places(_env, _assumptions, loan, ()) => ())
+            (loan_not_required_by_live_places(_env, _assumptions, _loan, ()) => ())
         )
 
         (
@@ -713,7 +786,7 @@ judgment_fn! {
             // we ensure this is not a problem.
             (loan_cannot_outlive_universal_regions(env, assumptions, loan) => ())
             --- ("universal-variable")
-            (loan_not_required_by_parameter(env, assumptions, loan, Variable::UniversalVar(v)) => ())
+            (loan_not_required_by_parameter(env, assumptions, loan, Variable::UniversalVar(_v)) => ())
         )
 
         (
@@ -746,7 +819,7 @@ judgment_fn! {
 
         (
             (let outlived_by_loan = transitively_outlived_by(&env, &loan.lt))
-            (if outlived_by_loan.contains(&lifetime))
+            (if outlived_by_loan.contains(&lifetime.upcast()))
             --- ("loan_cannot_outlive")
             (loan_cannot_outlive(env, _assumptions, loan, lifetime) => ())
         )
@@ -872,6 +945,7 @@ fn place_prefixes(place: &PlaceExpression) -> Set<PlaceExpression> {
 
 #[test]
 fn test_locals_are_disjoint() {
+    use formality_types::rust::term;
     let place_a: PlaceExpression = term("local(a)");
     let place_b: PlaceExpression = term("local(b)");
     assert!(place_disjoint_from_place(&place_a, &place_b));
@@ -879,6 +953,7 @@ fn test_locals_are_disjoint() {
 
 #[test]
 fn test_local_plus_field() {
+    use formality_types::rust::term;
     let place_a: PlaceExpression = term("local(a)");
     let place_b: PlaceExpression = term("local(a).0");
     assert!(!place_disjoint_from_place(&place_a, &place_b));
@@ -886,6 +961,7 @@ fn test_local_plus_field() {
 
 #[test]
 fn test_two_different_fields() {
+    use formality_types::rust::term;
     let place_a: PlaceExpression = term("local(a).0");
     let place_b: PlaceExpression = term("local(a).1");
     assert!(place_disjoint_from_place(&place_a, &place_b));

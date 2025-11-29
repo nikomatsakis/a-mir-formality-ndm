@@ -12,8 +12,10 @@ use formality_rust::grammar::minirust::{
 use formality_rust::grammar::minirust::{BodyBound, PlaceExpression::*};
 use formality_rust::grammar::{FnBoundData, Program};
 use formality_types::grammar::{
-    AdtId, CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, TyData, VariantId, Wcs,
+    AdtId, Binder, CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, TyData, VariantId,
+    Wcs,
 };
+use formality_types::rust::Fold;
 
 use crate::{Check, CrateItem, Debug, ProvenSet, ToWcs, Visit};
 use anyhow::bail;
@@ -744,9 +746,9 @@ impl TypeckEnv {
     }
 
     /// Instantiate the given binder universally in this environment,
-    pub fn instantiate_universally<T>(&self, binder: &formality_core::Binder<T>) -> (T, TypeckEnv)
+    pub fn instantiate_universally<T>(&self, binder: &Binder<T>) -> (T, TypeckEnv)
     where
-        T: Clone,
+        T: Fold + Clone,
     {
         let mut env = self.env.clone();
         let value = env.instantiate_universally(binder);
