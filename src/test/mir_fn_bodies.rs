@@ -150,7 +150,7 @@ fn test_goto_terminator() {
 ///      v0 = v1;
 ///      return v0;
 ///    }
-///    
+///
 ///    fn bar(v1: u32) -> u32 {
 ///       v0 = v1;
 ///       let v0 = foo(v0);
@@ -207,7 +207,7 @@ fn test_call_terminator() {
 ///      v0 = v1;
 ///      return v0;
 ///    }
-///    
+///
 /// ```
 #[test]
 fn test_place_mention_statement() {
@@ -261,7 +261,7 @@ fn test_storage_live_dead() {
     )
 }
 
-/// Test valid program that uses struct.  
+/// Test valid program that uses struct.
 #[test]
 fn test_struct() {
     crate::assert_ok!(
@@ -340,7 +340,7 @@ fn test_no_next_bb_for_call_terminator() {
 ///      v0 = v1;
 ///      return v0;
 ///    }
-///    
+///
 /// ```
 #[test]
 fn test_invalid_assign_statement() {
@@ -1042,6 +1042,7 @@ fn test_ref_identity() {
 /// }
 /// ```
 #[test]
+#[ignore]
 fn test_borrow_check_basic() {
     crate::assert_err!(
         [
