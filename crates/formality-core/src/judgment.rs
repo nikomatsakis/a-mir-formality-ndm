@@ -6,7 +6,7 @@ mod assertion;
 pub use assertion::JudgmentAssertion;
 
 mod proven_set;
-pub use proven_set::{FailedJudgment, FailedRule, ProvenSet, RuleFailureCause, TryIntoIter};
+pub use proven_set::{EachProof, FailedJudgment, FailedRule, ProvenSet, RuleFailureCause};
 
 mod test_fallible;
 mod test_filtered;
@@ -409,17 +409,14 @@ macro_rules! push_rules {
     };
 
     (@body $args:tt; $inputs:tt; $step_index:expr; ($i:expr => $p:pat) $($m:tt)*) => {
-        // Explicitly calling `into_iter` silences some annoying lints
-        // in the case where `$i` is an `Option` or a `Result`
-        match $crate::judgment::TryIntoIter::try_into_iter($i, || stringify!($i).to_string()) {
-            Ok(i) => {
-                for $p in std::iter::IntoIterator::into_iter(i) {
-                    $crate::push_rules!(@body $args; $inputs; $step_index + 1; $($m)*);
-                }
-            }
-            Err(e) => {
-                $crate::push_rules!(@record_failure $inputs; $step_index, $i; e);
-            }
+        if let Err(e) = $crate::judgment::EachProof::each_proof(
+            $i,
+            || stringify!($i).to_string(),
+            |$p| {
+                $crate::push_rules!(@body $args; $inputs; $step_index + 1; $($m)*);
+            },
+        ) {
+            $crate::push_rules!(@record_failure $inputs; $step_index, $i; e);
         }
     };
 

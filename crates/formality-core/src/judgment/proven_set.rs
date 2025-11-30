@@ -107,7 +107,7 @@ impl<T: Ord + Debug> ProvenSet<T> {
     #[track_caller]
     pub fn flat_map<I, U>(self, mut op: impl FnMut(T) -> I) -> ProvenSet<U>
     where
-        I: TryIntoIter<Item = U>,
+        I: EachProof<Item = U>,
         U: Ord + Debug,
     {
         match self.data {
@@ -120,11 +120,13 @@ impl<T: Ord + Debug> ProvenSet<T> {
 
                 for item in set {
                     let collection = op(item);
-                    match collection.try_into_iter(|| "flat_map".to_string()) {
-                        Ok(iterator) => items.extend(iterator),
-                        Err(cause) => {
-                            failures.insert(FailedRule::new(cause));
-                        }
+                    if let Err(cause) = collection.each_proof(
+                        || "flat_map".to_string(),
+                        |item| {
+                            items.insert(item);
+                        },
+                    ) {
+                        failures.insert(FailedRule::new(cause));
                     }
                 }
 
@@ -529,64 +531,78 @@ fn indent(s: impl std::fmt::Display) -> String {
 /// returns an `Ok` iterator.
 ///
 /// Otherwise, returns returns an error.
-pub trait TryIntoIter {
-    type IntoIter: Iterator<Item = Self::Item>;
+pub trait EachProof {
     type Item;
 
-    /// `value` is the result of the expression `foo`.
-    ///
-    /// `stringify_expr` is a closure that will return a string describing the expression that produced value.
-    fn try_into_iter(
+    /// If the iterable is non-empty, invokes `each_proof` for each item and returns `Ok(())`.
+    /// Otherwise, returns `Err(_)` with a description of the failure;
+    /// `stringify_expr` is used to create that description, it should
+    /// return a string representing the expression being enumerated.
+    fn each_proof(
         self,
         stringify_expr: impl FnOnce() -> String,
-    ) -> Result<Self::IntoIter, RuleFailureCause>;
+        each_proof: impl FnMut(Self::Item),
+    ) -> Result<(), RuleFailureCause>;
 }
 
-impl<T> TryIntoIter for ProvenSet<T> {
-    type IntoIter = <Set<T> as IntoIterator>::IntoIter;
+impl<T> EachProof for ProvenSet<T> {
     type Item = T;
 
-    fn try_into_iter(
+    fn each_proof(
         self,
         _stringify_expr: impl FnOnce() -> String,
-    ) -> Result<Self::IntoIter, RuleFailureCause> {
+        mut each_proof: impl FnMut(Self::Item),
+    ) -> Result<(), RuleFailureCause> {
         match self.data {
             Data::Failure(e) => Err(RuleFailureCause::FailedJudgment(e)),
-            Data::Success(s) => Ok(s.into_iter()),
+            Data::Success(s) => {
+                for item in s {
+                    each_proof(item);
+                }
+                Ok(())
+            }
         }
     }
 }
 
-impl<'a, T> TryIntoIter for &'a ProvenSet<T> {
-    type IntoIter = <&'a Set<T> as IntoIterator>::IntoIter;
+impl<'a, T> EachProof for &'a ProvenSet<T> {
     type Item = &'a T;
 
-    fn try_into_iter(
+    fn each_proof(
         self,
         _stringify_expr: impl FnOnce() -> String,
-    ) -> Result<Self::IntoIter, RuleFailureCause> {
+        mut each_proof: impl FnMut(Self::Item),
+    ) -> Result<(), RuleFailureCause> {
         match &self.data {
             Data::Failure(e) => Err(RuleFailureCause::FailedJudgment(e.clone())),
-            Data::Success(s) => Ok(s.iter()),
+            Data::Success(s) => {
+                for item in s {
+                    each_proof(item);
+                }
+                Ok(())
+            }
         }
     }
 }
 
-impl<T: IntoIterator> TryIntoIter for T {
-    type IntoIter = std::iter::Peekable<<T as IntoIterator>::IntoIter>;
+impl<T: IntoIterator> EachProof for T {
     type Item = <T as IntoIterator>::Item;
 
-    fn try_into_iter(
+    fn each_proof(
         self,
         stringify_expr: impl FnOnce() -> String,
-    ) -> Result<Self::IntoIter, RuleFailureCause> {
+        mut each_proof: impl FnMut(Self::Item),
+    ) -> Result<(), RuleFailureCause> {
         let mut iter = self.into_iter().peekable();
         if iter.peek().is_none() {
             Err(RuleFailureCause::EmptyCollection {
                 expr: stringify_expr(),
             })
         } else {
-            Ok(iter)
+            for item in iter {
+                each_proof(item);
+            }
+            Ok(())
         }
     }
 }

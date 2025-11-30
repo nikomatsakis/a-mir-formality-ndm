@@ -15,7 +15,7 @@ mod prove_wc_list;
 mod prove_wf;
 
 pub use constraints::Constraints;
-use formality_core::judgment::{FailedRule, TryIntoIter};
+use formality_core::judgment::{EachProof, FailedRule};
 use formality_core::visit::CoreVisit;
 use formality_core::{set, ProvenSet, Upcast};
 use formality_types::grammar::Wcs;
@@ -76,11 +76,17 @@ pub fn prove(
             f.write_str(&self.0)
         }
     }
-    let result_set =
-        match prove_wc_list(decls, &env, assumptions, goal).try_into_iter(|| "".to_string()) {
-            Ok(s) => ProvenSet::from_iter(s),
-            Err(e) => ProvenSet::failed_rules(label, set![FailedRule::new(e)]),
-        };
+    let mut results = set![];
+    let result_set = if let Err(e) = prove_wc_list(decls, &env, assumptions, goal).each_proof(
+        || "".to_string(),
+        |r| {
+            results.insert(r);
+        },
+    ) {
+        ProvenSet::failed_rules(label, set![FailedRule::new(e)])
+    } else {
+        ProvenSet::proven(results)
+    };
 
     tracing::debug!(?result_set);
 
