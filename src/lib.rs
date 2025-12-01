@@ -46,17 +46,16 @@ pub fn main() -> anyhow::Result<()> {
 
 #[macro_export]
 macro_rules! assert_ok {
-    ($input:tt $expect:expr) => {{
-        use formality_core::test_util::ResultTestExt;
-        $crate::test_program_ok(stringify!($input)).assert_ok($expect);
+    ($input:tt) => {{
+        let _ = $crate::test_program_ok(stringify!($input)).expect("expected program to pass");
     }};
 }
 
 #[macro_export]
 macro_rules! assert_err {
     ($input:tt [$($must_have:expr,)*] $expect:expr) => {{
-        use formality_core::test_util::ResultTestExt;
-        $crate::test_program_ok(stringify!($input)).assert_has_err($expect, &[$($must_have,)*]);
+        use formality_core::test_util::AnyhowResultTestExt;
+        $crate::test_program_ok(stringify!($input)).assert_has_err_leaves($expect, &[$($must_have,)*]);
     }};
 }
 

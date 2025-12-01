@@ -501,6 +501,47 @@ impl FailedJudgment {
             (non_cycles, HasNonCycle(true))
         }
     }
+
+    /// Extract "leaf" failures - the actual terminal failure causes
+    /// rather than the full nested tree of failed judgments.
+    pub fn leaf_failures(&self) -> Vec<&FailedRule> {
+        let mut leaves = Vec::new();
+        for rule in &self.failed_rules {
+            rule.collect_leaves(&mut leaves);
+        }
+        leaves
+    }
+
+    /// Format just the leaf failures in a concise way
+    pub fn format_leaves(&self) -> String {
+        let leaves = self.leaf_failures();
+        if leaves.is_empty() {
+            format!("judgment had no applicable rules: `{}`", self.judgment)
+        } else {
+            leaves
+                .iter()
+                .map(|leaf| leaf.to_string())
+                .collect::<Vec<_>>()
+                .join("\n\n")
+        }
+    }
+}
+
+impl FailedRule {
+    /// Recursively collect leaf failures (failures whose cause is not another FailedJudgment)
+    fn collect_leaves<'a>(&'a self, leaves: &mut Vec<&'a FailedRule>) {
+        match &self.cause {
+            RuleFailureCause::FailedJudgment(inner) => {
+                for rule in &inner.failed_rules {
+                    rule.collect_leaves(leaves);
+                }
+            }
+            _ => {
+                // This is a leaf - the cause is a terminal condition
+                leaves.push(self);
+            }
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]
