@@ -39,7 +39,8 @@ pub fn main() -> anyhow::Result<()> {
         eprintln!("{:#?}", program);
     }
 
-    check_all_crates(&program)
+    let _proof_tree = check_all_crates(&program)?;
+    Ok(())
 }
 
 #[macro_export]
@@ -60,13 +61,14 @@ macro_rules! assert_err {
 
 pub fn test_program_ok(input: &str) -> anyhow::Result<()> {
     let program: Program = try_term(input)?;
-    check_all_crates(&program)
+    let _proof_tree = check_all_crates(&program)?;
+    Ok(())
 }
 
 pub fn test_where_clause(program: &str, assertion: &str) -> formality_core::ProvenSet<Constraints> {
     formality_core::with_tracing_logs(|| {
         let program: Program = try_term(program).unwrap();
-        check_all_crates(&program).unwrap();
+        let _proof_tree = check_all_crates(&program).unwrap();
         let assertion: Arc<TestAssertion> = try_term(assertion).unwrap();
         let decls = program.to_prove_decls();
         formality_prove::test_util::test_prove(decls, assertion)

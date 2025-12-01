@@ -97,15 +97,20 @@ impl super::Check<'_> {
             bail!("negative impls cannot be unsafe");
         }
 
-        self.prove_where_clauses_well_formed(&env, &where_clauses, &where_clauses)?;
+        let mut proof_tree =
+            ProofTree::new(format!("check_neg_trait_impl({trait_ref:?})"), None, vec![]);
 
-        self.prove_goal(&env, &where_clauses, trait_ref.not_implemented())?;
+        proof_tree
+            .children
+            .push(self.prove_where_clauses_well_formed(&env, &where_clauses, &where_clauses)?);
 
-        Ok(ProofTree::new(
-            format!("check_neg_trait_impl({trait_ref:?})"),
-            None,
-            vec![],
-        ))
+        proof_tree.children.push(self.prove_goal(
+            &env,
+            &where_clauses,
+            trait_ref.not_implemented(),
+        )?);
+
+        Ok(proof_tree)
     }
 
     /// Validate that the declared safety of an impl matches the one from the trait declaration.
@@ -178,7 +183,12 @@ impl super::Check<'_> {
 
         tracing::debug!(?ti_fn);
 
-        self.check_fn(env, &impl_assumptions, ii_fn, crate_id)?;
+        let mut proof_tree =
+            ProofTree::new(format!("check_fn_in_impl({:?})", ii_fn.id), None, vec![]);
+
+        proof_tree
+            .children
+            .push(self.check_fn(env, &impl_assumptions, ii_fn, crate_id)?);
 
         let mut env = env.clone();
         let (
@@ -196,11 +206,11 @@ impl super::Check<'_> {
             },
         ) = env.instantiate_universally(&self.merge_binders(&ii_fn.binder, &ti_fn.binder)?);
 
-        self.prove_goal(
+        proof_tree.children.push(self.prove_goal(
             &env,
             (&impl_assumptions, &ti_where_clauses),
             &ii_where_clauses,
-        )?;
+        )?);
 
         if ii_input_tys.len() != ti_input_tys.len() {
             bail!(
@@ -211,11 +221,11 @@ impl super::Check<'_> {
         }
 
         for (ii_input_ty, ti_input_ty) in ii_input_tys.iter().zip(&ti_input_tys) {
-            self.prove_goal(
+            proof_tree.children.push(self.prove_goal(
                 &env,
                 (&impl_assumptions, &ii_where_clauses),
                 Relation::sub(ti_input_ty, ii_input_ty),
-            )?;
+            )?);
         }
 
         // Check that the impl's declared return type is a subtype of what the trait declared:
@@ -244,17 +254,13 @@ impl super::Check<'_> {
         // }
         // ```
 
-        self.prove_goal(
+        proof_tree.children.push(self.prove_goal(
             &env,
             (&impl_assumptions, &ii_where_clauses),
             Relation::sub(ii_output_ty, ti_output_ty),
-        )?;
+        )?);
 
-        Ok(ProofTree::new(
-            format!("check_fn_in_impl({:?})", ii_fn.id),
-            None,
-            vec![],
-        ))
+        Ok(proof_tree)
     }
 
     #[context("check_associated_ty_value({impl_value:?})")]
@@ -296,32 +302,40 @@ impl super::Check<'_> {
             },
         ) = env.instantiate_universally(&self.merge_binders(binder, &trait_associated_ty.binder)?);
 
-        self.prove_where_clauses_well_formed(
-            &env,
-            (&impl_assumptions, &ii_where_clauses),
-            &ii_where_clauses,
-        )?;
-
-        self.prove_goal(
-            &env,
-            (&impl_assumptions, &ti_where_clauses),
-            &ii_where_clauses,
-        )?;
-
-        self.prove_goal(
-            &env,
-            (&impl_assumptions, &ii_where_clauses),
-            ii_ty.well_formed(),
-        )?;
-
-        let ensures: Wcs = ti_ensures.iter().map(|e| e.to_wc(&ii_ty)).collect();
-        self.prove_goal(&env, (&impl_assumptions, &ii_where_clauses), ensures)?;
-
-        Ok(ProofTree::new(
+        let mut proof_tree = ProofTree::new(
             format!("check_associated_ty_value({:?})", impl_value.id),
             None,
             vec![],
-        ))
+        );
+
+        proof_tree
+            .children
+            .push(self.prove_where_clauses_well_formed(
+                &env,
+                (&impl_assumptions, &ii_where_clauses),
+                &ii_where_clauses,
+            )?);
+
+        proof_tree.children.push(self.prove_goal(
+            &env,
+            (&impl_assumptions, &ti_where_clauses),
+            &ii_where_clauses,
+        )?);
+
+        proof_tree.children.push(self.prove_goal(
+            &env,
+            (&impl_assumptions, &ii_where_clauses),
+            ii_ty.well_formed(),
+        )?);
+
+        let ensures: Wcs = ti_ensures.iter().map(|e| e.to_wc(&ii_ty)).collect();
+        proof_tree.children.push(self.prove_goal(
+            &env,
+            (&impl_assumptions, &ii_where_clauses),
+            ensures,
+        )?);
+
+        Ok(proof_tree)
     }
 
     /// Given a binder from some impl item `I` and a binder from the corresponding trait item `T`,

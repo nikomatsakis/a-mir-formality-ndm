@@ -7,7 +7,7 @@ pub use assertion::JudgmentAssertion;
 
 mod proven_set;
 pub use proven_set::{
-    insert_smallest_proof, EachProof, FailedJudgment, FailedRule, ProofTree, ProvenSet,
+    insert_smallest_proof, EachProof, FailedJudgment, FailedRule, ProofTree, Proven, ProvenSet,
     RuleFailureCause,
 };
 

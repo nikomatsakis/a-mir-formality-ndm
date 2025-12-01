@@ -9,7 +9,13 @@ use itertools::Itertools;
 use crate::Check;
 
 impl Check<'_> {
-    pub(crate) fn check_coherence(&self, current_crate: &Crate) -> Fallible<()> {
+    pub(crate) fn check_coherence(&self, current_crate: &Crate) -> Fallible<ProofTree> {
+        let mut proof_tree = ProofTree::new(
+            format!("check_coherence({:?})", current_crate.id),
+            None,
+            vec![],
+        );
+
         let all_crate_impls: Vec<TraitImpl> =
             self.program.items_from_all_crates().downcasted().collect();
         let current_crate_impls: Vec<TraitImpl> = current_crate.items.iter().downcasted().collect();
@@ -17,11 +23,11 @@ impl Check<'_> {
             current_crate.items.iter().downcasted().collect();
 
         for impl_a in &current_crate_impls {
-            self.orphan_check(impl_a)?;
+            proof_tree.children.push(self.orphan_check(impl_a)?);
         }
 
         for impl_a in &current_crate_neg_impls {
-            self.orphan_check_neg(impl_a)?;
+            proof_tree.children.push(self.orphan_check_neg(impl_a)?);
         }
 
         // check for duplicate impls in the current crate;
@@ -40,10 +46,12 @@ impl Check<'_> {
             .filter(|(impl_a, impl_b)| impl_a != impl_b)
             .filter(|(impl_a, impl_b)| impl_a.trait_id() == impl_b.trait_id())
         {
-            self.overlap_check(impl_a, impl_b)?;
+            proof_tree
+                .children
+                .push(self.overlap_check(impl_a, impl_b)?);
         }
 
-        Ok(())
+        Ok(proof_tree)
     }
 
     #[context("orphan_check({impl_a:?})")]

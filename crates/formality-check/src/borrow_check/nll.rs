@@ -247,6 +247,8 @@ judgment_fn! {
                 Assignment(&ret).live_before(&env, &places_live),
             ) => loans_live)
 
+            // here `ret` would be assigned
+
             (loans_in_next_block_respected(&env, &assumptions, loans_live, &next_block) => ())
             --- ("call")
             (loans_in_terminator_respected(env, assumptions, loans_live, Terminator::Call { callee, generic_arguments: _, arguments, ret, next_block }) => ())

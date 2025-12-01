@@ -110,7 +110,7 @@ impl super::Check<'_> {
             where_clauses,
         } = env.instantiate_universally(binder);
 
-        self.prove_where_clauses_well_formed(
+        let proof_tree = self.prove_where_clauses_well_formed(
             &env,
             (trait_where_clauses, &where_clauses),
             &where_clauses,
@@ -121,7 +121,7 @@ impl super::Check<'_> {
         Ok(ProofTree::new(
             format!("check_associated_ty({id:?})"),
             None,
-            vec![],
+            vec![proof_tree],
         ))
     }
 }

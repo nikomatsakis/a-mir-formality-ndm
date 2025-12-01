@@ -20,21 +20,24 @@ mod mini_rust_check;
 
 /// Check all crates in the program. The crates must be in dependency order
 /// such that any prefix of the crates is a complete program.
-pub fn check_all_crates(program: &Program) -> Fallible<()> {
+pub fn check_all_crates(program: &Program) -> Fallible<ProofTree> {
     let Program { crates } = program;
     let mut crates: VecDeque<_> = crates.iter().cloned().collect();
 
+    let mut proof_tree = ProofTree::new("check_all_crates", None, vec![]);
     let mut prefix_program = Program { crates: vec![] };
     while let Some(c) = crates.pop_front() {
         prefix_program.crates.push(c);
-        check_current_crate(&prefix_program)?;
+        proof_tree
+            .children
+            .push(check_current_crate(&prefix_program)?);
     }
 
-    Ok(())
+    Ok(proof_tree)
 }
 
 /// Checks the current crate in the program, assuming all other crates are valid.
-fn check_current_crate(program: &Program) -> Fallible<()> {
+fn check_current_crate(program: &Program) -> Fallible<ProofTree> {
     let decls = program.to_prove_decls();
     Check {
         program,
@@ -56,26 +59,28 @@ struct Check<'p> {
 }
 
 impl Check<'_> {
-    fn check(&self) -> Fallible<()> {
+    fn check(&self) -> Fallible<ProofTree> {
         let Program { crates } = &self.program;
         if let Some(current_crate) = crates.last() {
-            self.check_current_crate(current_crate)?;
+            self.check_current_crate(current_crate)
+        } else {
+            Ok(ProofTree::leaf("check (no crates)"))
         }
-        Ok(())
     }
 
-    fn check_current_crate(&self, c: &Crate) -> Fallible<()> {
+    fn check_current_crate(&self, c: &Crate) -> Fallible<ProofTree> {
         let Crate { id, items } = c;
+        let mut proof_tree = ProofTree::new(format!("check_current_crate({id:?})"), None, vec![]);
 
         self.check_for_duplicate_items()?;
 
         for item in items {
-            self.check_crate_item(item, &id)?;
+            proof_tree.children.push(self.check_crate_item(item, &id)?);
         }
 
-        self.check_coherence(c)?;
+        proof_tree.children.push(self.check_coherence(c)?);
 
-        Ok(())
+        Ok(proof_tree)
     }
 
     fn check_for_duplicate_items(&self) -> Fallible<()> {

@@ -1044,7 +1044,6 @@ fn test_ref_identity() {
 /// }
 /// ```
 #[test]
-#[ignore]
 fn test_borrow_check_basic() {
     crate::assert_err!(
         [

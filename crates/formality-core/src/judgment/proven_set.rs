@@ -275,6 +275,7 @@ impl<J: Hash> Hash for ProvenSetData<J> {
 pub type Proven<J> = (J, ProofTree);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash)]
+#[must_use]
 pub struct ProofTree {
     /// Trying to prove this judgment...
     pub judgment: String,

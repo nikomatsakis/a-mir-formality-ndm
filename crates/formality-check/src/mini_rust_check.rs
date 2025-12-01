@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::iter::zip;
 use std::sync::Arc;
 
-use formality_core::judgment::ProofTree;
+use formality_core::judgment::{ProofTree, Proven};
 use formality_core::{cast_impl, judgment_fn, Downcast, Fallible, Map, Set, Upcast};
 use formality_prove::{prove_normalize, AdtDeclBoundData, AdtDeclVariant, Constraints, Decls, Env};
 use formality_rust::grammar::minirust::ArgumentExpression::{ByValue, InPlace};
@@ -36,10 +36,15 @@ impl Check<'_> {
         // Type check the fn signature
 
         let output_ty: Ty = output_ty.upcast();
+        let mut proof_tree = ProofTree::new(format!("check_body"), None, vec![]);
 
         //  Check that all the types declared for each local variable are well-formed
         for lv in &body.params {
-            self.prove_goal(&env, &fn_assumptions, lv.ty.well_formed())?;
+            proof_tree.children.push(self.prove_goal(
+                &env,
+                &fn_assumptions,
+                lv.ty.well_formed(),
+            )?);
         }
 
         let parameters: Map<LocalId, Ty> = body
@@ -60,7 +65,11 @@ impl Check<'_> {
 
         // Check if the actual return type is the subtype of the declared return type.
         // FIXME(tiif): should this be subtype? I think v0's type should always equivalent to the return type?
-        self.prove_goal(&env, fn_assumptions, Relation::sub(body_ret_ty, &output_ty))?;
+        proof_tree.children.push(self.prove_goal(
+            &env,
+            fn_assumptions,
+            Relation::sub(body_ret_ty, &output_ty),
+        )?);
 
         // ----------------------------------------------------------------------
         // Type check the fn body
@@ -101,8 +110,6 @@ impl Check<'_> {
             pending_outlives: vec![],
             decls: self.decls.clone(),
         };
-
-        let mut proof_tree = ProofTree::new(format!("check_body"), None, vec![]);
 
         // Check that basic blocks are well-typed
         for block in &*blocks {
@@ -154,7 +161,8 @@ impl TypeckEnv {
                 let place_ty = self.check_place(fn_assumptions, place_expression)?;
 
                 // Check if the value expression is well-formed.
-                let value_ty = self.check_value(fn_assumptions, value_expression)?;
+                let (value_ty, value_pt) = self.check_value(fn_assumptions, value_expression)?;
+                proof_tree.children.push(value_pt);
 
                 // Check that the type of the value is a subtype of the place's type
                 proof_tree.children.push(self.prove_goal(
@@ -215,7 +223,8 @@ impl TypeckEnv {
                 next_block,
             } => {
                 // Function is part of the value expression, so we will check if the function exists in check_value.
-                self.check_value(fn_assumptions, callee)?;
+                let (_callee_ty, callee_pt) = self.check_value(fn_assumptions, callee)?;
+                proof_tree.children.push(callee_pt);
 
                 // Get argument information from the callee.
                 let Fn(callee_fn_id) = callee else {
@@ -232,8 +241,9 @@ impl TypeckEnv {
                 let arguments = zip(callee_declared_input_tys, actual_arguments);
                 for (declared_ty, actual_argument) in arguments {
                     // Check if the arguments are well formed.
-                    let actual_ty =
+                    let (actual_ty, arg_pt) =
                         self.check_argument_expression(fn_assumptions, actual_argument)?;
+                    proof_tree.children.push(arg_pt);
                     // Check if the actual argument type passed in is the subtype of expect argument type.
                     proof_tree.children.push(self.prove_goal(
                         Location,
@@ -270,7 +280,8 @@ impl TypeckEnv {
                 fallback,
             } => {
                 // Check if the value is well-formed.
-                let value_ty = self.check_value(fn_assumptions, switch_value).unwrap();
+                let (value_ty, value_pt) = self.check_value(fn_assumptions, switch_value)?;
+                proof_tree.children.push(value_pt);
 
                 proof_tree.children.push(self.prove_judgment(
                     Location,
@@ -402,12 +413,16 @@ impl TypeckEnv {
     }
 
     // Check if the value expression is well-formed, and return the type of the value expression.
-    fn check_value(&mut self, fn_assumptions: &Wcs, value: &ValueExpression) -> Fallible<Ty> {
+    fn check_value(
+        &mut self,
+        fn_assumptions: &Wcs,
+        value: &ValueExpression,
+    ) -> Fallible<Proven<Ty>> {
+        let mut proof_tree = ProofTree::new(format!("check_value({value:?})"), None, vec![]);
         let value_ty;
         match value {
             Load(place_expression) => {
                 value_ty = self.check_place(fn_assumptions, place_expression)?;
-                Ok(value_ty)
             }
             Fn(fn_id) => {
                 // Check if the function called is in declared in current crate.
@@ -443,16 +458,19 @@ impl TypeckEnv {
                     bail!("The function called is not declared in current crate")
                 }
                 value_ty = self.output_ty.clone();
-                Ok(value_ty)
             }
             Constant(constant) => {
                 // If the actual value overflows / does not match the type of the constant,
                 // it will be rejected by the parser.
-                Ok(constant.get_ty())
+                value_ty = constant.get_ty();
             }
             Struct(value_expressions, ty) => {
                 // Check if the adt is well-formed.
-                self.prove_goal(Location, &fn_assumptions, ty.well_formed())?;
+                proof_tree.children.push(self.prove_goal(
+                    Location,
+                    &fn_assumptions,
+                    ty.well_formed(),
+                )?);
 
                 let Some(adt_id) = ty.get_adt_id() else {
                     bail!("The type used in ValueExpression::Struct must be adt")
@@ -489,40 +507,47 @@ impl TypeckEnv {
                     let Constant(_) = value_expression else {
                         bail!("Only Constant is supported in ValueExpression::Struct for now.")
                     };
-                    value_tys.push(self.check_value(fn_assumptions, value_expression)?);
+                    let (ty, pt) = self.check_value(fn_assumptions, value_expression)?;
+                    value_tys.push(ty);
+                    proof_tree.children.push(pt);
                 }
 
                 // Make sure all the types supplied are the subtype of declared types.
-                self.prove_goal(
+                proof_tree.children.push(self.prove_goal(
                     Location,
                     &fn_assumptions,
                     Wcs::all_sub(value_tys, struct_field_tys),
-                )?;
+                )?);
 
-                Ok(ty.clone())
+                value_ty = ty.clone();
             }
             Ref(borrow_lt, place_expr) => {
                 let place_ty = self.check_place(fn_assumptions, place_expr)?;
-                Ok(place_ty.ref_ty(borrow_lt))
+                value_ty = place_ty.ref_ty(borrow_lt);
             }
         }
+        Ok((value_ty, proof_tree))
     }
 
     fn check_argument_expression(
         &mut self,
         fn_assumptions: &Wcs,
         arg_expr: &ArgumentExpression,
-    ) -> Fallible<Ty> {
-        let ty;
+    ) -> Fallible<Proven<Ty>> {
         match arg_expr {
-            ByValue(val_expr) => {
-                ty = self.check_value(fn_assumptions, val_expr)?;
-            }
+            ByValue(val_expr) => self.check_value(fn_assumptions, val_expr),
             InPlace(place_expr) => {
-                ty = self.check_place(fn_assumptions, place_expr)?;
+                let ty = self.check_place(fn_assumptions, place_expr)?;
+                Ok((
+                    ty,
+                    ProofTree::new(
+                        format!("check_argument_expression({arg_expr:?})"),
+                        None,
+                        vec![],
+                    ),
+                ))
             }
         }
-        Ok(ty)
     }
 
     fn check_block_exists(&self, id: &BbId) -> Fallible<()> {
