@@ -55,9 +55,33 @@ fn judgment() {
 
     transitive_reachable(&graph, 2).assert_ok(expect_test::expect![[r#"
         {
-          4,
-          8,
-          10,
+          4
+            └─ b = 4 (base) at test_filtered.rs:LL
+               └─ item = 4 at test_filtered.rs:LL
+               └─ IfThen { expression: "b % 2 == 0" } at test_filtered.rs:LL
+          8
+            └─ c = 8 (transitive) at test_filtered.rs:LL
+               └─ b = 4 (base) at test_filtered.rs:LL
+                  └─ item = 4 at test_filtered.rs:LL
+                  └─ IfThen { expression: "b % 2 == 0" } at test_filtered.rs:LL
+               └─ b = 8 (base) at test_filtered.rs:LL
+                  └─ item = 8 at test_filtered.rs:LL
+                  └─ IfThen { expression: "b % 2 == 0" } at test_filtered.rs:LL
+               └─ IfThen { expression: "c % 2 == 0" } at test_filtered.rs:LL
+          10
+            └─ c = 10 (transitive) at test_filtered.rs:LL
+               └─ c = 8 (transitive) at test_filtered.rs:LL
+                  └─ b = 4 (base) at test_filtered.rs:LL
+                     └─ item = 4 at test_filtered.rs:LL
+                     └─ IfThen { expression: "b % 2 == 0" } at test_filtered.rs:LL
+                  └─ b = 8 (base) at test_filtered.rs:LL
+                     └─ item = 8 at test_filtered.rs:LL
+                     └─ IfThen { expression: "b % 2 == 0" } at test_filtered.rs:LL
+                  └─ IfThen { expression: "c % 2 == 0" } at test_filtered.rs:LL
+               └─ b = 10 (base) at test_filtered.rs:LL
+                  └─ item = 10 at test_filtered.rs:LL
+                  └─ IfThen { expression: "b % 2 == 0" } at test_filtered.rs:LL
+               └─ IfThen { expression: "c % 2 == 0" } at test_filtered.rs:LL
         }
     "#]]);
 }

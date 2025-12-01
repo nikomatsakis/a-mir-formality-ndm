@@ -161,7 +161,7 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
         match &self.data {
             ProvenSetData::Failure(e) => panic!("expected a successful proof, got {e}"),
             ProvenSetData::Success(_) => {
-                expect.assert_eq(&self.to_string());
+                expect.assert_eq(&crate::test_util::normalize_proof_lines(&self.to_string()));
             }
         }
     }
@@ -575,13 +575,40 @@ impl<T: Debug> std::fmt::Display for ProvenSet<T> {
             ProvenSetData::Failure(err) => std::fmt::Display::fmt(err, f),
             ProvenSetData::Success(set) => {
                 writeln!(f, "{{")?;
-                for item in set {
-                    writeln!(f, "{},", indent(format!("{item:?}")))?;
+                for (judgment, proof_tree) in set {
+                    writeln!(f, "  {judgment:?}")?;
+                    proof_tree.fmt_indented(f, "    ")?;
                 }
                 writeln!(f, "}}")?;
                 Ok(())
             }
         }
+    }
+}
+
+impl std::fmt::Display for ProofTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.fmt_indented(f, "")
+    }
+}
+
+impl ProofTree {
+    fn fmt_indented(&self, f: &mut std::fmt::Formatter<'_>, prefix: &str) -> std::fmt::Result {
+        let file_name = self.file.rsplit('/').next().unwrap_or(&self.file);
+        let rule_info = match self.rule_name {
+            Some(name) => format!(" ({name})"),
+            None => String::new(),
+        };
+        writeln!(
+            f,
+            "{prefix}└─ {}{rule_info} at {file_name}:{}",
+            self.judgment, self.line
+        )?;
+        let child_prefix = format!("{prefix}   ");
+        for child in &self.children {
+            child.fmt_indented(f, &child_prefix)?;
+        }
+        Ok(())
     }
 }
 
