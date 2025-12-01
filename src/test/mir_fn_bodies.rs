@@ -20,7 +20,259 @@ fn test_assign_statement_local_only() {
                 };
             }
         ]
-        expect_test::expect![["()"]]
+        expect_test::expect![[r#"
+            └─ check_all_crates: at lib.rs:27
+               └─ check_current_crate(Foo): at lib.rs:73
+                  └─ check_fn(Foo, fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u32 <: u32}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32 <: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = load(local(v1)) ;): at mini_rust_check.rs:156
+                              └─ check_value(load(local(v1))): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: [local(v0) = load(local(v1)) ;]
+                                     places_live_on_exit: {}
+                                     result: {}
+                                 └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statement: local(v0) = load(local(v1)) ;
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_value_expression_respected: (load) at nll.rs:449
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           value: load(local(v1))
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(read, local(v1))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(write, local(v0))
+                                           places_live_after_access: {}
+                                           result: ()
+                                 └─ loans_in_statements_respected: (none) at nll.rs:284
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statements: []
+                                        places_live_on_exit: {}
+                                        result: {}
+                              └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: return
+                                     result: ()
+                  └─ check_coherence(Foo): at coherence.rs:13
+        "#]]
     )
 }
 
@@ -64,7 +316,748 @@ fn test_assign_constant() {
                 };
             }
         ]
-        expect_test::expect![["()"]]
+        expect_test::expect![[r#"
+            └─ check_all_crates: at lib.rs:27
+               └─ check_current_crate(Foo): at lib.rs:73
+                  └─ check_fn(Foo, fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u8)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u8)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u8
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u8)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u8)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u8
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u8 <: u8}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u8 <: u8
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = constant(5 : u8) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : u8)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u8 <: u8}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u8 <: u8
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v1) = constant(5 : u16) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : u16)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u16 <: u16}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u16 <: u16
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v2) = constant(5 : u32) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : u32)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v3) = constant(5 : u64) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : u64)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u64 <: u64}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u64 <: u64
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v4) = constant(5 : usize) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : usize)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {usize <: usize}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: usize <: usize
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v5) = constant(5 : i8) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : i8)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {i8 <: i8}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: i8 <: i8
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v6) = constant(5 : i16) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : i16)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {i16 <: i16}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: i16 <: i16
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v7) = constant(5 : i32) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : i32)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {i32 <: i32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: i32 <: i32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v8) = constant(5 : i64) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : i64)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {i64 <: i64}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: i64 <: i64
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v9) = constant(5 : isize) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(5 : isize)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {isize <: isize}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: isize <: isize
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v10) = constant(false) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(false)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {bool <: bool}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: bool <: bool
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: [local(v0) = constant(5 : u8) ;, local(v1) = constant(5 : u16) ;, local(v2) = constant(5 : u32) ;, local(v3) = constant(5 : u64) ;, local(v4) = constant(5 : usize) ;, local(v5) = constant(5 : i8) ;, local(v6) = constant(5 : i16) ;, local(v7) = constant(5 : i32) ;, local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                     places_live_on_exit: {}
+                                     result: {}
+                                 └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                        env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statement: local(v0) = constant(5 : u8) ;
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           value: constant(5 : u8)
+                                           places_live_on_exit: {}
+                                           result: {}
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(write, local(v0))
+                                           places_live_after_access: {}
+                                           result: ()
+                                 └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                        env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statements: [local(v1) = constant(5 : u16) ;, local(v2) = constant(5 : u32) ;, local(v3) = constant(5 : u64) ;, local(v4) = constant(5 : usize) ;, local(v5) = constant(5 : i8) ;, local(v6) = constant(5 : i16) ;, local(v7) = constant(5 : i32) ;, local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statement: local(v1) = constant(5 : u16) ;
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                              env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              value: constant(5 : u16)
+                                              places_live_on_exit: {}
+                                              result: {}
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(write, local(v1))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statements: [local(v2) = constant(5 : u32) ;, local(v3) = constant(5 : u64) ;, local(v4) = constant(5 : usize) ;, local(v5) = constant(5 : i8) ;, local(v6) = constant(5 : i16) ;, local(v7) = constant(5 : i32) ;, local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                              env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statement: local(v2) = constant(5 : u32) ;
+                                              places_live_on_exit: {}
+                                              result: {}
+                                          └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 value: constant(5 : u32)
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                          └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 assumptions: {}
+                                                 loans_live_before_access: {}
+                                                 access: access(write, local(v2))
+                                                 places_live_after_access: {}
+                                                 result: ()
+                                       └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                              env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statements: [local(v3) = constant(5 : u64) ;, local(v4) = constant(5 : usize) ;, local(v5) = constant(5 : i8) ;, local(v6) = constant(5 : i16) ;, local(v7) = constant(5 : i32) ;, local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                              places_live_on_exit: {}
+                                              result: {}
+                                          └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 statement: local(v3) = constant(5 : u64) ;
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                             └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    value: constant(5 : u64)
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                             └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    assumptions: {}
+                                                    loans_live_before_access: {}
+                                                    access: access(write, local(v3))
+                                                    places_live_after_access: {}
+                                                    result: ()
+                                          └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 statements: [local(v4) = constant(5 : usize) ;, local(v5) = constant(5 : i8) ;, local(v6) = constant(5 : i16) ;, local(v7) = constant(5 : i32) ;, local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                             └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    statement: local(v4) = constant(5 : usize) ;
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                                └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                       env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                       fn_assumptions: {}
+                                                       loans_live_on_entry: {}
+                                                       value: constant(5 : usize)
+                                                       places_live_on_exit: {}
+                                                       result: {}
+                                                └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                       env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                       assumptions: {}
+                                                       loans_live_before_access: {}
+                                                       access: access(write, local(v4))
+                                                       places_live_after_access: {}
+                                                       result: ()
+                                             └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    statements: [local(v5) = constant(5 : i8) ;, local(v6) = constant(5 : i16) ;, local(v7) = constant(5 : i32) ;, local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                                └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                       env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                       fn_assumptions: {}
+                                                       loans_live_on_entry: {}
+                                                       statement: local(v5) = constant(5 : i8) ;
+                                                       places_live_on_exit: {}
+                                                       result: {}
+                                                   └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                          env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                          fn_assumptions: {}
+                                                          loans_live_on_entry: {}
+                                                          value: constant(5 : i8)
+                                                          places_live_on_exit: {}
+                                                          result: {}
+                                                   └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                          env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                          assumptions: {}
+                                                          loans_live_before_access: {}
+                                                          access: access(write, local(v5))
+                                                          places_live_after_access: {}
+                                                          result: ()
+                                                └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                                       env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                       fn_assumptions: {}
+                                                       loans_live_on_entry: {}
+                                                       statements: [local(v6) = constant(5 : i16) ;, local(v7) = constant(5 : i32) ;, local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                                       places_live_on_exit: {}
+                                                       result: {}
+                                                   └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                          env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                          fn_assumptions: {}
+                                                          loans_live_on_entry: {}
+                                                          statement: local(v6) = constant(5 : i16) ;
+                                                          places_live_on_exit: {}
+                                                          result: {}
+                                                      └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                             env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                             fn_assumptions: {}
+                                                             loans_live_on_entry: {}
+                                                             value: constant(5 : i16)
+                                                             places_live_on_exit: {}
+                                                             result: {}
+                                                      └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                             env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                             assumptions: {}
+                                                             loans_live_before_access: {}
+                                                             access: access(write, local(v6))
+                                                             places_live_after_access: {}
+                                                             result: ()
+                                                   └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                                          env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                          fn_assumptions: {}
+                                                          loans_live_on_entry: {}
+                                                          statements: [local(v7) = constant(5 : i32) ;, local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                                          places_live_on_exit: {}
+                                                          result: {}
+                                                      └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                             env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                             fn_assumptions: {}
+                                                             loans_live_on_entry: {}
+                                                             statement: local(v7) = constant(5 : i32) ;
+                                                             places_live_on_exit: {}
+                                                             result: {}
+                                                         └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                                env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                fn_assumptions: {}
+                                                                loans_live_on_entry: {}
+                                                                value: constant(5 : i32)
+                                                                places_live_on_exit: {}
+                                                                result: {}
+                                                         └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                                env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                assumptions: {}
+                                                                loans_live_before_access: {}
+                                                                access: access(write, local(v7))
+                                                                places_live_after_access: {}
+                                                                result: ()
+                                                      └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                                             env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                             fn_assumptions: {}
+                                                             loans_live_on_entry: {}
+                                                             statements: [local(v8) = constant(5 : i64) ;, local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                                             places_live_on_exit: {}
+                                                             result: {}
+                                                         └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                                env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                fn_assumptions: {}
+                                                                loans_live_on_entry: {}
+                                                                statement: local(v8) = constant(5 : i64) ;
+                                                                places_live_on_exit: {}
+                                                                result: {}
+                                                            └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                                   env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                   fn_assumptions: {}
+                                                                   loans_live_on_entry: {}
+                                                                   value: constant(5 : i64)
+                                                                   places_live_on_exit: {}
+                                                                   result: {}
+                                                            └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                                   env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                   assumptions: {}
+                                                                   loans_live_before_access: {}
+                                                                   access: access(write, local(v8))
+                                                                   places_live_after_access: {}
+                                                                   result: ()
+                                                         └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                                                env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                fn_assumptions: {}
+                                                                loans_live_on_entry: {}
+                                                                statements: [local(v9) = constant(5 : isize) ;, local(v10) = constant(false) ;]
+                                                                places_live_on_exit: {}
+                                                                result: {}
+                                                            └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                                   env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                   fn_assumptions: {}
+                                                                   loans_live_on_entry: {}
+                                                                   statement: local(v9) = constant(5 : isize) ;
+                                                                   places_live_on_exit: {}
+                                                                   result: {}
+                                                               └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                                      env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                      fn_assumptions: {}
+                                                                      loans_live_on_entry: {}
+                                                                      value: constant(5 : isize)
+                                                                      places_live_on_exit: {}
+                                                                      result: {}
+                                                               └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                                      env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                      assumptions: {}
+                                                                      loans_live_before_access: {}
+                                                                      access: access(write, local(v9))
+                                                                      places_live_after_access: {}
+                                                                      result: ()
+                                                            └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                                                   env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                   fn_assumptions: {}
+                                                                   loans_live_on_entry: {}
+                                                                   statements: [local(v10) = constant(false) ;]
+                                                                   places_live_on_exit: {}
+                                                                   result: {}
+                                                               └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                                      env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                      fn_assumptions: {}
+                                                                      loans_live_on_entry: {}
+                                                                      statement: local(v10) = constant(false) ;
+                                                                      places_live_on_exit: {}
+                                                                      result: {}
+                                                                  └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                                         env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                         fn_assumptions: {}
+                                                                         loans_live_on_entry: {}
+                                                                         value: constant(false)
+                                                                         places_live_on_exit: {}
+                                                                         result: {}
+                                                                  └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                                         env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                         assumptions: {}
+                                                                         loans_live_before_access: {}
+                                                                         access: access(write, local(v10))
+                                                                         places_live_after_access: {}
+                                                                         result: ()
+                                                               └─ loans_in_statements_respected: (none) at nll.rs:284
+                                                                      env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                                      fn_assumptions: {}
+                                                                      loans_live_on_entry: {}
+                                                                      statements: []
+                                                                      places_live_on_exit: {}
+                                                                      result: {}
+                              └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { fn foo () -> u8 = minirust() -> v0 { let v0 : u8 ; exists { let v1 : u16 ; let v2 : u32 ; let v3 : u64 ; let v4 : usize ; let v5 : i8 ; let v6 : i16 ; let v7 : i32 ; let v8 : i64 ; let v9 : isize ; let v10 : bool ; bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u8, local_variables: {v0: u8, v1: u16, v10: bool, v2: u32, v3: u64, v4: usize, v5: i8, v6: i16, v7: i32, v8: i64, v9: isize}, blocks: [bb0 : { statements{ local(v0) = constant(5 : u8) ; local(v1) = constant(5 : u16) ; local(v2) = constant(5 : u32) ; local(v3) = constant(5 : u64) ; local(v4) = constant(5 : usize) ; local(v5) = constant(5 : i8) ; local(v6) = constant(5 : i16) ; local(v7) = constant(5 : i32) ; local(v8) = constant(5 : i64) ; local(v9) = constant(5 : isize) ; local(v10) = constant(false) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: return
+                                     result: ()
+                  └─ check_coherence(Foo): at coherence.rs:13
+        "#]]
     )
 }
 
@@ -109,7 +1102,409 @@ fn test_switch_statment() {
                 };
             }
         ]
-        expect_test::expect![["()"]]
+        expect_test::expect![[r#"
+            └─ check_all_crates: at lib.rs:27
+               └─ check_current_crate(Foo): at lib.rs:73
+                  └─ check_fn(Foo, fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u32 <: u32}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32 <: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_statement(local(v1) = constant(0 : u32) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(0 : u32)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3): at mini_rust_check.rs:211
+                              └─ check_value(load(local(v1))): at mini_rust_check.rs:421
+                              └─ ty_is_int: (rigid_ty is int) at mini_rust_check.rs:817
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     ty: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ IfThen { expression: "id.is_int()", id: u32 }: at mini_rust_check.rs:817
+                        └─ check_block(bb1): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = constant(1 : u32) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(1 : u32)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ check_block(bb2): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = constant(2 : u32) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(2 : u32)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ check_block(bb3): at mini_rust_check.rs:135
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: [local(v1) = constant(0 : u32) ;]
+                                     places_live_on_exit: {local(v1)}
+                                     result: {}
+                                 └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                        env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statement: local(v1) = constant(0 : u32) ;
+                                        places_live_on_exit: {local(v1)}
+                                        result: {}
+                                    └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           value: constant(0 : u32)
+                                           places_live_on_exit: {}
+                                           result: {}
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(write, local(v1))
+                                           places_live_after_access: {local(v1)}
+                                           result: ()
+                                 └─ loans_in_statements_respected: (none) at nll.rs:284
+                                        env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statements: []
+                                        places_live_on_exit: {local(v1)}
+                                        result: {}
+                              └─ loans_in_terminator_respected: (switch) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3
+                                     result: ()
+                                 └─ successors = [bb1, bb2, bb3]: at nll.rs:199
+                                 └─ places_live = {}: at nll.rs:199
+                                 └─ loans_in_value_expression_respected: (load) at nll.rs:449
+                                        env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        value: load(local(v1))
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(read, local(v1))
+                                           places_live_after_access: {}
+                                           result: ()
+                                 └─ loans_in_basic_blocks_respected: (cons) at nll.rs:178
+                                        env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        bb_ids: [bb1, bb2, bb3]
+                                        result: ()
+                                    └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           bb_id: bb1
+                                           result: ()
+                                       └─ BasicBlock { id: _, statements, terminator } = bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }: at nll.rs:152
+                                       └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                              env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statements: [local(v0) = constant(1 : u32) ;]
+                                              places_live_on_exit: {}
+                                              result: {}
+                                          └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 statement: local(v0) = constant(1 : u32) ;
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                             └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    value: constant(1 : u32)
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                             └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    assumptions: {}
+                                                    loans_live_before_access: {}
+                                                    access: access(write, local(v0))
+                                                    places_live_after_access: {}
+                                                    result: ()
+                                          └─ loans_in_statements_respected: (none) at nll.rs:284
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 statements: []
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                       └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                              env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              terminator: return
+                                              result: ()
+                                    └─ loans_in_basic_blocks_respected: (cons) at nll.rs:178
+                                           env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           bb_ids: [bb2, bb3]
+                                           result: ()
+                                       └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                              env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              bb_id: bb2
+                                              result: ()
+                                          └─ BasicBlock { id: _, statements, terminator } = bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }: at nll.rs:152
+                                          └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 statements: [local(v0) = constant(2 : u32) ;]
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                             └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    statement: local(v0) = constant(2 : u32) ;
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                                └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                       env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                       fn_assumptions: {}
+                                                       loans_live_on_entry: {}
+                                                       value: constant(2 : u32)
+                                                       places_live_on_exit: {}
+                                                       result: {}
+                                                └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                       env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                       assumptions: {}
+                                                       loans_live_before_access: {}
+                                                       access: access(write, local(v0))
+                                                       places_live_after_access: {}
+                                                       result: ()
+                                             └─ loans_in_statements_respected: (none) at nll.rs:284
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    statements: []
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                          └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 terminator: return
+                                                 result: ()
+                                       └─ loans_in_basic_blocks_respected: (cons) at nll.rs:178
+                                              env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              bb_ids: [bb3]
+                                              result: ()
+                                          └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                                 env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 bb_id: bb3
+                                                 result: ()
+                                             └─ BasicBlock { id: _, statements, terminator } = bb3 : { statements{ } return ; }: at nll.rs:152
+                                             └─ loans_in_statements_respected: (none) at nll.rs:284
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    statements: []
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                             └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                                    env: TypeckEnv { program: [crate Foo { fn foo () -> u32 = minirust() -> v0 { let v0 : u32 ; exists { let v1 : u32 ; bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; } bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; } bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; } bb3 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v1) = constant(0 : u32) ; } switch(load(local(v1))) -> [(0 : bb1), (1 : bb2)] otherwise : bb3 ; }, bb1 : { statements{ local(v0) = constant(1 : u32) ; } return ; }, bb2 : { statements{ local(v0) = constant(2 : u32) ; } return ; }, bb3 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [], callee_input_tys: {}, crate_id: Foo, fn_args: [], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    terminator: return
+                                                    result: ()
+                                          └─ trivial, as bb_ids.is_empty() is true: (): at nll.rs:188
+                  └─ check_coherence(Foo): at coherence.rs:13
+        "#]]
     )
 }
 
@@ -138,7 +1533,281 @@ fn test_goto_terminator() {
                 };
             }
         ]
-        expect_test::expect![["()"]]
+        expect_test::expect![[r#"
+            └─ check_all_crates: at lib.rs:27
+               └─ check_current_crate(Foo): at lib.rs:73
+                  └─ check_fn(Foo, fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u32 <: u32}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32 <: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_terminator(goto bb1): at mini_rust_check.rs:211
+                        └─ check_block(bb1): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = load(local(v1)) ;): at mini_rust_check.rs:156
+                              └─ check_value(load(local(v1))): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ } goto bb1 ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (none) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: []
+                                     places_live_on_exit: {local(v1)}
+                                     result: {}
+                              └─ loans_in_terminator_respected: (goto) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: goto bb1
+                                     result: ()
+                                 └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        bb_id: bb1
+                                        result: ()
+                                    └─ BasicBlock { id: _, statements, terminator } = bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }: at nll.rs:152
+                                    └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statements: [local(v0) = load(local(v1)) ;]
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statement: local(v0) = load(local(v1)) ;
+                                              places_live_on_exit: {}
+                                              result: {}
+                                          └─ loans_in_value_expression_respected: (load) at nll.rs:449
+                                                 env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 value: load(local(v1))
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                             └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                    env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                    assumptions: {}
+                                                    loans_live_before_access: {}
+                                                    access: access(read, local(v1))
+                                                    places_live_after_access: {}
+                                                    result: ()
+                                          └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                 env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 assumptions: {}
+                                                 loans_live_before_access: {}
+                                                 access: access(write, local(v0))
+                                                 places_live_after_access: {}
+                                                 result: ()
+                                       └─ loans_in_statements_respected: (none) at nll.rs:284
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statements: []
+                                              places_live_on_exit: {}
+                                              result: {}
+                                    └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ } goto bb1 ; } bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ } goto bb1 ; }, bb1 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           terminator: return
+                                           result: ()
+                  └─ check_coherence(Foo): at coherence.rs:13
+        "#]]
     )
 }
 
@@ -194,7 +1863,625 @@ fn test_call_terminator() {
                 };
             }
         ]
-        expect_test::expect![["()"]]
+        expect_test::expect![[r#"
+            └─ check_all_crates: at lib.rs:27
+               └─ check_current_crate(Foo): at lib.rs:73
+                  └─ check_fn(Foo, fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u32 <: u32}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32 <: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = load(local(v1)) ;): at mini_rust_check.rs:156
+                              └─ check_value(load(local(v1))): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: [local(v0) = load(local(v1)) ;]
+                                     places_live_on_exit: {}
+                                     result: {}
+                                 └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statement: local(v0) = load(local(v1)) ;
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_value_expression_respected: (load) at nll.rs:449
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           value: load(local(v1))
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(read, local(v1))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(write, local(v0))
+                                           places_live_after_access: {}
+                                           result: ()
+                                 └─ loans_in_statements_respected: (none) at nll.rs:284
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statements: []
+                                        places_live_on_exit: {}
+                                        result: {}
+                              └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: return
+                                     result: ()
+                  └─ check_fn(Foo, fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u32 <: u32}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32 <: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = load(local(v1)) ;): at mini_rust_check.rs:156
+                              └─ check_value(load(local(v1))): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1)): at mini_rust_check.rs:211
+                              └─ check_value(fn_id foo): at mini_rust_check.rs:421
+                              └─ check_argument_expression(Move(local(v0))): at mini_rust_check.rs:543
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb1): at mini_rust_check.rs:135
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: [local(v0) = load(local(v1)) ;]
+                                     places_live_on_exit: {local(v0)}
+                                     result: {}
+                                 └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statement: local(v0) = load(local(v1)) ;
+                                        places_live_on_exit: {local(v0)}
+                                        result: {}
+                                    └─ loans_in_value_expression_respected: (load) at nll.rs:449
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           value: load(local(v1))
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(read, local(v1))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(write, local(v0))
+                                           places_live_after_access: {local(v0)}
+                                           result: ()
+                                 └─ loans_in_statements_respected: (none) at nll.rs:284
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statements: []
+                                        places_live_on_exit: {local(v0)}
+                                        result: {}
+                              └─ loans_in_terminator_respected: (call) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1)
+                                     result: ()
+                                 └─ places_live = {}: at nll.rs:199
+                                 └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        value: fn_id foo
+                                        places_live_on_exit: {local(v0)}
+                                        result: {}
+                                 └─ loans_in_argument_expressions_respected: (cons) at nll.rs:367
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        values: [Move(local(v0))]
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_argument_expression_respected: (in-place) at nll.rs:392
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           value: Move(local(v0))
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(move, local(v0))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ loans_in_argument_expressions_respected: (nil) at nll.rs:367
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           values: []
+                                           places_live_on_exit: {}
+                                           result: {}
+                                 └─ loans_in_next_block_respected: (Some(_)) at nll.rs:262
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        assumptions: {}
+                                        loans_live_on_entry: {}
+                                        next_block: Some(bb1)
+                                        result: ()
+                                    └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           bb_id: bb1
+                                           result: ()
+                                       └─ BasicBlock { id: _, statements, terminator } = bb1 : { statements{ } return ; }: at nll.rs:152
+                                       └─ loans_in_statements_respected: (none) at nll.rs:284
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statements: []
+                                              places_live_on_exit: {}
+                                              result: {}
+                                       └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ; fn bar (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; } bb1 : { statements{ } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; } call fn_id foo (Move(local(v0))) -> local(v0) goto Some(bb1) ; }, bb1 : { statements{ } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {foo: (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ local(v0) = load(local(v1)) ; } return ; } } } ;}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              terminator: return
+                                              result: ()
+                  └─ check_coherence(Foo): at coherence.rs:13
+        "#]]
     )
 }
 
@@ -229,7 +2516,281 @@ fn test_place_mention_statement() {
                 };
             }
         ]
-        expect_test::expect![["()"]]
+        expect_test::expect![[r#"
+            └─ check_all_crates: at lib.rs:27
+               └─ check_current_crate(Foo): at lib.rs:73
+                  └─ check_fn(Foo, fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u32 <: u32}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32 <: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_statement(place_mention(local(v0)) ;): at mini_rust_check.rs:156
+                           └─ check_statement(local(v0) = load(local(v1)) ;): at mini_rust_check.rs:156
+                              └─ check_value(load(local(v1))): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: [place_mention(local(v0)) ;, local(v0) = load(local(v1)) ;]
+                                     places_live_on_exit: {}
+                                     result: {}
+                                 └─ loans_in_statement_respected: (place-mention) at nll.rs:315
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statement: place_mention(local(v0)) ;
+                                        places_live_on_exit: {local(v1)}
+                                        result: {}
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(read, local(v0))
+                                           places_live_after_access: {local(v1)}
+                                           result: ()
+                                 └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statements: [local(v0) = load(local(v1)) ;]
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statement: local(v0) = load(local(v1)) ;
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ loans_in_value_expression_respected: (load) at nll.rs:449
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              value: load(local(v1))
+                                              places_live_on_exit: {}
+                                              result: {}
+                                          └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                 env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                                 assumptions: {}
+                                                 loans_live_before_access: {}
+                                                 access: access(read, local(v1))
+                                                 places_live_after_access: {}
+                                                 result: ()
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(write, local(v0))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ loans_in_statements_respected: (none) at nll.rs:284
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statements: []
+                                           places_live_on_exit: {}
+                                           result: {}
+                              └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32}, blocks: [bb0 : { statements{ place_mention(local(v0)) ; local(v0) = load(local(v1)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: return
+                                     result: ()
+                  └─ check_coherence(Foo): at coherence.rs:13
+        "#]]
     )
 }
 
@@ -257,7 +2818,289 @@ fn test_storage_live_dead() {
                 };
             }
         ]
-        expect_test::expect![["()"]]
+        expect_test::expect![[r#"
+            └─ check_all_crates: at lib.rs:27
+               └─ check_current_crate(Foo): at lib.rs:73
+                  └─ check_fn(Foo, fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [], {}, {})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [], {}, {})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u32 <: u32}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32 <: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = load(local(v1)) ;): at mini_rust_check.rs:156
+                              └─ check_value(load(local(v1))): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(StorageLive(v2) ;): at mini_rust_check.rs:156
+                           └─ check_statement(StorageDead(v2) ;): at mini_rust_check.rs:156
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: [local(v0) = load(local(v1)) ;, StorageLive(v2) ;, StorageDead(v2) ;]
+                                     places_live_on_exit: {}
+                                     result: {}
+                                 └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statement: local(v0) = load(local(v1)) ;
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_value_expression_respected: (load) at nll.rs:449
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           value: load(local(v1))
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(read, local(v1))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(write, local(v0))
+                                           places_live_after_access: {}
+                                           result: ()
+                                 └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                        env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statements: [StorageLive(v2) ;, StorageDead(v2) ;]
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_statement_respected: (storage-live) at nll.rs:315
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statement: StorageLive(v2) ;
+                                           places_live_on_exit: {}
+                                           result: {}
+                                    └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                           env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statements: [StorageDead(v2) ;]
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ loans_in_statement_respected: (storage-dead) at nll.rs:315
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statement: StorageDead(v2) ;
+                                              places_live_on_exit: {}
+                                              result: {}
+                                       └─ loans_in_statements_respected: (none) at nll.rs:284
+                                              env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statements: []
+                                              places_live_on_exit: {}
+                                              result: {}
+                              └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : u32 ; bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: u32}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; StorageLive(v2) ; StorageDead(v2) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [], {}, {}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: return
+                                     result: ()
+                  └─ check_coherence(Foo): at coherence.rs:13
+        "#]]
     )
 }
 
@@ -290,7 +3133,572 @@ fn test_struct() {
                 };
             }
         ]
-        expect_test::expect![["()"]]
+        expect_test::expect![[r#"
+            └─ check_all_crates: at lib.rs:27
+               └─ check_current_crate(Foo): at lib.rs:73
+                  └─ check_adt(Dummy): at adts.rs:12
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(bool)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(bool)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: bool
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                  └─ check_fn(Foo, fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ;, {}, Env { variables: [], bias: Soundness, pending: [] }): at fns.rs:33
+                     └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                            _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                            env: Env { variables: [], bias: Soundness, pending: [] }
+                            assumptions: {}
+                            goals: {@ wf(u32)}
+                            result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goal: @ wf(u32)
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                               assumptions: {}
+                               goal: {}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                           └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goals: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ check_body: at mini_rust_check.rs:39
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {@ wf(u32)}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: @ wf(u32)
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wf: (integers and booleans) at prove_wf.rs:14
+                                     _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goal: u32
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                               _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                               env: Env { variables: [], bias: Soundness, pending: [] }
+                               assumptions: {}
+                               goals: {u32 <: u32}
+                               result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ prove_wc: (subtype) at prove_wc.rs:22
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  env: Env { variables: [], bias: Soundness, pending: [] }
+                                  assumptions: {}
+                                  goal: u32 <: u32
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                           └─ prove_after: (prove_after) at prove_after.rs:8
+                                  _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                  constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                  assumptions: {}
+                                  goal: {}
+                                  result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                              └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ check_block(bb0): at mini_rust_check.rs:135
+                           └─ check_statement(local(v0) = load(local(v1)) ;): at mini_rust_check.rs:156
+                              └─ check_value(load(local(v1))): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ;): at mini_rust_check.rs:156
+                              └─ check_value(struct{ constant(1 : u32), constant(false) } as Dummy): at mini_rust_check.rs:421
+                                 └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                        _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goals: {@ wf(Dummy)}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ prove_wc: (parameter well formed) at prove_wc.rs:22
+                                           _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goal: @ wf(Dummy)
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                       └─ prove_wf: (ADT) at prove_wf.rs:14
+                                              _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                              env: Env { variables: [], bias: Soundness, pending: [] }
+                                              assumptions: {}
+                                              goal: Dummy
+                                              result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                          └─ Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at combinators.rs:61
+                                          └─ t = adt Dummy { struct { value : u32, is_true : bool } }: at prove_wf.rs:14
+                                          └─ t = { struct { value : u32, is_true : bool } }: at prove_wf.rs:14
+                                          └─ prove_after: (prove_after) at prove_after.rs:8
+                                                 _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                                 constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                                 assumptions: {}
+                                                 goal: {}
+                                                 result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                             └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                             └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                                    _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                                    env: Env { variables: [], bias: Soundness, pending: [] }
+                                                    assumptions: {}
+                                                    goals: {}
+                                                    result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ prove_after: (prove_after) at prove_after.rs:8
+                                           _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                           constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                           assumptions: {}
+                                           goal: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                       └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                       └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                              _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                              env: Env { variables: [], bias: Soundness, pending: [] }
+                                              assumptions: {}
+                                              goals: {}
+                                              result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ check_value(constant(1 : u32)): at mini_rust_check.rs:421
+                                 └─ check_value(constant(false)): at mini_rust_check.rs:421
+                                 └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                        _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goals: {u32 <: u32, bool <: bool}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ prove_wc: (subtype) at prove_wc.rs:22
+                                           _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goal: u32 <: u32
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                       └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                    └─ prove_after: (prove_after) at prove_after.rs:8
+                                           _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                           constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                           assumptions: {}
+                                           goal: {bool <: bool}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                       └─ (assumptions, goal) = ({}, {bool <: bool}): at prove_after.rs:8
+                                       └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                              _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                              env: Env { variables: [], bias: Soundness, pending: [] }
+                                              assumptions: {}
+                                              goals: {bool <: bool}
+                                              result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                          └─ prove_wc: (subtype) at prove_wc.rs:22
+                                                 _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                                 env: Env { variables: [], bias: Soundness, pending: [] }
+                                                 assumptions: {}
+                                                 goal: bool <: bool
+                                                 result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                             └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                          └─ prove_after: (prove_after) at prove_after.rs:8
+                                                 _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                                 constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                                 assumptions: {}
+                                                 goal: {}
+                                                 result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                             └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                             └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                                    _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                                    env: Env { variables: [], bias: Soundness, pending: [] }
+                                                    assumptions: {}
+                                                    goals: {}
+                                                    result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {Dummy <: Dummy}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: Dummy <: Dummy
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_statement(local(v2) . 0 = constant(2 : u32) ;): at mini_rust_check.rs:156
+                              └─ check_value(constant(2 : u32)): at mini_rust_check.rs:421
+                              └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                     _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                     env: Env { variables: [], bias: Soundness, pending: [] }
+                                     assumptions: {}
+                                     goals: {u32 <: u32}
+                                     result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ prove_wc: (subtype) at prove_wc.rs:22
+                                        _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                        env: Env { variables: [], bias: Soundness, pending: [] }
+                                        assumptions: {}
+                                        goal: u32 <: u32
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ trivial, as a == b is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_sub.rs:24
+                                 └─ prove_after: (prove_after) at prove_after.rs:8
+                                        _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                        constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                        assumptions: {}
+                                        goal: {}
+                                        result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                                    └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                           _decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy})
+                                           env: Env { variables: [], bias: Soundness, pending: [] }
+                                           assumptions: {}
+                                           goals: {}
+                                           result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                           └─ check_terminator(return): at mini_rust_check.rs:211
+                        └─ borrow_check: at nll.rs:136
+                           └─ loans_in_basic_block_respected: (basic block) at nll.rs:152
+                                  env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                  fn_assumptions: {}
+                                  loans_live_on_entry: {}
+                                  bb_id: bb0
+                                  result: ()
+                              └─ BasicBlock { id: _, statements, terminator } = bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }: at nll.rs:152
+                              └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                     env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     statements: [local(v0) = load(local(v1)) ;, local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ;, local(v2) . 0 = constant(2 : u32) ;]
+                                     places_live_on_exit: {}
+                                     result: {}
+                                 └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                        env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statement: local(v0) = load(local(v1)) ;
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_value_expression_respected: (load) at nll.rs:449
+                                           env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           value: load(local(v1))
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(read, local(v1))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                           env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                           assumptions: {}
+                                           loans_live_before_access: {}
+                                           access: access(write, local(v0))
+                                           places_live_after_access: {}
+                                           result: ()
+                                 └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                        env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                        fn_assumptions: {}
+                                        loans_live_on_entry: {}
+                                        statements: [local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ;, local(v2) . 0 = constant(2 : u32) ;]
+                                        places_live_on_exit: {}
+                                        result: {}
+                                    └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                           env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statement: local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ;
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ loans_in_value_expression_respected: (struct) at nll.rs:449
+                                              env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              value: struct{ constant(1 : u32), constant(false) } as Dummy
+                                              places_live_on_exit: {}
+                                              result: {}
+                                          └─ loans_in_value_expressions_respected: (cons) at nll.rs:417
+                                                 env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 values: [constant(1 : u32), constant(false)]
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                             └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                    env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    value: constant(1 : u32)
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                             └─ loans_in_value_expressions_respected: (cons) at nll.rs:417
+                                                    env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                                    fn_assumptions: {}
+                                                    loans_live_on_entry: {}
+                                                    values: [constant(false)]
+                                                    places_live_on_exit: {}
+                                                    result: {}
+                                                └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                       env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                                       fn_assumptions: {}
+                                                       loans_live_on_entry: {}
+                                                       value: constant(false)
+                                                       places_live_on_exit: {}
+                                                       result: {}
+                                                └─ loans_in_value_expressions_respected: (nil) at nll.rs:417
+                                                       env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                                       fn_assumptions: {}
+                                                       loans_live_on_entry: {}
+                                                       values: []
+                                                       places_live_on_exit: {}
+                                                       result: {}
+                                       └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                              env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                              assumptions: {}
+                                              loans_live_before_access: {}
+                                              access: access(write, local(v2))
+                                              places_live_after_access: {}
+                                              result: ()
+                                    └─ loans_in_statements_respected: (cons) at nll.rs:284
+                                           env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                           fn_assumptions: {}
+                                           loans_live_on_entry: {}
+                                           statements: [local(v2) . 0 = constant(2 : u32) ;]
+                                           places_live_on_exit: {}
+                                           result: {}
+                                       └─ loans_in_statement_respected: (assign) at nll.rs:315
+                                              env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statement: local(v2) . 0 = constant(2 : u32) ;
+                                              places_live_on_exit: {}
+                                              result: {}
+                                          └─ loans_in_value_expression_respected: (constant-or-fn) at nll.rs:449
+                                                 env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                                 fn_assumptions: {}
+                                                 loans_live_on_entry: {}
+                                                 value: constant(2 : u32)
+                                                 places_live_on_exit: {}
+                                                 result: {}
+                                          └─ access_permitted_by_loans: (no loans) at nll.rs:489
+                                                 env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                                 assumptions: {}
+                                                 loans_live_before_access: {}
+                                                 access: access(write, local(v2) . 0)
+                                                 places_live_after_access: {}
+                                                 result: ()
+                                       └─ loans_in_statements_respected: (none) at nll.rs:284
+                                              env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                              fn_assumptions: {}
+                                              loans_live_on_entry: {}
+                                              statements: []
+                                              places_live_on_exit: {}
+                                              result: {}
+                              └─ loans_in_terminator_respected: (return) at nll.rs:199
+                                     env: TypeckEnv { program: [crate Foo { struct Dummy { value : u32, is_true : bool } fn foo (u32) -> u32 = minirust(v1) -> v0 { let v0 : u32 ; let v1 : u32 ; exists { let v2 : Dummy ; bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; } } } ; }], env: Env { variables: [], bias: Soundness, pending: [] }, output_ty: u32, local_variables: {v0: u32, v1: u32, v2: Dummy}, blocks: [bb0 : { statements{ local(v0) = load(local(v1)) ; local(v2) = struct{ constant(1 : u32), constant(false) } as Dummy ; local(v2) . 0 = constant(2 : u32) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [], decls: decls(222, [], [], [], [], [], [adt Dummy { struct { value : u32, is_true : bool } }], {}, {Dummy}) }
+                                     fn_assumptions: {}
+                                     loans_live_on_entry: {}
+                                     terminator: return
+                                     result: ()
+                  └─ check_coherence(Foo): at coherence.rs:13
+        "#]]
     )
 }
 

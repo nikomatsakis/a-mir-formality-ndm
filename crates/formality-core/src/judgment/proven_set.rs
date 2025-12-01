@@ -280,8 +280,11 @@ pub type Proven<J> = (J, ProofTree);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 #[must_use]
 pub struct ProofTree {
-    /// Trying to prove this judgment...
-    pub judgment: String,
+    /// Name of the judgment being proved
+    pub judgment_name: String,
+
+    /// Attributes as field: value pairs
+    pub attributes: Vec<(String, String)>,
 
     /// Succeeded with this rule-name and index, if Some;
     /// if None, then there is only a single rule and this is not relevant.
@@ -301,7 +304,7 @@ pub struct ProofTree {
 }
 
 impl ProofTree {
-    /// Create a leaf"proof tree" from a value.
+    /// Create a leaf "proof tree" from a value.
     ///
     /// The origin will be the caller of this function
     /// and there won't be any child trees.
@@ -311,7 +314,8 @@ impl ProofTree {
     }
 
     pub fn with_all(
-        judgment: impl ToString,
+        judgment_name: impl ToString,
+        attributes: Vec<(String, String)>,
         rule_name: Option<&'static str>,
         file: impl ToString,
         line: u32,
@@ -319,7 +323,8 @@ impl ProofTree {
         children: Vec<ProofTree>,
     ) -> Self {
         Self {
-            judgment: judgment.to_string(),
+            judgment_name: judgment_name.to_string(),
+            attributes,
             rule_name,
             file: file.to_string(),
             line,
@@ -338,7 +343,8 @@ impl ProofTree {
     ) -> Self {
         let caller = Location::caller();
         let proof = ProofTree {
-            judgment: judgment.to_string(),
+            judgment_name: judgment.to_string(),
+            attributes: Vec::new(),
             rule_name,
             file: caller.file().to_string(),
             line: caller.line(),
@@ -346,6 +352,27 @@ impl ProofTree {
             children,
         };
         proof
+    }
+
+    /// Create a "proof tree" with explicit attributes.
+    /// The origin will be the caller of this function.
+    #[track_caller]
+    pub fn new_with_attributes(
+        judgment_name: impl ToString,
+        attributes: Vec<(String, String)>,
+        rule_name: Option<&'static str>,
+        children: Vec<ProofTree>,
+    ) -> Self {
+        let caller = Location::caller();
+        ProofTree {
+            judgment_name: judgment_name.to_string(),
+            attributes,
+            rule_name,
+            file: caller.file().to_string(),
+            line: caller.line(),
+            column: caller.column(),
+            children,
+        }
     }
 
     /// Total number of nodes in the proof tree.
@@ -653,11 +680,20 @@ impl ProofTree {
             Some(name) => format!(" ({name})"),
             None => String::new(),
         };
+
+        // Print judgment name with rule info and location
         writeln!(
             f,
-            "{prefix}└─ {}{rule_info} at {file_name}:{}",
-            self.judgment, self.line
+            "{prefix}└─ {}:{rule_info} at {file_name}:{}",
+            self.judgment_name, self.line
         )?;
+
+        // Print attributes indented under the judgment name
+        let attr_prefix = format!("{prefix}       ");
+        for (field, value) in &self.attributes {
+            writeln!(f, "{attr_prefix}{field}: {value}")?;
+        }
+
         let child_prefix = format!("{prefix}   ");
         for child in &self.children {
             child.fmt_indented(f, &child_prefix)?;

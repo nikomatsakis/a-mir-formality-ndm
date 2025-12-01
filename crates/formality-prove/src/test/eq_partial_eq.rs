@@ -33,407 +33,168 @@ fn eq_implies_partial_eq() {
                 },
                 known_true: true,
                 substitution: {},
-            }: ProofTree {
-                judgment: "c = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                rule_name: Some(
-                    "some",
-                ),
-                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
-                line: 11,
-                column: 1,
-                children: [
-                    ProofTree {
-                        judgment: "c.pop_subst(&subst) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                        rule_name: Some(
-                            "forall",
-                        ),
-                        file: "crates/formality-prove/src/prove/prove_wc.rs",
-                        line: 22,
-                        column: 1,
-                        children: [
-                            ProofTree {
-                                judgment: "(env, subst) = (Env { variables: [!ty_1], bias: Soundness, pending: [] }, [!ty_1])",
-                                rule_name: None,
-                                file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                line: 22,
-                                column: 1,
-                                children: [],
-                            },
-                            ProofTree {
-                                judgment: "p1 = if {Eq(!ty_1)} PartialEq(!ty_1)",
-                                rule_name: None,
-                                file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                line: 22,
-                                column: 1,
-                                children: [],
-                            },
-                            ProofTree {
-                                judgment: "c = Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                rule_name: Some(
-                                    "implies",
-                                ),
-                                file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                line: 22,
-                                column: 1,
-                                children: [
-                                    ProofTree {
-                                        judgment: "c.pop_subst(&subst) = Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                        rule_name: Some(
-                                            "trait implied bound",
-                                        ),
-                                        file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                        line: 22,
-                                        column: 1,
-                                        children: [
-                                            ProofTree {
-                                                judgment: "item = trait_invariant(<ty> Eq(^ty0_0) => PartialEq(^ty0_0))",
-                                                rule_name: None,
-                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                                line: 22,
-                                                column: 1,
-                                                children: [],
-                                            },
-                                            ProofTree {
-                                                judgment: "(env, subst) = (Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, [?ty_2])",
-                                                rule_name: None,
-                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                                line: 22,
-                                                column: 1,
-                                                children: [],
-                                            },
-                                            ProofTree {
-                                                judgment: "ti = Eq(?ty_2) => PartialEq(?ty_2)",
-                                                rule_name: None,
-                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                                line: 22,
-                                                column: 1,
-                                                children: [],
-                                            },
-                                            ProofTree {
-                                                judgment: "c = Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_2 => !ty_1} }",
-                                                rule_name: Some(
-                                                    "predicate-congruence-axiom",
-                                                ),
-                                                file: "crates/formality-prove/src/prove/prove_via.rs",
-                                                line: 9,
-                                                column: 1,
-                                                children: [
-                                                    ProofTree {
-                                                        judgment: "(skel_c, parameters_c) = (is_implemented(PartialEq), [?ty_2])",
-                                                        rule_name: None,
-                                                        file: "crates/formality-prove/src/prove/prove_via.rs",
-                                                        line: 9,
-                                                        column: 1,
-                                                        children: [],
-                                                    },
-                                                    ProofTree {
-                                                        judgment: "(skel_g, parameters_g) = (is_implemented(PartialEq), [!ty_1])",
-                                                        rule_name: None,
-                                                        file: "crates/formality-prove/src/prove/prove_via.rs",
-                                                        line: 9,
-                                                        column: 1,
-                                                        children: [],
-                                                    },
-                                                    ProofTree {
-                                                        judgment: "IfThen { expression: \"skel_c == skel_g\", skel_c: is_implemented(PartialEq), skel_g: is_implemented(PartialEq) }",
-                                                        rule_name: None,
-                                                        file: "crates/formality-prove/src/prove/prove_via.rs",
-                                                        line: 9,
-                                                        column: 1,
-                                                        children: [],
-                                                    },
-                                                    ProofTree {
-                                                        judgment: "c = Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }",
-                                                        rule_name: Some(
-                                                            "some",
-                                                        ),
-                                                        file: "crates/formality-prove/src/prove/prove_wc_list.rs",
-                                                        line: 11,
-                                                        column: 1,
-                                                        children: [
-                                                            ProofTree {
-                                                                judgment: "c = Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }",
-                                                                rule_name: Some(
-                                                                    "eq",
-                                                                ),
-                                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                                                line: 22,
-                                                                column: 1,
-                                                                children: [
-                                                                    ProofTree {
-                                                                        judgment: "c = Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }",
-                                                                        rule_name: Some(
-                                                                            "existential",
-                                                                        ),
-                                                                        file: "crates/formality-prove/src/prove/prove_eq.rs",
-                                                                        line: 23,
-                                                                        column: 1,
-                                                                        children: [
-                                                                            ProofTree {
-                                                                                judgment: "(env, (v, p)) = Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }",
-                                                                                rule_name: Some(
-                                                                                    "existential-universal",
-                                                                                ),
-                                                                                file: "crates/formality-prove/src/prove/prove_eq.rs",
-                                                                                line: 76,
-                                                                                column: 1,
-                                                                                children: [
-                                                                                    ProofTree {
-                                                                                        judgment: "IfThen { expression: \"env.universe(p) < env.universe(v)\" }",
-                                                                                        rule_name: None,
-                                                                                        file: "crates/formality-prove/src/prove/prove_eq.rs",
-                                                                                        line: 76,
-                                                                                        column: 1,
-                                                                                        children: [],
-                                                                                    },
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    },
-                                                                ],
-                                                            },
-                                                            ProofTree {
-                                                                judgment: "c1.seq(c2) = Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }",
-                                                                rule_name: Some(
-                                                                    "prove_after",
-                                                                ),
-                                                                file: "crates/formality-prove/src/prove/prove_after.rs",
-                                                                line: 8,
-                                                                column: 1,
-                                                                children: [
-                                                                    ProofTree {
-                                                                        judgment: "(assumptions, goal) = ({Eq(!ty_0)}, {})",
-                                                                        rule_name: None,
-                                                                        file: "crates/formality-prove/src/prove/prove_after.rs",
-                                                                        line: 8,
-                                                                        column: 1,
-                                                                        children: [],
-                                                                    },
-                                                                    ProofTree {
-                                                                        judgment: "Constraints::none(env) = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                        rule_name: Some(
-                                                                            "none",
-                                                                        ),
-                                                                        file: "crates/formality-prove/src/prove/prove_wc_list.rs",
-                                                                        line: 11,
-                                                                        column: 1,
-                                                                        children: [],
-                                                                    },
-                                                                ],
-                                                            },
-                                                        ],
-                                                    },
-                                                ],
-                                            },
-                                            ProofTree {
-                                                judgment: "c1.seq(c2) = Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_2 => !ty_1} }",
-                                                rule_name: Some(
-                                                    "prove_after",
-                                                ),
-                                                file: "crates/formality-prove/src/prove/prove_after.rs",
-                                                line: 8,
-                                                column: 1,
-                                                children: [
-                                                    ProofTree {
-                                                        judgment: "(assumptions, goal) = ({Eq(!ty_1)}, {Eq(!ty_1)})",
-                                                        rule_name: None,
-                                                        file: "crates/formality-prove/src/prove/prove_after.rs",
-                                                        line: 8,
-                                                        column: 1,
-                                                        children: [],
-                                                    },
-                                                    ProofTree {
-                                                        judgment: "c = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                        rule_name: Some(
-                                                            "some",
-                                                        ),
-                                                        file: "crates/formality-prove/src/prove/prove_wc_list.rs",
-                                                        line: 11,
-                                                        column: 1,
-                                                        children: [
-                                                            ProofTree {
-                                                                judgment: "c = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                rule_name: Some(
-                                                                    "assumption - predicate",
-                                                                ),
-                                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                                                line: 22,
-                                                                column: 1,
-                                                                children: [
-                                                                    ProofTree {
-                                                                        judgment: "item = Eq(!ty_0)",
-                                                                        rule_name: None,
-                                                                        file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                                                        line: 22,
-                                                                        column: 1,
-                                                                        children: [],
-                                                                    },
-                                                                    ProofTree {
-                                                                        judgment: "c = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                        rule_name: Some(
-                                                                            "predicate-congruence-axiom",
-                                                                        ),
-                                                                        file: "crates/formality-prove/src/prove/prove_via.rs",
-                                                                        line: 9,
-                                                                        column: 1,
-                                                                        children: [
-                                                                            ProofTree {
-                                                                                judgment: "(skel_c, parameters_c) = (is_implemented(Eq), [!ty_0])",
-                                                                                rule_name: None,
-                                                                                file: "crates/formality-prove/src/prove/prove_via.rs",
-                                                                                line: 9,
-                                                                                column: 1,
-                                                                                children: [],
-                                                                            },
-                                                                            ProofTree {
-                                                                                judgment: "(skel_g, parameters_g) = (is_implemented(Eq), [!ty_0])",
-                                                                                rule_name: None,
-                                                                                file: "crates/formality-prove/src/prove/prove_via.rs",
-                                                                                line: 9,
-                                                                                column: 1,
-                                                                                children: [],
-                                                                            },
-                                                                            ProofTree {
-                                                                                judgment: "IfThen { expression: \"skel_c == skel_g\", skel_c: is_implemented(Eq), skel_g: is_implemented(Eq) }",
-                                                                                rule_name: None,
-                                                                                file: "crates/formality-prove/src/prove/prove_via.rs",
-                                                                                line: 9,
-                                                                                column: 1,
-                                                                                children: [],
-                                                                            },
-                                                                            ProofTree {
-                                                                                judgment: "c = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                                rule_name: Some(
-                                                                                    "some",
-                                                                                ),
-                                                                                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
-                                                                                line: 11,
-                                                                                column: 1,
-                                                                                children: [
-                                                                                    ProofTree {
-                                                                                        judgment: "c = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                                        rule_name: Some(
-                                                                                            "eq",
-                                                                                        ),
-                                                                                        file: "crates/formality-prove/src/prove/prove_wc.rs",
-                                                                                        line: 22,
-                                                                                        column: 1,
-                                                                                        children: [
-                                                                                            ProofTree {
-                                                                                                judgment: "trivial, as trivial_expr is true: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                                                rule_name: None,
-                                                                                                file: "crates/formality-prove/src/prove/prove_eq.rs",
-                                                                                                line: 35,
-                                                                                                column: 17,
-                                                                                                children: [],
-                                                                                            },
-                                                                                        ],
-                                                                                    },
-                                                                                    ProofTree {
-                                                                                        judgment: "c1.seq(c2) = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                                        rule_name: Some(
-                                                                                            "prove_after",
-                                                                                        ),
-                                                                                        file: "crates/formality-prove/src/prove/prove_after.rs",
-                                                                                        line: 8,
-                                                                                        column: 1,
-                                                                                        children: [
-                                                                                            ProofTree {
-                                                                                                judgment: "(assumptions, goal) = ({Eq(!ty_0)}, {})",
-                                                                                                rule_name: None,
-                                                                                                file: "crates/formality-prove/src/prove/prove_after.rs",
-                                                                                                line: 8,
-                                                                                                column: 1,
-                                                                                                children: [],
-                                                                                            },
-                                                                                            ProofTree {
-                                                                                                judgment: "Constraints::none(env) = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                                                rule_name: Some(
-                                                                                                    "none",
-                                                                                                ),
-                                                                                                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
-                                                                                                line: 11,
-                                                                                                column: 1,
-                                                                                                children: [],
-                                                                                            },
-                                                                                        ],
-                                                                                    },
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    },
-                                                                ],
-                                                            },
-                                                            ProofTree {
-                                                                judgment: "c1.seq(c2) = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                rule_name: Some(
-                                                                    "prove_after",
-                                                                ),
-                                                                file: "crates/formality-prove/src/prove/prove_after.rs",
-                                                                line: 8,
-                                                                column: 1,
-                                                                children: [
-                                                                    ProofTree {
-                                                                        judgment: "(assumptions, goal) = ({Eq(!ty_0)}, {})",
-                                                                        rule_name: None,
-                                                                        file: "crates/formality-prove/src/prove/prove_after.rs",
-                                                                        line: 8,
-                                                                        column: 1,
-                                                                        children: [],
-                                                                    },
-                                                                    ProofTree {
-                                                                        judgment: "Constraints::none(env) = Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                                                        rule_name: Some(
-                                                                            "none",
-                                                                        ),
-                                                                        file: "crates/formality-prove/src/prove/prove_wc_list.rs",
-                                                                        line: 11,
-                                                                        column: 1,
-                                                                        children: [],
-                                                                    },
-                                                                ],
-                                                            },
-                                                        ],
-                                                    },
-                                                ],
-                                            },
-                                        ],
-                                    },
-                                ],
-                            },
-                        ],
-                    },
-                    ProofTree {
-                        judgment: "c1.seq(c2) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                        rule_name: Some(
-                            "prove_after",
-                        ),
-                        file: "crates/formality-prove/src/prove/prove_after.rs",
-                        line: 8,
-                        column: 1,
-                        children: [
-                            ProofTree {
-                                judgment: "(assumptions, goal) = ({}, {})",
-                                rule_name: None,
-                                file: "crates/formality-prove/src/prove/prove_after.rs",
-                                line: 8,
-                                column: 1,
-                                children: [],
-                            },
-                            ProofTree {
-                                judgment: "Constraints::none(env) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
-                                rule_name: Some(
-                                    "none",
-                                ),
-                                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
-                                line: 11,
-                                column: 1,
-                                children: [],
-                            },
-                        ],
-                    },
-                ],
-            },
+            }: └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                   _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                   env: Env { variables: [], bias: Soundness, pending: [] }
+                   assumptions: {}
+                   goals: {for <ty> if {Eq(^ty0_0)} PartialEq(^ty0_0)}
+                   result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+               └─ prove_wc: (forall) at prove_wc.rs:22
+                      _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                      env: Env { variables: [], bias: Soundness, pending: [] }
+                      assumptions: {}
+                      goal: for <ty> if {Eq(^ty0_0)} PartialEq(^ty0_0)
+                      result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                  └─ (env, subst) = (Env { variables: [!ty_1], bias: Soundness, pending: [] }, [!ty_1]): at prove_wc.rs:22
+                  └─ p1 = if {Eq(!ty_1)} PartialEq(!ty_1): at prove_wc.rs:22
+                  └─ prove_wc: (implies) at prove_wc.rs:22
+                         _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                         env: Env { variables: [!ty_1], bias: Soundness, pending: [] }
+                         assumptions: {}
+                         goal: if {Eq(!ty_1)} PartialEq(!ty_1)
+                         result: Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                     └─ prove_wc: (trait implied bound) at prove_wc.rs:22
+                            _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                            env: Env { variables: [!ty_1], bias: Soundness, pending: [] }
+                            assumptions: {Eq(!ty_1)}
+                            goal: PartialEq(!ty_1)
+                            result: Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ item = trait_invariant(<ty> Eq(^ty0_0) => PartialEq(^ty0_0)): at prove_wc.rs:22
+                        └─ (env, subst) = (Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, [?ty_2]): at prove_wc.rs:22
+                        └─ ti = Eq(?ty_2) => PartialEq(?ty_2): at prove_wc.rs:22
+                        └─ prove_via: (predicate-congruence-axiom) at prove_via.rs:9
+                               _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                               env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }
+                               assumptions: {Eq(!ty_1)}
+                               via: PartialEq(?ty_2)
+                               goal: PartialEq(!ty_1)
+                               result: Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_2 => !ty_1} }
+                           └─ (skel_c, parameters_c) = (is_implemented(PartialEq), [?ty_2]): at prove_via.rs:9
+                           └─ (skel_g, parameters_g) = (is_implemented(PartialEq), [!ty_1]): at prove_via.rs:9
+                           └─ IfThen { expression: "skel_c == skel_g", skel_c: is_implemented(PartialEq), skel_g: is_implemented(PartialEq) }: at prove_via.rs:9
+                           └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                  _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }
+                                  assumptions: {Eq(!ty_0)}
+                                  goals: {?ty_1 = !ty_0}
+                                  result: Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }
+                              └─ prove_wc: (eq) at prove_wc.rs:22
+                                     _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }
+                                     assumptions: {Eq(!ty_0)}
+                                     goal: ?ty_1 = !ty_0
+                                     result: Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }
+                                 └─ prove_eq: (existential) at prove_eq.rs:23
+                                        _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }
+                                        assumptions: {Eq(!ty_0)}
+                                        a: ?ty_1
+                                        b: !ty_0
+                                        result: Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }
+                                    └─ prove_existential_var_eq: (existential-universal) at prove_eq.rs:76
+                                           _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }
+                                           assumptions: {Eq(!ty_0)}
+                                           v: ?ty_1
+                                           b: !ty_0
+                                           result: Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }
+                                       └─ IfThen { expression: "env.universe(p) < env.universe(v)" }: at prove_eq.rs:76
+                              └─ prove_after: (prove_after) at prove_after.rs:8
+                                     _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                     constraints: Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }
+                                     assumptions: {Eq(!ty_0)}
+                                     goal: {}
+                                     result: Constraints { env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => !ty_0} }
+                                 └─ (assumptions, goal) = ({Eq(!ty_0)}, {}): at prove_after.rs:8
+                                 └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                        _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [!ty_0], bias: Soundness, pending: [] }
+                                        assumptions: {Eq(!ty_0)}
+                                        goals: {}
+                                        result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                        └─ prove_after: (prove_after) at prove_after.rs:8
+                               _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                               constraints: Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_2 => !ty_1} }
+                               assumptions: {Eq(!ty_1)}
+                               goal: {Eq(?ty_2)}
+                               result: Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_2 => !ty_1} }
+                           └─ (assumptions, goal) = ({Eq(!ty_1)}, {Eq(!ty_1)}): at prove_after.rs:8
+                           └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                  _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                  env: Env { variables: [!ty_0], bias: Soundness, pending: [] }
+                                  assumptions: {Eq(!ty_0)}
+                                  goals: {Eq(!ty_0)}
+                                  result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_wc: (assumption - predicate) at prove_wc.rs:22
+                                     _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                     env: Env { variables: [!ty_0], bias: Soundness, pending: [] }
+                                     assumptions: {Eq(!ty_0)}
+                                     goal: Eq(!ty_0)
+                                     result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ item = Eq(!ty_0): at prove_wc.rs:22
+                                 └─ prove_via: (predicate-congruence-axiom) at prove_via.rs:9
+                                        _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [!ty_0], bias: Soundness, pending: [] }
+                                        assumptions: {Eq(!ty_0)}
+                                        via: Eq(!ty_0)
+                                        goal: Eq(!ty_0)
+                                        result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                    └─ (skel_c, parameters_c) = (is_implemented(Eq), [!ty_0]): at prove_via.rs:9
+                                    └─ (skel_g, parameters_g) = (is_implemented(Eq), [!ty_0]): at prove_via.rs:9
+                                    └─ IfThen { expression: "skel_c == skel_g", skel_c: is_implemented(Eq), skel_g: is_implemented(Eq) }: at prove_via.rs:9
+                                    └─ prove_wc_list: (some) at prove_wc_list.rs:11
+                                           _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                           env: Env { variables: [!ty_0], bias: Soundness, pending: [] }
+                                           assumptions: {Eq(!ty_0)}
+                                           goals: {!ty_0 = !ty_0}
+                                           result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                       └─ prove_wc: (eq) at prove_wc.rs:22
+                                              _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                              env: Env { variables: [!ty_0], bias: Soundness, pending: [] }
+                                              assumptions: {Eq(!ty_0)}
+                                              goal: !ty_0 = !ty_0
+                                              result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                          └─ trivial, as a == b is true: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }: at prove_eq.rs:35
+                                       └─ prove_after: (prove_after) at prove_after.rs:8
+                                              _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                              constraints: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                              assumptions: {Eq(!ty_0)}
+                                              goal: {}
+                                              result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                          └─ (assumptions, goal) = ({Eq(!ty_0)}, {}): at prove_after.rs:8
+                                          └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                                 _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                                 env: Env { variables: [!ty_0], bias: Soundness, pending: [] }
+                                                 assumptions: {Eq(!ty_0)}
+                                                 goals: {}
+                                                 result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                              └─ prove_after: (prove_after) at prove_after.rs:8
+                                     _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                     constraints: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                     assumptions: {Eq(!ty_0)}
+                                     goal: {}
+                                     result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                                 └─ (assumptions, goal) = ({Eq(!ty_0)}, {}): at prove_after.rs:8
+                                 └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                                        _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                                        env: Env { variables: [!ty_0], bias: Soundness, pending: [] }
+                                        assumptions: {Eq(!ty_0)}
+                                        goals: {}
+                                        result: Constraints { env: Env { variables: [!ty_0], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+               └─ prove_after: (prove_after) at prove_after.rs:8
+                      _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                      constraints: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                      assumptions: {}
+                      goal: {}
+                      result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+                  └─ (assumptions, goal) = ({}, {}): at prove_after.rs:8
+                  └─ prove_wc_list: (none) at prove_wc_list.rs:11
+                         _decls: decls(222, [trait Eq <ty> where {PartialEq(^ty0_0)}, trait PartialEq <ty> ], [], [], [], [], [], {}, {})
+                         env: Env { variables: [], bias: Soundness, pending: [] }
+                         assumptions: {}
+                         goals: {}
+                         result: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }
+            ,
         }
     "#]]
     .assert_debug_eq(&constraints);
