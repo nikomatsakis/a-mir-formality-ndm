@@ -17,6 +17,7 @@ use formality_types::grammar::{
 };
 use formality_types::rust::Fold;
 
+use crate::borrow_check::nll;
 use crate::{Check, CrateItem, Debug, ProvenSet, ToWcs, Visit};
 use anyhow::bail;
 
@@ -105,13 +106,7 @@ impl Check<'_> {
             env.check_block(fn_assumptions, block)?;
         }
 
-        // XXX need to check these!
-        if !env.pending_outlives.is_empty() {
-            bail!(
-                "unproven outlives relationships found: {:#?}",
-                env.pending_outlives
-            )
-        }
+        nll::borrow_check(&env, &fn_assumptions)?;
 
         Ok(())
     }

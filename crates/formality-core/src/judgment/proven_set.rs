@@ -1,46 +1,47 @@
-use crate::{set, Set};
+use crate::{judgment::IfThen, set, Map, Set};
 use std::{
     fmt::Debug,
     hash::{Hash, Hasher},
+    panic::Location,
 };
 
 /// Represents a set of items that were successfully proven using a judgment.
 /// If the set is empty, then tracks the reason that the judgment failed for diagnostic purposes.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[must_use]
-pub struct ProvenSet<T> {
-    data: Data<T>,
+pub struct ProvenSet<J> {
+    data: ProvenSetData<J>,
 }
 
 #[derive(Clone)]
-enum Data<T> {
+enum ProvenSetData<J> {
     Failure(Box<FailedJudgment>),
-    Success(Set<T>),
+    Success(Map<J, ProofTree>),
 }
 
-impl<T> From<Data<T>> for ProvenSet<T> {
-    fn from(data: Data<T>) -> Self {
+impl<J> From<ProvenSetData<J>> for ProvenSet<J> {
+    fn from(data: ProvenSetData<J>) -> Self {
         ProvenSet { data }
     }
 }
 
-impl<T> From<FailedJudgment> for ProvenSet<T> {
+impl<J> From<FailedJudgment> for ProvenSet<J> {
     fn from(failure: FailedJudgment) -> Self {
-        Data::Failure(Box::new(failure)).into()
+        ProvenSetData::<J>::Failure(Box::new(failure)).into()
     }
 }
 
-impl<T: Ord + Debug> ProvenSet<T> {
+impl<J: Ord + Debug + Clone> ProvenSet<J> {
     /// Creates a judgment set with a single item that was successfully proven.
-    pub fn singleton(item: T) -> Self {
-        Self::proven(set![item])
+    pub fn singleton(item: Proven<J>) -> Self {
+        Self::proven(std::iter::once(item).collect())
     }
 
     /// Creates a judgment set with a set of `T` items that were successfully proven.
     /// The set should be non-empty.
-    pub fn proven(data: Set<T>) -> Self {
+    pub fn proven(data: Map<J, ProofTree>) -> Self {
         assert!(!data.is_empty());
-        Data::Success(data).into()
+        ProvenSetData::Success(data).into()
     }
 
     /// Creates a `JudgmentSet` from a Rust function that failed for the given reason.
@@ -65,8 +66,8 @@ impl<T: Ord + Debug> ProvenSet<T> {
     /// True if the judgment whose result this set represents was proven at least once.
     pub fn is_proven(&self) -> bool {
         match &self.data {
-            Data::Failure(_) => false,
-            Data::Success(s) => {
+            ProvenSetData::Failure(_) => false,
+            ProvenSetData::Success(s) => {
                 assert!(!s.is_empty());
                 true
             }
@@ -75,16 +76,16 @@ impl<T: Ord + Debug> ProvenSet<T> {
 
     pub fn check_proven(self) -> Result<(), Box<FailedJudgment>> {
         match self.data {
-            Data::Failure(e) => Err(e),
-            Data::Success(_) => Ok(()),
+            ProvenSetData::Failure(e) => Err(e),
+            ProvenSetData::Success(_) => Ok(()),
         }
     }
 
     /// Convert to a non-empty set of proven results (if ok) or an error (otherwise).
-    pub fn into_set(self) -> Result<Set<T>, Box<FailedJudgment>> {
+    pub fn into_map(self) -> Result<Map<J, ProofTree>, Box<FailedJudgment>> {
         match self.data {
-            Data::Failure(e) => Err(e),
-            Data::Success(s) => {
+            ProvenSetData::Failure(e) => Err(e),
+            ProvenSetData::Success(s) => {
                 assert!(!s.is_empty());
                 Ok(s)
             }
@@ -92,10 +93,13 @@ impl<T: Ord + Debug> ProvenSet<T> {
     }
 
     /// Iterate through all solutions.
-    pub fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a T> + 'a> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = Proven<J>> + '_> {
         match &self.data {
-            Data::Failure(_) => Box::new(std::iter::empty()),
-            Data::Success(s) => Box::new(s.iter()),
+            ProvenSetData::Failure(_) => Box::new(std::iter::empty()),
+            ProvenSetData::Success(s) => Box::new(
+                s.iter()
+                    .map(|(judgment, tree)| (J::clone(judgment), tree.clone())),
+            ),
         }
     }
 
@@ -105,25 +109,25 @@ impl<T: Ord + Debug> ProvenSet<T> {
     /// This function preserves failure cause information and is the preferred way to chain
     /// sets.
     #[track_caller]
-    pub fn flat_map<I, U>(self, mut op: impl FnMut(T) -> I) -> ProvenSet<U>
+    pub fn flat_map<Iterable, K>(self, mut op: impl FnMut(Proven<J>) -> Iterable) -> ProvenSet<K>
     where
-        I: EachProof<Item = U>,
-        U: Ord + Debug,
+        Iterable: EachProof<Judgment = K>,
+        K: Ord + Debug + Clone,
     {
         match self.data {
-            Data::Failure(e) => ProvenSet {
-                data: Data::Failure(e),
+            ProvenSetData::Failure(e) => ProvenSet {
+                data: ProvenSetData::Failure(e),
             },
-            Data::Success(set) => {
-                let mut items = set![];
+            ProvenSetData::Success(proven_items) => {
+                let mut items = Map::default();
                 let mut failures = set![];
 
-                for item in set {
-                    let collection = op(item);
+                for proven_item in proven_items {
+                    let collection = op(proven_item);
                     if let Err(cause) = collection.each_proof(
                         || "flat_map".to_string(),
-                        |item| {
-                            items.insert(item);
+                        |(item, proof_tree)| {
+                            items.insert(item, proof_tree);
                         },
                     ) {
                         failures.insert(FailedRule::new(cause));
@@ -144,19 +148,19 @@ impl<T: Ord + Debug> ProvenSet<T> {
     /// and create a proven set from that.
     /// This function preserves failure cause information.
     #[track_caller]
-    pub fn map<U>(self, mut op: impl FnMut(T) -> U) -> ProvenSet<U>
+    pub fn map<K>(self, mut op: impl FnMut(Proven<J>) -> K) -> ProvenSet<K>
     where
-        U: Ord + Debug,
+        K: Ord + Debug + Clone,
     {
-        self.flat_map(|elem| set![op(elem)])
+        self.flat_map::<_, K>(|elem| Some(op(elem)))
     }
 
     /// Convenience function for tests: asserts that the proven set is ok and that the debug value is as expected.
     #[track_caller]
     pub fn assert_ok(&self, expect: expect_test::Expect) {
         match &self.data {
-            Data::Failure(e) => panic!("expected a successful proof, got {e}"),
-            Data::Success(_) => {
+            ProvenSetData::Failure(e) => panic!("expected a successful proof, got {e}"),
+            ProvenSetData::Success(_) => {
                 expect.assert_eq(&self.to_string());
             }
         }
@@ -166,19 +170,19 @@ impl<T: Ord + Debug> ProvenSet<T> {
     #[track_caller]
     pub fn assert_err(&self, expect: expect_test::Expect) {
         match &self.data {
-            Data::Failure(e) => {
+            ProvenSetData::Failure(e) => {
                 expect.assert_eq(&crate::test_util::normalize_paths(e));
             }
-            Data::Success(_) => {
+            ProvenSetData::Success(_) => {
                 panic!("expected an error, got successful proofs: {self}");
             }
         }
     }
 }
 
-impl<I: Ord + Debug> FromIterator<I> for ProvenSet<I> {
-    fn from_iter<T: IntoIterator<Item = I>>(iter: T) -> Self {
-        let set: Set<I> = iter.into_iter().collect();
+impl<J: Ord + Debug + Clone> FromIterator<Proven<J>> for ProvenSet<J> {
+    fn from_iter<T: IntoIterator<Item = Proven<J>>>(iter: T) -> Self {
+        let set: Map<J, ProofTree> = iter.into_iter().collect();
         if set.is_empty() {
             ProvenSet::failed("collect", "empty collection")
         } else {
@@ -187,7 +191,7 @@ impl<I: Ord + Debug> FromIterator<I> for ProvenSet<I> {
     }
 }
 
-impl<T: PartialEq> PartialEq for Data<T> {
+impl<J: PartialEq> PartialEq for ProvenSetData<J> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Failure(l0), Self::Failure(r0)) => format!("{l0:?}") == format!("{r0:?}"),
@@ -197,14 +201,14 @@ impl<T: PartialEq> PartialEq for Data<T> {
     }
 }
 
-impl<T: std::fmt::Debug> std::fmt::Debug for ProvenSet<T> {
+impl<J: std::fmt::Debug> std::fmt::Debug for ProvenSet<J> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self { data } = self;
         std::fmt::Debug::fmt(data, f)
     }
 }
 
-impl<T: std::fmt::Debug> std::fmt::Debug for Data<T> {
+impl<J: std::fmt::Debug> std::fmt::Debug for ProvenSetData<J> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Failure(arg0) => std::fmt::Debug::fmt(arg0, f),
@@ -213,9 +217,9 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Data<T> {
     }
 }
 
-impl<T: Eq> Eq for Data<T> {}
+impl<J: Eq> Eq for ProvenSetData<J> {}
 
-impl<T: PartialOrd> PartialOrd for Data<T> {
+impl<J: PartialOrd> PartialOrd for ProvenSetData<J> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match (self, other) {
             (Self::Failure(l0), Self::Failure(r0)) => {
@@ -228,7 +232,7 @@ impl<T: PartialOrd> PartialOrd for Data<T> {
     }
 }
 
-impl<T: Ord> Ord for Data<T> {
+impl<J: Ord> Ord for ProvenSetData<J> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
             (Self::Failure(l0), Self::Failure(r0)) => {
@@ -241,12 +245,85 @@ impl<T: Ord> Ord for Data<T> {
     }
 }
 
-impl<T: Hash> Hash for Data<T> {
+impl<J: Hash> Hash for ProvenSetData<J> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Data::Failure(e) => e.to_string().hash(state),
-            Data::Success(s) => s.hash(state),
+            ProvenSetData::Failure(e) => e.to_string().hash(state),
+            ProvenSetData::Success(s) => s.hash(state),
         }
+    }
+}
+
+pub type Proven<J> = (J, ProofTree);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash)]
+pub struct ProofTree {
+    /// Trying to prove this judgment...
+    pub judgment: String,
+
+    /// Succeeded with this rule-name and index, if Some;
+    /// if None, then there is only a single rule and this is not relevant.
+    pub rule_name: Option<&'static str>,
+
+    /// ...located in this file...
+    pub file: String,
+
+    /// ...at this line...
+    pub line: u32,
+
+    /// ...and this column...
+    pub column: u32,
+
+    /// ...with these subproofs.
+    pub children: Vec<ProofTree>,
+}
+
+impl ProofTree {
+    /// Create a leaf"proof tree" from a value.
+    ///
+    /// The origin will be the caller of this function
+    /// and there won't be any child trees.
+    #[track_caller]
+    pub fn leaf(judgment: impl ToString) -> Self {
+        Self::new(judgment, None, Vec::new())
+    }
+
+    pub fn with_all(
+        judgment: impl ToString,
+        rule_name: Option<&'static str>,
+        file: impl ToString,
+        line: u32,
+        column: u32,
+        children: Vec<ProofTree>,
+    ) -> Self {
+        Self {
+            judgment: judgment.to_string(),
+            rule_name,
+            file: file.to_string(),
+            line,
+            column,
+            children,
+        }
+    }
+
+    /// Create a "proof tree" from a value.
+    /// The origin will be the caller of this function.
+    #[track_caller]
+    pub fn new(
+        judgment: impl ToString,
+        rule_name: Option<&'static str>,
+        children: Vec<ProofTree>,
+    ) -> Self {
+        let caller = Location::caller();
+        let proof = ProofTree {
+            judgment: judgment.to_string(),
+            rule_name,
+            file: caller.file().to_string(),
+            line: caller.line(),
+            column: caller.column(),
+            children,
+        };
+        proof
     }
 }
 
@@ -373,7 +450,7 @@ pub struct FailedRule {
 impl FailedRule {
     #[track_caller]
     pub fn new(cause: RuleFailureCause) -> Self {
-        let location = std::panic::Location::caller();
+        let location = Location::caller();
         FailedRule {
             rule_name_index: None,
             file: location.file().to_string(),
@@ -387,14 +464,7 @@ impl FailedRule {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum RuleFailureCause {
     /// The rule did not succeed because an `(if X)` condition evaluated to false.
-    IfFalse {
-        /// The stringified form of the expression.
-        expr: String,
-
-        /// A set of pairs with the stringified form of arguments within the expression plus the debug representation of its value.
-        /// This is a best effort extraction via the macro.
-        args: Vec<(String, String)>,
-    },
+    IfFalse(IfThen),
 
     /// The rule did not succeed because an `(if let)` pattern failed to match.
     IfLetDidNotMatch { pattern: String, value: String },
@@ -475,10 +545,10 @@ impl std::fmt::Display for FailedRule {
 impl std::fmt::Display for RuleFailureCause {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RuleFailureCause::IfFalse { expr, args } => {
-                write!(f, "condition evaluted to false: `{expr}`")?;
+            RuleFailureCause::IfFalse(IfThen { cond, args }) => {
+                write!(f, "condition evaluted to false: `{cond}`")?;
                 for (arg_expr, arg_value) in args {
-                    write!(f, "\n  {arg_expr} = {arg_value}")?;
+                    write!(f, "\n  {arg_expr} = {arg_value:?}")?;
                 }
                 Ok(())
             }
@@ -502,8 +572,8 @@ impl std::fmt::Display for RuleFailureCause {
 impl<T: Debug> std::fmt::Display for ProvenSet<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.data {
-            Data::Failure(err) => std::fmt::Display::fmt(err, f),
-            Data::Success(set) => {
+            ProvenSetData::Failure(err) => std::fmt::Display::fmt(err, f),
+            ProvenSetData::Success(set) => {
                 writeln!(f, "{{")?;
                 for item in set {
                     writeln!(f, "{},", indent(format!("{item:?}")))?;
@@ -532,30 +602,31 @@ fn indent(s: impl std::fmt::Display) -> String {
 ///
 /// Otherwise, returns returns an error.
 pub trait EachProof {
-    type Item;
+    type Judgment;
 
     /// If the iterable is non-empty, invokes `each_proof` for each item and returns `Ok(())`.
     /// Otherwise, returns `Err(_)` with a description of the failure;
     /// `stringify_expr` is used to create that description, it should
     /// return a string representing the expression being enumerated.
+    #[track_caller]
     fn each_proof(
         self,
         stringify_expr: impl FnOnce() -> String,
-        each_proof: impl FnMut(Self::Item),
+        each_proof: impl FnMut(Proven<Self::Judgment>),
     ) -> Result<(), RuleFailureCause>;
 }
 
 impl<T> EachProof for ProvenSet<T> {
-    type Item = T;
+    type Judgment = T;
 
     fn each_proof(
         self,
         _stringify_expr: impl FnOnce() -> String,
-        mut each_proof: impl FnMut(Self::Item),
+        mut each_proof: impl FnMut(Proven<Self::Judgment>),
     ) -> Result<(), RuleFailureCause> {
         match self.data {
-            Data::Failure(e) => Err(RuleFailureCause::FailedJudgment(e)),
-            Data::Success(s) => {
+            ProvenSetData::Failure(e) => Err(RuleFailureCause::FailedJudgment(e)),
+            ProvenSetData::Success(s) => {
                 for item in s {
                     each_proof(item);
                 }
@@ -565,19 +636,19 @@ impl<T> EachProof for ProvenSet<T> {
     }
 }
 
-impl<'a, T> EachProof for &'a ProvenSet<T> {
-    type Item = &'a T;
+impl<T: Clone> EachProof for &ProvenSet<T> {
+    type Judgment = T;
 
     fn each_proof(
         self,
         _stringify_expr: impl FnOnce() -> String,
-        mut each_proof: impl FnMut(Self::Item),
+        mut each_proof: impl FnMut(Proven<Self::Judgment>),
     ) -> Result<(), RuleFailureCause> {
         match &self.data {
-            Data::Failure(e) => Err(RuleFailureCause::FailedJudgment(e.clone())),
-            Data::Success(s) => {
-                for item in s {
-                    each_proof(item);
+            ProvenSetData::Failure(e) => Err(RuleFailureCause::FailedJudgment(e.clone())),
+            ProvenSetData::Success(s) => {
+                for (key, proof) in s {
+                    each_proof((key.clone(), proof.clone()));
                 }
                 Ok(())
             }
@@ -585,13 +656,14 @@ impl<'a, T> EachProof for &'a ProvenSet<T> {
     }
 }
 
-impl<T: IntoIterator> EachProof for T {
-    type Item = <T as IntoIterator>::Item;
+impl<T: IntoIterator<Item: Debug>> EachProof for T {
+    type Judgment = <T as IntoIterator>::Item;
 
+    #[track_caller]
     fn each_proof(
         self,
         stringify_expr: impl FnOnce() -> String,
-        mut each_proof: impl FnMut(Self::Item),
+        mut each_proof: impl FnMut(Proven<Self::Judgment>),
     ) -> Result<(), RuleFailureCause> {
         let mut iter = self.into_iter().peekable();
         if iter.peek().is_none() {
@@ -600,7 +672,8 @@ impl<T: IntoIterator> EachProof for T {
             })
         } else {
             for item in iter {
-                each_proof(item);
+                let proof_tree = ProofTree::leaf(format!("item = {item:?}"));
+                each_proof((item, proof_tree));
             }
             Ok(())
         }

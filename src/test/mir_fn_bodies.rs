@@ -1054,15 +1054,15 @@ fn test_borrow_check_basic() {
                         let v1: i32;
                         let v2: &r0 i32;
 
-                        // XXX: the challenge for next time is to
-                        // write the borrow checker, we want to walk from
-                        // the loan to the use in line 4, etc
                         bb0: {
                             statements {
                                 local(v1) = constant(0: i32);
                                 local(v2) = &r1 local(v1);
+
+                                // This should result in an error
                                 local(v1) = constant(1: i32);
-                                local(v0) = load(*(load(local(v2))));
+
+                                local(v0) = load(*(local(v2)));
                             }
                             return;
                         }

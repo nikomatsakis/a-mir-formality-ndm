@@ -1,18 +1,20 @@
 use std::cell::RefCell;
 
-use crate::{fixed_point::FixedPointStack, Fallible, Set};
+use crate::{fixed_point::FixedPointStack, Fallible, Map};
 
 mod assertion;
 pub use assertion::JudgmentAssertion;
 
 mod proven_set;
-pub use proven_set::{EachProof, FailedJudgment, FailedRule, ProvenSet, RuleFailureCause};
+pub use proven_set::{
+    EachProof, FailedJudgment, FailedRule, ProofTree, ProvenSet, RuleFailureCause,
+};
 
 mod test_fallible;
 mod test_filtered;
 mod test_reachable;
 
-pub type JudgmentStack<J, O> = RefCell<FixedPointStack<J, Set<O>>>;
+pub type JudgmentStack<J, O> = RefCell<FixedPointStack<J, Map<O, ProofTree>>>;
 
 /// `judgment_fn!` allows construction of inference rules using a more logic-like notation.
 ///
@@ -98,7 +100,20 @@ macro_rules! judgment_fn {
                 // Trivial cases are an (important) optimization that lets
                 // you cut out all the normal rules.
                 if $trivial_expr {
-                    return $crate::ProvenSet::proven(std::iter::once($trivial_result).collect());
+                    let trivial_result = $trivial_result;
+                    let (file, line, column) = $crate::respan!(
+                        $trivial_expr
+                        ((file!(), line!(), column!()))
+                    );
+                    let proof_tree = $crate::judgment::ProofTree::with_all(
+                        format!("trivial, as {} is true: {trivial_result:?}", stringify!(trivial_expr)),
+                        None,
+                        file,
+                        line,
+                        column,
+                        Default::default(),
+                    );
+                    return $crate::ProvenSet::singleton((trivial_result, proof_tree));
                 }
             )*
 
@@ -106,7 +121,7 @@ macro_rules! judgment_fn {
             let input = __JudgmentStruct($($input_name),*);
             let output = $crate::fixed_point::fixed_point::<
                 __JudgmentStruct,
-                $crate::Set<$output>,
+                $crate::Map<$output, $crate::judgment::ProofTree>,
             >(
                 // Tracing span:
                 |input| {
@@ -133,7 +148,7 @@ macro_rules! judgment_fn {
 
                 // Next value:
                 |input: __JudgmentStruct| {
-                    let mut output = $crate::Set::new();
+                    let mut output: $crate::Map<$output, $crate::judgment::ProofTree> = $crate::Map::new();
 
                     failed_rules.clear();
 
@@ -255,8 +270,12 @@ macro_rules! push_rules {
     (@match $conclusion_name:ident inputs() patterns() args(@body ($judgment_name:ident; $n:literal; $v:expr; $output:expr); $inputs:tt; $($m:tt)*)) => {
         tracing::trace_span!("matched rule", rule = $n, judgment = stringify!($judgment_name)).in_scope(|| {
             tracing::debug!("matched rule {:?}", $n);
-            let child_proof_trees: Vec<()> = vec![];
-            $crate::push_rules!(@body ($judgment_name, $n, $v, $output); $inputs; 0; child_proof_trees; $($m)*);
+            #[allow(unused_mut)]
+            let mut child_proof_trees: Vec<$crate::judgment::ProofTree> = Vec::new();
+            $crate::push_rules!(
+                @body ($judgment_name, $n, $v, $output); $inputs; 0; child_proof_trees;
+                $($m)*
+            );
         });
     };
 
@@ -433,22 +452,24 @@ macro_rules! push_rules {
         $(
             let $argn = &$arge;
         )*
+        let if_then = $crate::judgment::IfThen::new(
+            stringify!($origcond),
+            vec![
+                $(
+                    (
+                        stringify!($arge),
+                        $crate::judgment::DebugString::new(&$argn),
+                    ),
+                )*
+            ],
+        );
         if {
-            $(
-                let $argn = Clone::clone($argn);
-            )*
             $cond
         } {
+            $child_proof_trees.push($crate::judgment::ProofTree::leaf(format!("{if_then:?}")));
             $crate::push_rules!(@body $args; $inputs; $step_index + 1; $child_proof_trees; $($m)*);
         } else {
-            $crate::push_rules!(@record_failure $inputs; $step_index, $origcond; $crate::judgment::RuleFailureCause::IfFalse {
-                expr: stringify!($origcond).to_string(),
-                args: vec![
-                    $(
-                        (stringify!($arge).to_string(), format!("{:?}", $argn)),
-                    )*
-                ],
-            });
+            $crate::push_rules!(@record_failure $inputs; $step_index, $origcond; $crate::judgment::RuleFailureCause::IfFalse(if_then));
         }
     };
 
@@ -467,8 +488,20 @@ macro_rules! push_rules {
         if let Err(e) = $crate::judgment::EachProof::each_proof(
             $i,
             || stringify!($i).to_string(),
-            |$p| {
+            |($p, proof_tree)| {
+                // Remember the size of the child proof tree stack
+                let len = $child_proof_trees.len();
+
+                // Push this child proof tree
+                $child_proof_trees.push(proof_tree);
+
+                // Recursively process successors
                 $crate::push_rules!(@body $args; $inputs; $step_index + 1; $child_proof_trees; $($m)*);
+
+                // Restore the original child proof tree stack; note that there may be multiple entries
+                // in case "non-iterative" steps like `(let ...)` and `(if ...)` are interspersed.
+                assert!($child_proof_trees.len() > len);
+                $child_proof_trees.truncate(len);
             },
         ) {
             $crate::push_rules!(@record_failure $inputs; $step_index, $i; e);
@@ -483,7 +516,9 @@ macro_rules! push_rules {
         // That's dumb.
         match $crate::judgment::try_catch::<$t>(|| Ok($i)) {
             Ok(p) => {
+                let proof_tree = $crate::judgment::ProofTree::leaf(format!("{} = {p:?}", stringify!($p)));
                 let $p = p;
+                $child_proof_trees.push(proof_tree);
                 $crate::push_rules!(@body $args; $inputs; $step_index + 1; $child_proof_trees; $($m)*);
             }
 
@@ -499,7 +534,9 @@ macro_rules! push_rules {
     ) => {
         match $crate::judgment::try_catch(|| Ok($i)) {
             Ok(p) => {
-                let $p = p; // this enforces that `$p` is infalliblr
+                let proof_tree = $crate::judgment::ProofTree::leaf(format!("{} = {p:?}", stringify!($p)));
+                let $p = p;
+                $child_proof_trees.push(proof_tree);
                 $crate::push_rules!(@body $args; $inputs; $step_index + 1; $child_proof_trees; $($m)*);
             }
 
@@ -514,8 +551,13 @@ macro_rules! push_rules {
     ) => {
         {
             let result = $crate::Upcast::upcast($v);
+            let proof_tree = $crate::judgment::ProofTree::new(
+                format!("{} = {result:?}", stringify!($v)),
+                Some($rule_name),
+                $child_proof_trees.clone(),
+            );
             tracing::debug!("produced {:?} from rule {:?} in judgment {:?}", result, $rule_name, stringify!($judgment_name));
-            $output.insert(result)
+            $output.insert(result, proof_tree);
         }
     };
 
@@ -525,12 +567,13 @@ macro_rules! push_rules {
         let file = $crate::respan!($step_expr (file!()));
         let line = $crate::respan!($step_expr (line!()));
         let column = $crate::respan!($step_expr (column!()));
+        let cause = $cause;
         if $step_index >= $match_index {
             tracing::debug!(
                 "rule {rn} failed at step {s} because {cause} ({file}:{line}:{column})",
                 rn = $rule_name,
                 s = $step_index,
-                cause = $cause,
+                cause = cause,
                 file = file,
                 line = line,
                 column = column,
@@ -541,7 +584,7 @@ macro_rules! push_rules {
                     file: file.to_string(),
                     line: line,
                     column: column,
-                    cause: $cause,
+                    cause,
                 }
             );
         } else {
@@ -549,7 +592,7 @@ macro_rules! push_rules {
                 "rule {rn} failed at step {s} because {cause} ({file}:{line}:{column})",
                 rn = $rule_name,
                 s = $step_index,
-                cause = $cause,
+                cause = cause,
                 file = file,
                 line = line,
                 column = column,
@@ -569,5 +612,51 @@ pub fn try_catch<R>(f: impl FnOnce() -> Fallible<R>) -> Result<R, RuleFailureCau
         Err(e) => Err(RuleFailureCause::Inapplicable {
             reason: e.to_string(),
         }),
+    }
+}
+
+/// Wraps a string that should be used verbatim as the debug output.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DebugString {
+    text: String,
+}
+
+impl DebugString {
+    pub fn new<T: std::fmt::Debug>(value: &T) -> Self {
+        Self {
+            text: format!("{value:?}"),
+        }
+    }
+}
+
+impl std::fmt::Debug for DebugString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct IfThen {
+    /// The condition that must be met for the rule to be applicable (stringified).
+    cond: &'static str,
+
+    /// Identified Subexpressions and their evaluated values.
+    args: Vec<(&'static str, DebugString)>,
+}
+
+impl IfThen {
+    pub fn new(cond: &'static str, args: Vec<(&'static str, DebugString)>) -> Self {
+        Self { cond, args }
+    }
+}
+
+impl std::fmt::Debug for IfThen {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut debug_struct = f.debug_struct("IfThen");
+        debug_struct.field("expression", &self.cond);
+        for (expr, value) in &self.args {
+            debug_struct.field(expr, value);
+        }
+        debug_struct.finish()
     }
 }
