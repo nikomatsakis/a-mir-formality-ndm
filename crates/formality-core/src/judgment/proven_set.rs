@@ -155,13 +155,31 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
         self.flat_map::<_, K>(|elem| ProvenSet::singleton(op(elem)))
     }
 
-    /// Convenience function for tests: asserts that the proven set is ok and that the debug value is as expected.
+    /// Convenience function for tests: asserts that the proven values match expected.
     #[track_caller]
     pub fn assert_ok(&self, expect: expect_test::Expect) {
+        self.assert_ok_with(expect, &[])
+    }
+
+    /// Convenience function for tests: asserts that the proven values match expected,
+    /// and that the proof tree contains all the required strings.
+    #[track_caller]
+    pub fn assert_ok_with(&self, expect_values: expect_test::Expect, must_contain: &[&str]) {
         match &self.data {
             ProvenSetData::Failure(e) => panic!("expected a successful proof, got {e}"),
-            ProvenSetData::Success(_) => {
-                expect.assert_eq(&crate::test_util::normalize_proof_lines(&self.to_string()));
+            ProvenSetData::Success(map) => {
+                // Check values only (not proof trees)
+                let values: Set<_> = map.keys().cloned().collect();
+                expect_values.assert_eq(&format!("{values:?}"));
+
+                // Check proof tree contains required strings
+                let full_output = format!("{map:?}");
+                for s in must_contain {
+                    assert!(
+                        full_output.contains(s),
+                        "proof tree must contain {s:?} but didn't.\nFull output:\n{full_output}"
+                    );
+                }
             }
         }
     }

@@ -45,14 +45,6 @@ pub fn normalize_paths(s: impl Display) -> String {
     re.replace_all(&s, "(src/file.rs:LL:CC)").to_string()
 }
 
-/// Converts `s` to a string and replaces proof tree line numbers like `file.rs:28` with `file.rs:LL`.
-/// This makes proof tree output resilient against changes to the source code.
-pub fn normalize_proof_lines(s: impl Display) -> String {
-    let s = s.to_string();
-    let re = regex::Regex::new(r"\.rs:\d+").unwrap();
-    re.replace_all(&s, ".rs:LL").to_string()
-}
-
 /// Extension methods for writing tests on functions that return [`Fallible`](crate::Fallible) values.
 pub trait ResultTestExt<T, E> {
     /// Given a `Fallible<T>` value, assert that its debug representation matches the expected value.

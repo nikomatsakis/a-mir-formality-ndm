@@ -38,21 +38,13 @@ fn direct_cycle() {
 /// Test that `X = Vec<Y>` can be solved
 #[test]
 fn eq_variable_to_rigid() {
-    test_prove(decls(), term("exists<ty X, ty Y> {} => {X = Vec<Y>}")).assert_ok(expect![[r#"
-        {
-          Constraints { env: Env { variables: [?ty_3, ?ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => Vec<?ty_3>, ?ty_2 => ?ty_3} },
-        }
-    "#]]);
+    test_prove(decls(), term("exists<ty X, ty Y> {} => {X = Vec<Y>}")).assert_ok(expect!["{Constraints { env: Env { variables: [?ty_3, ?ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => Vec<?ty_3>, ?ty_2 => ?ty_3} }}"]);
 }
 
 /// Test that `Vec<Y> = X` can be solved
 #[test]
 fn eq_rigid_to_variable() {
-    test_prove(decls(), term("exists<ty X, ty Y> {} => {Vec<Y> = X}")).assert_ok(expect![[r#"
-        {
-          Constraints { env: Env { variables: [?ty_3, ?ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => Vec<?ty_3>, ?ty_2 => ?ty_3} },
-        }
-    "#]]);
+    test_prove(decls(), term("exists<ty X, ty Y> {} => {Vec<Y> = X}")).assert_ok(expect!["{Constraints { env: Env { variables: [?ty_3, ?ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => Vec<?ty_3>, ?ty_2 => ?ty_3} }}"]);
 }
 
 /// Test that `X = Vec<X>` cannot be solved (when constructed over several steps)

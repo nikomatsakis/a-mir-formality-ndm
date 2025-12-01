@@ -2,7 +2,6 @@ use std::{path::PathBuf, sync::Arc};
 
 use clap::Parser;
 use formality_check::check_all_crates;
-use formality_core::Map;
 use formality_prove::{test_util::TestAssertion, Constraints};
 use formality_rust::grammar::Program;
 use formality_types::rust::try_term;
@@ -64,15 +63,12 @@ pub fn test_program_ok(input: &str) -> anyhow::Result<()> {
     check_all_crates(&program)
 }
 
-pub fn test_where_clause(
-    program: &str,
-    assertion: &str,
-) -> anyhow::Result<Map<Constraints, formality_core::judgment::ProofTree>> {
+pub fn test_where_clause(program: &str, assertion: &str) -> formality_core::ProvenSet<Constraints> {
     formality_core::with_tracing_logs(|| {
-        let program: Program = try_term(program)?;
-        check_all_crates(&program)?;
-        let assertion: Arc<TestAssertion> = try_term(assertion)?;
+        let program: Program = try_term(program).unwrap();
+        check_all_crates(&program).unwrap();
+        let assertion: Arc<TestAssertion> = try_term(assertion).unwrap();
         let decls = program.to_prove_decls();
-        Ok(formality_prove::test_util::test_prove(decls, assertion).into_map()?)
+        formality_prove::test_util::test_prove(decls, assertion)
     })
 }

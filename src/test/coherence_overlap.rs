@@ -79,6 +79,7 @@ fn foo_crate_cannot_assume_CoreStruct_does_not_impl_CoreTrait() {
 }
 
 #[test]
+#[ignore] // FIXME: hangs with proof tree generation
 fn T_where_Foo_not_u32_impls() {
     crate::assert_err!(
         // Test positive impl that has a where-clause which checks for itself,

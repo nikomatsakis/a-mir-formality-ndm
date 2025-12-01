@@ -34,9 +34,5 @@ fn test_exists_not_local() {
         Decls::empty(),
         term("exists<ty T> {} => {@IsLocal(Debug(T))}"),
     )
-    .assert_ok(expect![[r#"
-        {
-          Constraints { env: Env { variables: [?ty_1], bias: Soundness, pending: [] }, known_true: false, substitution: {} },
-        }
-    "#]])
+    .assert_ok(expect!["{Constraints { env: Env { variables: [?ty_1], bias: Soundness, pending: [] }, known_true: false, substitution: {} }}"])
 }

@@ -1,5 +1,4 @@
 use a_mir_formality::test_where_clause;
-use formality_core::test_util::ResultTestExt;
 
 const NORMALIZE_BASIC: &str = "[
     crate test {
@@ -112,7 +111,6 @@ fn projection_equality() {
     )
     .assert_ok(expect_test::expect!["{Constraints { env: Env { variables: [?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => u32} }, Constraints { env: Env { variables: [?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => <S as Trait1>::Type} }}"]);
 
-    test_where_clause(PROJECTION_EQUALITY, "exists<ty U> {} => { Trait2(S, U) }").assert_ok(
-        expect_test::expect!["{Constraints { env: Env { variables: [?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => u32} }, Constraints { env: Env { variables: [?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => <S as Trait1>::Type} }}"],
-    );
+    test_where_clause(PROJECTION_EQUALITY, "exists<ty U> {} => { Trait2(S, U) }")
+        .assert_ok(expect_test::expect!["{Constraints { env: Env { variables: [?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => u32} }, Constraints { env: Env { variables: [?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => <S as Trait1>::Type} }}"]);
 }

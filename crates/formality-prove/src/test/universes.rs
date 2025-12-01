@@ -40,9 +40,5 @@ fn for_t_exists_u() {
         ..Decls::empty()
     };
 
-    test_prove(decls, term("{} => {for<ty T> Test(T, T)}")).assert_ok(expect![[r#"
-        {
-          Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} },
-        }
-    "#]]);
+    test_prove(decls, term("{} => {for<ty T> Test(T, T)}")).assert_ok(expect!["{Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }}"]);
 }

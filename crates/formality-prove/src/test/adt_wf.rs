@@ -36,6 +36,346 @@ fn well_formed_adt() {
                 },
                 known_true: true,
                 substitution: {},
+            }: ProofTree {
+                judgment: "c = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                rule_name: Some(
+                    "some",
+                ),
+                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
+                line: 11,
+                column: 1,
+                children: [
+                    ProofTree {
+                        judgment: "c = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                        rule_name: Some(
+                            "parameter well formed",
+                        ),
+                        file: "crates/formality-prove/src/prove/prove_wc.rs",
+                        line: 22,
+                        column: 1,
+                        children: [
+                            ProofTree {
+                                judgment: "c = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                rule_name: Some(
+                                    "ADT",
+                                ),
+                                file: "crates/formality-prove/src/prove/prove_wf.rs",
+                                line: 14,
+                                column: 1,
+                                children: [
+                                    ProofTree {
+                                        judgment: "for_all",
+                                        rule_name: None,
+                                        file: "crates/formality-prove/src/prove/combinators.rs",
+                                        line: 73,
+                                        column: 17,
+                                        children: [
+                                            ProofTree {
+                                                judgment: "c = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                rule_name: Some(
+                                                    "integers and booleans",
+                                                ),
+                                                file: "crates/formality-prove/src/prove/prove_wf.rs",
+                                                line: 14,
+                                                column: 1,
+                                                children: [
+                                                    ProofTree {
+                                                        judgment: "Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                        rule_name: None,
+                                                        file: "crates/formality-prove/src/prove/combinators.rs",
+                                                        line: 61,
+                                                        column: 13,
+                                                        children: [],
+                                                    },
+                                                ],
+                                            },
+                                            ProofTree {
+                                                judgment: "Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                rule_name: None,
+                                                file: "crates/formality-prove/src/prove/combinators.rs",
+                                                line: 61,
+                                                column: 13,
+                                                children: [],
+                                            },
+                                        ],
+                                    },
+                                    ProofTree {
+                                        judgment: "t = adt X <ty> where {Foo(^ty0_0)} { }",
+                                        rule_name: None,
+                                        file: "crates/formality-prove/src/prove/prove_wf.rs",
+                                        line: 14,
+                                        column: 1,
+                                        children: [],
+                                    },
+                                    ProofTree {
+                                        judgment: "t = where {Foo(u32)} { }",
+                                        rule_name: None,
+                                        file: "crates/formality-prove/src/prove/prove_wf.rs",
+                                        line: 14,
+                                        column: 1,
+                                        children: [],
+                                    },
+                                    ProofTree {
+                                        judgment: "c1.seq(c2) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                        rule_name: Some(
+                                            "prove_after",
+                                        ),
+                                        file: "crates/formality-prove/src/prove/prove_after.rs",
+                                        line: 8,
+                                        column: 1,
+                                        children: [
+                                            ProofTree {
+                                                judgment: "(assumptions, goal) = ({}, {Foo(u32)})",
+                                                rule_name: None,
+                                                file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                line: 8,
+                                                column: 1,
+                                                children: [],
+                                            },
+                                            ProofTree {
+                                                judgment: "c = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                rule_name: Some(
+                                                    "some",
+                                                ),
+                                                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
+                                                line: 11,
+                                                column: 1,
+                                                children: [
+                                                    ProofTree {
+                                                        judgment: "c.pop_subst(&subst) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                        rule_name: Some(
+                                                            "positive impl",
+                                                        ),
+                                                        file: "crates/formality-prove/src/prove/prove_wc.rs",
+                                                        line: 22,
+                                                        column: 1,
+                                                        children: [
+                                                            ProofTree {
+                                                                judgment: "item = impl Foo(u32)",
+                                                                rule_name: None,
+                                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
+                                                                line: 22,
+                                                                column: 1,
+                                                                children: [],
+                                                            },
+                                                            ProofTree {
+                                                                judgment: "(env, subst) = (Env { variables: [], bias: Soundness, pending: [] }, [])",
+                                                                rule_name: None,
+                                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
+                                                                line: 22,
+                                                                column: 1,
+                                                                children: [],
+                                                            },
+                                                            ProofTree {
+                                                                judgment: "i = Foo(u32)",
+                                                                rule_name: None,
+                                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
+                                                                line: 22,
+                                                                column: 1,
+                                                                children: [],
+                                                            },
+                                                            ProofTree {
+                                                                judgment: "t = ",
+                                                                rule_name: None,
+                                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
+                                                                line: 22,
+                                                                column: 1,
+                                                                children: [],
+                                                            },
+                                                            ProofTree {
+                                                                judgment: "co_assumptions = ({}, Foo(u32))",
+                                                                rule_name: None,
+                                                                file: "crates/formality-prove/src/prove/prove_wc.rs",
+                                                                line: 22,
+                                                                column: 1,
+                                                                children: [],
+                                                            },
+                                                            ProofTree {
+                                                                judgment: "c = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                rule_name: Some(
+                                                                    "some",
+                                                                ),
+                                                                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
+                                                                line: 11,
+                                                                column: 1,
+                                                                children: [
+                                                                    ProofTree {
+                                                                        judgment: "c = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                        rule_name: Some(
+                                                                            "eq",
+                                                                        ),
+                                                                        file: "crates/formality-prove/src/prove/prove_wc.rs",
+                                                                        line: 22,
+                                                                        column: 1,
+                                                                        children: [
+                                                                            ProofTree {
+                                                                                judgment: "trivial, as trivial_expr is true: Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                                rule_name: None,
+                                                                                file: "crates/formality-prove/src/prove/prove_eq.rs",
+                                                                                line: 35,
+                                                                                column: 17,
+                                                                                children: [],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                    ProofTree {
+                                                                        judgment: "c1.seq(c2) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                        rule_name: Some(
+                                                                            "prove_after",
+                                                                        ),
+                                                                        file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                                        line: 8,
+                                                                        column: 1,
+                                                                        children: [
+                                                                            ProofTree {
+                                                                                judgment: "(assumptions, goal) = ({Foo(u32)}, {})",
+                                                                                rule_name: None,
+                                                                                file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                                                line: 8,
+                                                                                column: 1,
+                                                                                children: [],
+                                                                            },
+                                                                            ProofTree {
+                                                                                judgment: "Constraints::none(env) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                                rule_name: Some(
+                                                                                    "none",
+                                                                                ),
+                                                                                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
+                                                                                line: 11,
+                                                                                column: 1,
+                                                                                children: [],
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ],
+                                                            },
+                                                            ProofTree {
+                                                                judgment: "c1.seq(c2) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                rule_name: Some(
+                                                                    "prove_after",
+                                                                ),
+                                                                file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                                line: 8,
+                                                                column: 1,
+                                                                children: [
+                                                                    ProofTree {
+                                                                        judgment: "(assumptions, goal) = ({Foo(u32)}, {})",
+                                                                        rule_name: None,
+                                                                        file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                                        line: 8,
+                                                                        column: 1,
+                                                                        children: [],
+                                                                    },
+                                                                    ProofTree {
+                                                                        judgment: "Constraints::none(env) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                        rule_name: Some(
+                                                                            "none",
+                                                                        ),
+                                                                        file: "crates/formality-prove/src/prove/prove_wc_list.rs",
+                                                                        line: 11,
+                                                                        column: 1,
+                                                                        children: [],
+                                                                    },
+                                                                ],
+                                                            },
+                                                            ProofTree {
+                                                                judgment: "c1.seq(c2) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                rule_name: Some(
+                                                                    "prove_after",
+                                                                ),
+                                                                file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                                line: 8,
+                                                                column: 1,
+                                                                children: [
+                                                                    ProofTree {
+                                                                        judgment: "(assumptions, goal) = ({}, {})",
+                                                                        rule_name: None,
+                                                                        file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                                        line: 8,
+                                                                        column: 1,
+                                                                        children: [],
+                                                                    },
+                                                                    ProofTree {
+                                                                        judgment: "Constraints::none(env) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                        rule_name: Some(
+                                                                            "none",
+                                                                        ),
+                                                                        file: "crates/formality-prove/src/prove/prove_wc_list.rs",
+                                                                        line: 11,
+                                                                        column: 1,
+                                                                        children: [],
+                                                                    },
+                                                                ],
+                                                            },
+                                                        ],
+                                                    },
+                                                    ProofTree {
+                                                        judgment: "c1.seq(c2) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                        rule_name: Some(
+                                                            "prove_after",
+                                                        ),
+                                                        file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                        line: 8,
+                                                        column: 1,
+                                                        children: [
+                                                            ProofTree {
+                                                                judgment: "(assumptions, goal) = ({}, {})",
+                                                                rule_name: None,
+                                                                file: "crates/formality-prove/src/prove/prove_after.rs",
+                                                                line: 8,
+                                                                column: 1,
+                                                                children: [],
+                                                            },
+                                                            ProofTree {
+                                                                judgment: "Constraints::none(env) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                                                rule_name: Some(
+                                                                    "none",
+                                                                ),
+                                                                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
+                                                                line: 11,
+                                                                column: 1,
+                                                                children: [],
+                                                            },
+                                                        ],
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    ProofTree {
+                        judgment: "c1.seq(c2) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                        rule_name: Some(
+                            "prove_after",
+                        ),
+                        file: "crates/formality-prove/src/prove/prove_after.rs",
+                        line: 8,
+                        column: 1,
+                        children: [
+                            ProofTree {
+                                judgment: "(assumptions, goal) = ({}, {})",
+                                rule_name: None,
+                                file: "crates/formality-prove/src/prove/prove_after.rs",
+                                line: 8,
+                                column: 1,
+                                children: [],
+                            },
+                            ProofTree {
+                                judgment: "Constraints::none(env) = Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }",
+                                rule_name: Some(
+                                    "none",
+                                ),
+                                file: "crates/formality-prove/src/prove/prove_wc_list.rs",
+                                line: 11,
+                                column: 1,
+                                children: [],
+                            },
+                        ],
+                    },
+                ],
             },
         }
     "#]]
