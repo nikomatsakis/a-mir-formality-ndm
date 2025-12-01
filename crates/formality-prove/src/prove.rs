@@ -15,9 +15,9 @@ mod prove_wc_list;
 mod prove_wf;
 
 pub use constraints::Constraints;
-use formality_core::judgment::{EachProof, FailedRule};
+use formality_core::judgment::{EachProof, FailedRule, ProofTree};
 use formality_core::visit::CoreVisit;
-use formality_core::{set, ProvenSet, Upcast};
+use formality_core::{map, set, ProvenSet, Upcast};
 use formality_types::grammar::Wcs;
 use tracing::Level;
 
@@ -60,7 +60,10 @@ pub fn prove(
             term_in.size(),
             decls.max_size
         );
-        return ProvenSet::singleton(Constraints::none(env).ambiguous());
+        return ProvenSet::singleton((
+            Constraints::none(env).ambiguous(),
+            ProofTree::leaf("max term size exceeded"),
+        ));
     }
 
     // Assert the term we are trying to prove should not have any variables that are not in the environment.
@@ -76,11 +79,11 @@ pub fn prove(
             f.write_str(&self.0)
         }
     }
-    let mut results = set![];
+    let mut results = map![];
     let result_set = if let Err(e) = prove_wc_list(decls, &env, assumptions, goal).each_proof(
         || "".to_string(),
-        |r| {
-            results.insert(r);
+        |(result, proof_tree)| {
+            results.insert(result, proof_tree);
         },
     ) {
         ProvenSet::failed_rules(label, set![FailedRule::new(e)])
@@ -91,9 +94,9 @@ pub fn prove(
     tracing::debug!(?result_set);
 
     // Map the results back to the "unminimized" form ("reconstitute").
-    let maxified = result_set.map(|r| {
+    let maxified = result_set.map(|(r, proof_tree)| {
         assert!(r.is_valid_extension_of(&env));
-        min.reconstitute(r)
+        (min.reconstitute(r), proof_tree)
     });
 
     tracing::debug!(?maxified);

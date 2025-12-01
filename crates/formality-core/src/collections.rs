@@ -12,6 +12,17 @@ pub type Map<K, V> = BTreeMap<K, V>;
 pub type Set<E> = BTreeSet<E>;
 
 #[macro_export]
+macro_rules! map {
+    () => {
+        $crate::Map::new()
+    };
+
+    ($($t:tt)*) => {
+        $crate::seq![$($t)*].into_iter().collect::<$crate::Map<_>>()
+    };
+}
+
+#[macro_export]
 macro_rules! set {
     () => {
         $crate::Set::new()

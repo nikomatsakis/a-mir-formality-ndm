@@ -2,7 +2,8 @@ use std::collections::BTreeSet;
 use std::iter::zip;
 use std::sync::Arc;
 
-use formality_core::{cast_impl, judgment_fn, Downcast, Fallible, Map, Upcast};
+use formality_core::judgment::ProofTree;
+use formality_core::{cast_impl, judgment_fn, Downcast, Fallible, Map, Set, Upcast};
 use formality_prove::{prove_normalize, AdtDeclBoundData, AdtDeclVariant, Constraints, Decls, Env};
 use formality_rust::grammar::minirust::ArgumentExpression::{ByValue, InPlace};
 use formality_rust::grammar::minirust::ValueExpression::{Constant, Fn, Load, Ref, Struct};
@@ -30,7 +31,7 @@ impl Check<'_> {
         body: minirust::Body,
         declared_input_tys: Vec<Ty>,
         crate_id: &CrateId,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         // ----------------------------------------------------------------------
         // Type check the fn signature
 
@@ -583,7 +584,7 @@ impl TypeckEnv {
         location: Location,
         assumptions: impl ToWcs,
         goal: impl ToWcs + Debug,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         let goal: Wcs = goal.to_wcs();
         self.prove_judgment(location, assumptions, goal.to_wcs(), formality_prove::prove)
     }
@@ -602,7 +603,7 @@ impl TypeckEnv {
         assumptions: impl ToWcs,
         goal: G,
         judgment_fn: impl FnOnce(Decls, Env, Wcs, G) -> ProvenSet<Constraints>,
-    ) -> Fallible<()>
+    ) -> Fallible<ProofTree>
     where
         G: Debug + Visit + Clone,
     {
@@ -628,8 +629,8 @@ impl TypeckEnv {
         assert!(!cs.is_empty());
 
         // If there is anything *unconditionally true*, that's great
-        if cs.iter().any(|c| c.unconditionally_true()) {
-            return Ok(());
+        if let Some((_, proof_tree)) = cs.iter().find(|(c, _)| c.unconditionally_true()) {
+            return Ok(proof_tree.clone());
         }
 
         // Each `c` in `cs` is a set of [`Constraints`][] that, if they hold,
@@ -661,8 +662,8 @@ impl TypeckEnv {
 
         // Convert these to pending-outlives; if conversion fails, bail because we don't know
         // whether it would be more minimal than the others or not.
-        let mut pending_outlives_sets = vec![];
-        for c in &cs {
+        let mut pending_outlives_sets: Vec<(Set<PendingOutlives>, ProofTree)> = vec![];
+        for (c, proof_tree) in &cs {
             // Ignore constraints that only prove the goal "might" be true, irrelevant here
             if !c.known_true {
                 continue;
@@ -675,7 +676,7 @@ impl TypeckEnv {
             assert!(c.substitution().is_empty());
 
             match self.convert_to_pending_outlives(&location, c) {
-                Some(p_o) => pending_outlives_sets.push(p_o),
+                Some(p_o) => pending_outlives_sets.push((p_o, proof_tree)),
                 None => bail!("failed to convert `{c:?}` to pending-outlives"),
             }
         }
@@ -687,8 +688,8 @@ impl TypeckEnv {
         };
         while let Some(pending_outlives) = pending_outlives_iter.next() {
             // If these outlives constraints are not ordered with respect to `pending_outlives_minimal`, then bail.
-            if !pending_outlives.is_subset(&pending_outlives_minimal)
-                && !pending_outlives_minimal.is_subset(&pending_outlives)
+            if !pending_outlives.0.is_subset(&pending_outlives_minimal.0)
+                && !pending_outlives_minimal.0.is_subset(&pending_outlives.0)
             {
                 bail!(
                     "no relationship between `{pending_outlives:?}` and `{pending_outlives_minimal:?}`"
@@ -696,13 +697,13 @@ impl TypeckEnv {
             }
 
             // If this set of outlives is a subset of the previous minimal, then use it instead.
-            if pending_outlives.is_subset(&pending_outlives_minimal) {
+            if pending_outlives.0.is_subset(&pending_outlives_minimal.0) {
                 pending_outlives_minimal = pending_outlives;
             }
         }
 
-        self.pending_outlives.extend(pending_outlives_minimal);
-        Ok(())
+        self.pending_outlives.extend(pending_outlives_minimal.0);
+        Ok(pending_outlives_minimal.1)
     }
 
     // Convert the pending goals into a series of `PendingOutlives`.

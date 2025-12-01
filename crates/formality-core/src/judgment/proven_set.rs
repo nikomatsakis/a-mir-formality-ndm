@@ -148,11 +148,11 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
     /// and create a proven set from that.
     /// This function preserves failure cause information.
     #[track_caller]
-    pub fn map<K>(self, mut op: impl FnMut(Proven<J>) -> K) -> ProvenSet<K>
+    pub fn map<K>(self, mut op: impl FnMut(Proven<J>) -> Proven<K>) -> ProvenSet<K>
     where
         K: Ord + Debug + Clone,
     {
-        self.flat_map::<_, K>(|elem| Some(op(elem)))
+        self.flat_map::<_, K>(|elem| ProvenSet::singleton(op(elem)))
     }
 
     /// Convenience function for tests: asserts that the proven set is ok and that the debug value is as expected.

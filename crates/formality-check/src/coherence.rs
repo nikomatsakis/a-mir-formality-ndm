@@ -1,6 +1,6 @@
 use anyhow::bail;
 use fn_error_context::context;
-use formality_core::Downcasted;
+use formality_core::{judgment::ProofTree, Downcasted};
 use formality_prove::Env;
 use formality_rust::grammar::{Crate, NegTraitImpl, TraitImpl};
 use formality_types::grammar::{Fallible, Wc, Wcs};
@@ -47,7 +47,7 @@ impl Check<'_> {
     }
 
     #[context("orphan_check({impl_a:?})")]
-    fn orphan_check(&self, impl_a: &TraitImpl) -> Fallible<()> {
+    fn orphan_check(&self, impl_a: &TraitImpl) -> Fallible<ProofTree> {
         let mut env = Env::default();
 
         let a = env.instantiate_universally(&impl_a.binder);
@@ -64,7 +64,7 @@ impl Check<'_> {
     }
 
     #[context("orphan_check_neg({impl_a:?})")]
-    fn orphan_check_neg(&self, impl_a: &NegTraitImpl) -> Fallible<()> {
+    fn orphan_check_neg(&self, impl_a: &NegTraitImpl) -> Fallible<ProofTree> {
         let mut env = Env::default();
 
         let a = env.instantiate_universally(&impl_a.binder);
@@ -74,7 +74,7 @@ impl Check<'_> {
     }
 
     #[tracing::instrument(level = "Debug", skip(self))]
-    fn overlap_check(&self, impl_a: &TraitImpl, impl_b: &TraitImpl) -> Fallible<()> {
+    fn overlap_check(&self, impl_a: &TraitImpl, impl_b: &TraitImpl) -> Fallible<ProofTree> {
         let mut env = Env::default();
 
         // Example:
@@ -98,7 +98,7 @@ impl Check<'_> {
         // in coherence mode, then they do not overlap.
         //
         // ∀P_a, ∀P_b. ⌐ (coherence_mode => (Ts_a = Ts_b && WC_a && WC_b))
-        if let Ok(()) = self.prove_not_goal(
+        if let Ok(proof_tree) = self.prove_not_goal(
             &env,
             (),
             (
@@ -116,7 +116,11 @@ impl Check<'_> {
                 )
             );
 
-            return Ok(());
+            return Ok(ProofTree::new(
+                "overlap_check",
+                Some("not_goal"),
+                vec![proof_tree],
+            ));
         }
 
         // If we can disprove the where clauses, then they do not overlap.
@@ -153,7 +157,7 @@ impl Check<'_> {
                 )
             );
 
-            return Ok(());
+            return Ok(ProofTree::new("overlap_check", Some("inverted"), vec![]));
         }
         bail!("impls may overlap:\n{impl_a:?}\n{impl_b:?}")
     }

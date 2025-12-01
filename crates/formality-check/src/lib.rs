@@ -2,18 +2,18 @@
 
 use std::{collections::VecDeque, fmt::Debug};
 
-use anyhow::bail;
-use formality_core::{ProvenSet, Set};
+use anyhow::{anyhow, bail};
+use formality_core::{judgment::ProofTree, ProvenSet, Set};
 use formality_prove::{is_definitely_not_proveable, Constraints, Decls, Env};
 use formality_rust::{
     grammar::{Crate, CrateItem, Program, Test, TestBoundData},
     prove::ToWcs,
 };
+use formality_types::rust::FormalityLang;
 use formality_types::{
     grammar::{CrateId, Fallible, Wcs},
     rust::Visit,
 };
-use formality_types::rust::FormalityLang;
 
 mod borrow_check;
 mod mini_rust_check;
@@ -114,7 +114,7 @@ impl Check<'_> {
         Ok(())
     }
 
-    fn check_crate_item(&self, c: &CrateItem, crate_id: &CrateId) -> Fallible<()> {
+    fn check_crate_item(&self, c: &CrateItem, crate_id: &CrateId) -> Fallible<ProofTree> {
         match c {
             CrateItem::Trait(v) => self.check_trait(v, crate_id),
             CrateItem::TraitImpl(v) => self.check_trait_impl(v, crate_id),
@@ -126,7 +126,7 @@ impl Check<'_> {
         }
     }
 
-    fn check_test(&self, test: &Test) -> Fallible<()> {
+    fn check_test(&self, test: &Test) -> Fallible<ProofTree> {
         let mut env = Env::default();
         let TestBoundData { assumptions, goals } = env.instantiate_universally(&test.binder);
         self.prove_goal(&env, assumptions, goals)
@@ -137,7 +137,7 @@ impl Check<'_> {
         env: &Env,
         assumptions: impl ToWcs,
         goal: impl ToWcs + Debug,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         let goal: Wcs = goal.to_wcs();
         self.prove_judgment(env, assumptions, goal.to_wcs(), formality_prove::prove)
     }
@@ -148,7 +148,7 @@ impl Check<'_> {
         assumptions: impl ToWcs,
         goal: G,
         judgment_fn: impl FnOnce(Decls, Env, Wcs, G) -> ProvenSet<Constraints>,
-    ) -> Fallible<()>
+    ) -> Fallible<ProofTree>
     where
         G: Debug + Visit + Clone,
     {
@@ -166,16 +166,22 @@ impl Check<'_> {
             assumptions.clone(),
             goal.clone(),
         );
-        let cs = cs.into_set()?;
-        if cs.iter().any(|c| c.unconditionally_true()) {
-            return Ok(());
-        }
-
-        bail!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}")
+        let cs = cs.into_map()?;
+        cs.iter()
+            .find_map(|(c, proof_tree)| c.unconditionally_true().then_some(proof_tree))
+            .cloned()
+            .ok_or_else(|| {
+                anyhow!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}")
+            })
     }
 
     #[tracing::instrument(level = "Debug", skip(self, assumptions, goal))]
-    fn prove_not_goal(&self, env: &Env, assumptions: impl ToWcs, goal: impl ToWcs) -> Fallible<()> {
+    fn prove_not_goal(
+        &self,
+        env: &Env,
+        assumptions: impl ToWcs,
+        goal: impl ToWcs,
+    ) -> Fallible<ProofTree> {
         let goal: Wcs = goal.to_wcs();
         let assumptions: Wcs = assumptions.to_wcs();
 
@@ -188,9 +194,9 @@ impl Check<'_> {
             goal.clone(),
             |env, assumptions, goal| formality_prove::prove(self.decls, env, &assumptions, &goal),
         );
-        let cs = cs.into_set()?;
-        if cs.iter().any(|c| c.unconditionally_true()) {
-            return Ok(());
+        let cs = cs.into_map()?;
+        if let Some((_, proof_tree)) = cs.iter().find(|(c, _)| c.unconditionally_true()) {
+            return Ok(proof_tree.clone());
         }
 
         bail!("failed to prove {goal:?} given {assumptions:?}, got {cs:?}")

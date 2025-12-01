@@ -1,6 +1,6 @@
 use anyhow::bail;
 use fn_error_context::context;
-use formality_core::Set;
+use formality_core::{judgment::ProofTree, Set};
 use formality_prove::Env;
 use formality_rust::grammar::{
     AssociatedTy, AssociatedTyBoundData, Fn, Trait, TraitBoundData, TraitItem, WhereClause,
@@ -9,7 +9,9 @@ use formality_types::grammar::{CrateId, Fallible};
 
 impl super::Check<'_> {
     #[context("check_trait({:?})", t.id)]
-    pub(super) fn check_trait(&self, t: &Trait, crate_id: &CrateId) -> Fallible<()> {
+    pub(super) fn check_trait(&self, t: &Trait, crate_id: &CrateId) -> Fallible<ProofTree> {
+        let mut proof_tree = ProofTree::leaf("check_trait");
+
         let Trait {
             safety: _,
             id: _,
@@ -22,18 +24,30 @@ impl super::Check<'_> {
             trait_items,
         } = env.instantiate_universally(&binder.explicit_binder);
 
-        self.check_trait_items_have_unique_names(&trait_items)?;
+        proof_tree
+            .children
+            .push(self.check_trait_items_have_unique_names(&trait_items)?);
 
-        self.prove_where_clauses_well_formed(&env, &where_clauses, &where_clauses)?;
+        proof_tree
+            .children
+            .push(self.prove_where_clauses_well_formed(&env, &where_clauses, &where_clauses)?);
 
         for trait_item in &trait_items {
-            self.check_trait_item(&env, &where_clauses, trait_item, crate_id)?;
+            proof_tree.children.push(self.check_trait_item(
+                &env,
+                &where_clauses,
+                trait_item,
+                crate_id,
+            )?);
         }
 
-        Ok(())
+        Ok(proof_tree)
     }
 
-    fn check_trait_items_have_unique_names(&self, trait_items: &[TraitItem]) -> Fallible<()> {
+    fn check_trait_items_have_unique_names(
+        &self,
+        trait_items: &[TraitItem],
+    ) -> Fallible<ProofTree> {
         let mut functions = Set::new();
         let mut associated_types = Set::new();
         for trait_item in trait_items {

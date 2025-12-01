@@ -30,11 +30,16 @@ where
 
     let a0 = a.remove(0);
     let b0 = b.remove(0);
-    op(decls.clone(), env.clone(), context.clone(), a0, b0).flat_map(|(c1, _tree1)| {
+    op(decls.clone(), env.clone(), context.clone(), a0, b0).flat_map(|(c1, tree1)| {
         let context = c1.substitution().apply(context);
         let a = c1.substitution().apply(&a);
         let b = c1.substitution().apply(&b);
-        zip(decls, c1.env(), &context, a, b, op).map(move |(c2, _tree2)| c1.seq(c2))
+        zip(decls, c1.env(), &context, a, b, op).map(move |(c2, tree2)| {
+            (
+                c1.seq(c2),
+                ProofTree::new("zip", None, vec![tree1.clone(), tree2.clone()]),
+            )
+        })
     })
 }
 
@@ -59,9 +64,14 @@ where
 
     let a0 = a[0].clone();
     let a_remaining: Vec<A> = a[1..].to_vec();
-    op(decls.clone(), env.clone(), context.clone(), a0).flat_map(|(c1, _tree1)| {
+    op(decls.clone(), env.clone(), context.clone(), a0).flat_map(|(c1, tree1)| {
         let context = c1.substitution().apply(context);
         let a_remaining = c1.substitution().apply(&a_remaining);
-        for_all(decls, c1.env(), &context, &a_remaining, op).map(move |(c2, _tree2)| c1.seq(c2))
+        for_all(decls, c1.env(), &context, &a_remaining, op).map(move |(c2, tree2)| {
+            (
+                c1.seq(c2),
+                ProofTree::new("for_all", None, vec![tree1.clone(), tree2.clone()]),
+            )
+        })
     })
 }

@@ -1,7 +1,7 @@
 use anyhow::bail;
 
 use fn_error_context::context;
-use formality_core::Downcasted;
+use formality_core::{judgment::ProofTree, Downcasted};
 use formality_prove::{Env, Safety};
 use formality_rust::{
     grammar::{
@@ -22,8 +22,9 @@ impl super::Check<'_> {
         &self,
         trait_impl: &TraitImpl,
         crate_id: &CrateId,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         let TraitImpl { binder, safety: _ } = trait_impl;
+        let mut proof_tree = ProofTree::leaf("check_trait_impl");
 
         let mut env = Env::default();
 
@@ -37,11 +38,21 @@ impl super::Check<'_> {
 
         let trait_ref = trait_id.with(self_ty, trait_parameters);
 
-        self.prove_where_clauses_well_formed(&env, &where_clauses, &where_clauses)?;
+        proof_tree
+            .children
+            .push(self.prove_where_clauses_well_formed(&env, &where_clauses, &where_clauses)?);
 
-        self.prove_goal(&env, &where_clauses, trait_ref.is_implemented())?;
+        proof_tree.children.push(self.prove_goal(
+            &env,
+            &where_clauses,
+            trait_ref.is_implemented(),
+        )?);
 
-        self.prove_not_goal(&env, &where_clauses, trait_ref.not_implemented())?;
+        proof_tree.children.push(self.prove_not_goal(
+            &env,
+            &where_clauses,
+            trait_ref.not_implemented(),
+        )?);
 
         let trait_decl = self.program.trait_named(&trait_ref.trait_id)?;
         let TraitBoundData {
@@ -49,13 +60,21 @@ impl super::Check<'_> {
             trait_items,
         } = trait_decl.binder.instantiate_with(&trait_ref.parameters)?;
 
-        self.check_safety_matches(trait_decl, trait_impl)?;
+        proof_tree
+            .children
+            .push(self.check_safety_matches(trait_decl, trait_impl)?);
 
         for impl_item in &impl_items {
-            self.check_trait_impl_item(&env, &where_clauses, &trait_items, impl_item, crate_id)?;
+            proof_tree.children.push(self.check_trait_impl_item(
+                &env,
+                &where_clauses,
+                &trait_items,
+                impl_item,
+                crate_id,
+            )?);
         }
 
-        Ok(())
+        Ok(proof_tree)
     }
 
     #[context("check_neg_trait_impl({trait_impl:?})")]
@@ -87,6 +106,11 @@ impl super::Check<'_> {
 
     /// Validate that the declared safety of an impl matches the one from the trait declaration.
     fn check_safety_matches(&self, trait_decl: &Trait, trait_impl: &TraitImpl) -> Fallible<()> {
+        let proof_tree = ProofTree::leaf(format!(
+            "safety_matches({:?}, {:?})",
+            trait_decl.safety, trait_impl.safety
+        ));
+
         if trait_decl.safety != trait_impl.safety {
             match trait_decl.safety {
                 Safety::Safe => bail!("implementing the trait `{:?}` is not unsafe", trait_decl.id),
@@ -96,7 +120,8 @@ impl super::Check<'_> {
                 ),
             }
         }
-        Ok(())
+
+        Ok(proof_tree)
     }
 
     fn check_trait_impl_item(
@@ -106,7 +131,7 @@ impl super::Check<'_> {
         trait_items: &[TraitItem],
         impl_item: &ImplItem,
         crate_id: &CrateId,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         let assumptions: Wcs = assumptions.to_wcs();
         assert!(
             env.only_universal_variables() && env.encloses((&assumptions, trait_items, impl_item))
@@ -127,7 +152,7 @@ impl super::Check<'_> {
         trait_items: &[TraitItem],
         ii_fn: &Fn,
         crate_id: &CrateId,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         let impl_assumptions: Wcs = impl_assumptions.to_wcs();
         assert!(
             env.only_universal_variables() && env.encloses((&impl_assumptions, trait_items, ii_fn))
