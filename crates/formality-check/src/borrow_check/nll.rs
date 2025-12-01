@@ -689,7 +689,8 @@ judgment_fn! {
 
         (
             (let live_place_ty = env.check_place_hackola(&assumptions, &live_place)?)
-            (loan_not_required_by_parameter(env, assumptions, loan, live_place_ty) => ())
+            (loan_not_required_by_parameter(&env, &assumptions, &loan, live_place_ty) => ())
+            (loan_not_required_by_live_place_prefix(&env, &assumptions, &loan, &live_place) => ())
             --- ("loan is not required by type")
             (loan_not_required_by_live_place(
                 env,
@@ -697,6 +698,43 @@ judgment_fn! {
                 loan,
                 live_place,
             ) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// For some `place_live` where
+    ///
+    ///    let x = &'lt_loan place_borrowed;
+    ///    ...
+    ///    access(place_accessed); // conflicts with the borrow
+    ///    ...
+    ///    access(place_live) // <-- an access like this occurs later
+    ///
+    /// ...show that `place_live` does not require data derived from `x`.
+    fn loan_not_required_by_live_place_prefix(
+        env: TypeckEnv,
+        assumptions: Wcs,
+        loan: Loan,
+        live_place: PlaceExpression,
+    ) => () {
+        debug(loan, live_place, assumptions, env)
+
+        (
+            --- ("local")
+            (loan_not_required_by_live_place_prefix(_env, _assumptions, _loan, PlaceExpression::Local(_)) => ())
+        )
+
+        (
+            (loan_not_required_by_live_place_prefix(env, assumptions, loan, &*root) => ())
+            --- ("no prefix")
+            (loan_not_required_by_live_place_prefix(env, assumptions, loan, PlaceExpression::Field(FieldProjection { root, index: _ })) => ())
+        )
+
+        (
+            (loan_not_required_by_live_place(env, assumptions, loan, &*ptr) => ())
+            --- ("field")
+            (loan_not_required_by_live_place_prefix(env, assumptions, loan, PlaceExpression::Deref(ptr)) => ())
         )
     }
 }
@@ -829,7 +867,7 @@ judgment_fn! {
 
         (
             (let outlived_by_loan = transitively_outlived_by(&env, &loan.lt))
-            (if outlived_by_loan.contains(&lifetime.upcast()))
+            (if !outlived_by_loan.contains(&lifetime.upcast()))
             --- ("loan_cannot_outlive")
             (loan_cannot_outlive(env, _assumptions, loan, lifetime) => ())
         )
