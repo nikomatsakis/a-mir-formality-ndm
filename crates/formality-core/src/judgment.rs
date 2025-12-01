@@ -567,10 +567,14 @@ macro_rules! push_rules {
             let result = $crate::Upcast::upcast($v);
             let mut attributes = $input_attributes.clone();
             attributes.push(("result".to_string(), format!("{:?}", result)));
-            let proof_tree = $crate::judgment::ProofTree::new_with_attributes(
+            let (file, line, column) = $crate::respan!($rule_name ((file!(), line!(), column!())));
+            let proof_tree = $crate::judgment::ProofTree::with_all(
                 $input_judgment_name,
                 attributes,
                 Some($rule_name),
+                file,
+                line,
+                column,
                 $child_proof_trees.clone(),
             );
             tracing::debug!("produced {:?} from rule {:?} in judgment {:?}", result, $rule_name, stringify!($judgment_name));
