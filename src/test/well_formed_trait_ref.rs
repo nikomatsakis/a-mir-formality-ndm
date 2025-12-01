@@ -128,7 +128,7 @@ fn const_param() {
 #[test]
 #[should_panic(expected = "wrong number of parameters")]
 fn type_with_wrong_number_of_parameters() {
-    crate::test_program_ok(
+    let _ = crate::test_program_ok(
         " [
             crate foo {
                 trait Trait1 {}
@@ -147,7 +147,7 @@ fn type_with_wrong_number_of_parameters() {
 #[test]
 #[should_panic(expected = "no ADT named `Nonex`")]
 fn where_clause_with_nonexistent_type() {
-    crate::test_program_ok(
+    let _ = crate::test_program_ok(
         " [
             crate foo {
                 trait Trait1 {}

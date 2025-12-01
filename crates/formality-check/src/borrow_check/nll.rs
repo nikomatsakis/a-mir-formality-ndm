@@ -133,7 +133,7 @@ enum AccessKind {
 /// constraints, it attempts to find values for the existential lifetime variables (inference variables)
 /// that satisfy those pending-outlives constraints and which meet the borrow checker's rules.
 pub fn borrow_check(env: &TypeckEnv, fn_assumptions: &Wcs) -> Fallible<ProofTree> {
-    let proof_tree = ProofTree::new(format!("borrow_check"), None, vec![]);
+    let mut proof_tree = ProofTree::new(format!("borrow_check"), None, vec![]);
 
     // Start the check from the entry block.
     //
@@ -142,7 +142,10 @@ pub fn borrow_check(env: &TypeckEnv, fn_assumptions: &Wcs) -> Fallible<ProofTree
     let Some(start_bb) = env.blocks.first() else {
         return Ok(proof_tree);
     };
-    loans_in_basic_block_respected(env, fn_assumptions, (), &start_bb.id).check_proven()?;
+
+    proof_tree.children.push(
+        loans_in_basic_block_respected(env, fn_assumptions, (), &start_bb.id).check_proven()?,
+    );
     Ok(proof_tree)
 }
 

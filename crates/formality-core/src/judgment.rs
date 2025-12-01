@@ -153,6 +153,8 @@ macro_rules! judgment_fn {
 
                     failed_rules.clear();
 
+                    let input_string = format!("{:?}", input);
+
                     $crate::push_rules!(
                         $name,
                         &input,
@@ -548,12 +550,16 @@ macro_rules! push_rules {
     };
 
     (
-        @body ($judgment_name:ident, $rule_name:literal, $v:expr, $output:expr); $inputs:tt; $step_index:expr; $child_proof_trees:ident;
+        @body
+            ($judgment_name:ident, $rule_name:literal, $v:expr, $output:expr);
+            ($_failed_rules:expr, $_match_index:expr, $input_string:expr, $_rule_name:literal);
+            $step_index:expr;
+            $child_proof_trees:ident;
     ) => {
         {
             let result = $crate::Upcast::upcast($v);
             let proof_tree = $crate::judgment::ProofTree::new(
-                format!("{} = {result:?}", stringify!($v)),
+                format!("{} => {:?}", $input_string, result),
                 Some($rule_name),
                 $child_proof_trees.clone(),
             );
@@ -562,9 +568,7 @@ macro_rules! push_rules {
         }
     };
 
-    //
-
-    (@record_failure ($failed_rules:expr, $match_index:expr, $inputs:tt, $rule_name:literal); $step_index:expr, $step_expr:expr; $cause:expr) => {
+    (@record_failure ($failed_rules:expr, $match_index:expr, $input_string:expr, $rule_name:literal); $step_index:expr, $step_expr:expr; $cause:expr) => {
         let file = $crate::respan!($step_expr (file!()));
         let line = $crate::respan!($step_expr (line!()));
         let column = $crate::respan!($step_expr (column!()));

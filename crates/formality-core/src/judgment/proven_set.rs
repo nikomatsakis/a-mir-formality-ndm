@@ -74,13 +74,6 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
         }
     }
 
-    pub fn check_proven(self) -> Result<(), Box<FailedJudgment>> {
-        match self.data {
-            ProvenSetData::Failure(e) => Err(e),
-            ProvenSetData::Success(_) => Ok(()),
-        }
-    }
-
     /// Convert to a non-empty set of proven results (if ok) or an error (otherwise).
     pub fn into_map(self) -> Result<Map<J, ProofTree>, Box<FailedJudgment>> {
         match self.data {
@@ -198,6 +191,16 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
     }
 }
 
+impl ProvenSet<()> {
+    /// For cases where the "value" is just `()`, we can just extract the singular proof-tree directly
+    pub fn check_proven(self) -> Result<ProofTree, Box<FailedJudgment>> {
+        match self.data {
+            ProvenSetData::Failure(e) => Err(e),
+            ProvenSetData::Success(mut map) => Ok(map.remove(&()).expect("non-empty")),
+        }
+    }
+}
+
 impl<J: Ord + Debug + Clone> FromIterator<Proven<J>> for ProvenSet<J> {
     fn from_iter<T: IntoIterator<Item = Proven<J>>>(iter: T) -> Self {
         let set: Map<J, ProofTree> = iter.into_iter().collect();
@@ -274,7 +277,7 @@ impl<J: Hash> Hash for ProvenSetData<J> {
 
 pub type Proven<J> = (J, ProofTree);
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 #[must_use]
 pub struct ProofTree {
     /// Trying to prove this judgment...
@@ -634,6 +637,12 @@ impl<T: Debug> std::fmt::Display for ProvenSet<T> {
 impl std::fmt::Display for ProofTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.fmt_indented(f, "")
+    }
+}
+
+impl std::fmt::Debug for ProofTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
     }
 }
 

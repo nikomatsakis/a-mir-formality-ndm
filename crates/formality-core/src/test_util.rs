@@ -86,7 +86,7 @@ where
     #[track_caller]
     fn assert_has_err(self, expect: expect_test::Expect, must_have: &[&str]) {
         match self {
-            Ok(v) => panic!("expected `Err`, got `Ok`: {v:?}"),
+            Ok(v) => panic!("expected `Err`, got `Ok`:\n{v:?}"),
             Err(e) => {
                 let output = normalize_paths(format!("{e:?}"));
 

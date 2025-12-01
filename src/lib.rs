@@ -2,6 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use clap::Parser;
 use formality_check::check_all_crates;
+use formality_core::judgment::ProofTree;
 use formality_prove::{test_util::TestAssertion, Constraints};
 use formality_rust::grammar::Program;
 use formality_types::rust::try_term;
@@ -59,10 +60,10 @@ macro_rules! assert_err {
     }};
 }
 
-pub fn test_program_ok(input: &str) -> anyhow::Result<()> {
+pub fn test_program_ok(input: &str) -> anyhow::Result<ProofTree> {
     let program: Program = try_term(input)?;
-    let _proof_tree = check_all_crates(&program)?;
-    Ok(())
+    let proof_tree = check_all_crates(&program)?;
+    Ok(proof_tree)
 }
 
 pub fn test_where_clause(program: &str, assertion: &str) -> formality_core::ProvenSet<Constraints> {
