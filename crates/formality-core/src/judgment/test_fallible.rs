@@ -55,26 +55,12 @@ fn check_x(x: u32) -> Fallible<()> {
 
 #[test]
 fn is_equal_22() {
-    jfn(Check { x: 22 }, 22).assert_ok(expect_test::expect![[r#"
-        {
-          22
-            └─ y = 22 (rule) at test_fallible.rs:LL
-               └─ y = 22 at test_fallible.rs:LL
-        }
-    "#]]);
+    jfn(Check { x: 22 }, 22).assert_ok(expect_test::expect!["{22}"]);
 }
 
 #[test]
 fn is_equal_44() {
-    jfn(Check { x: 44 }, 44).assert_ok(expect_test::expect![[r#"
-        {
-          44
-            └─ y = 44 (rule) at test_fallible.rs:LL
-               └─ y = 44 at test_fallible.rs:LL
-          45
-            └─ 45 = 45 (other-rule) at test_fallible.rs:LL
-        }
-    "#]]);
+    jfn(Check { x: 44 }, 44).assert_ok(expect_test::expect!["{44, 45}"]);
 }
 
 #[test]

@@ -343,6 +343,32 @@ impl ProofTree {
         };
         proof
     }
+
+    /// Total number of nodes in the proof tree.
+    pub fn total_nodes(&self) -> usize {
+        1 + self.children.iter().map(|c| c.total_nodes()).sum::<usize>()
+    }
+}
+
+/// Insert a proof tree into the map, keeping the smaller tree if one already exists.
+/// Comparison is by total nodes first, then by string representation as tiebreaker.
+pub fn insert_smallest_proof<K: Ord + Clone>(
+    map: &mut Map<K, ProofTree>,
+    key: K,
+    proof: ProofTree,
+) {
+    match map.get(&key) {
+        Some(existing) => {
+            let dominated = (proof.total_nodes(), format!("{:?}", proof))
+                < (existing.total_nodes(), format!("{:?}", existing));
+            if dominated {
+                map.insert(key, proof);
+            }
+        }
+        None => {
+            map.insert(key, proof);
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone)]

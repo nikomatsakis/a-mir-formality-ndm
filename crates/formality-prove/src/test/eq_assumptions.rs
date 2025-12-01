@@ -7,31 +7,21 @@ use crate::decls::Decls;
 use crate::test_util::test_prove;
 
 #[test]
-#[ignore] // FIXME: hangs with proof tree generation
 fn test_a() {
     test_prove(
         Decls::empty(),
         term("{} => {for<ty T, ty U> if {T = u32, U = Vec<T>} U = Vec<u32>}"),
     )
-    .assert_ok(expect![[r#"
-        {
-          Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} },
-        }
-    "#]]);
+    .assert_ok(expect!["{Constraints { env: Env { variables: [], bias: Soundness, pending: [] }, known_true: true, substitution: {} }}"]);
 }
 
 #[test]
-#[ignore] // FIXME: hangs with proof tree generation
 fn test_b() {
     test_prove(
         Decls::empty(),
         term("exists<ty A> {} => {for<ty T, ty U> if {T = u32, U = Vec<T>} A = U}"),
     )
-    .assert_ok(expect![[r#"
-        {
-          Constraints { env: Env { variables: [?ty_2, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => Vec<u32>, ?ty_2 => u32} },
-        }
-    "#]]);
+    .assert_ok(expect!["{Constraints { env: Env { variables: [?ty_2, ?ty_1], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_1 => Vec<u32>, ?ty_2 => u32} }}"]);
 }
 
 #[test]
@@ -204,7 +194,6 @@ fn test_normalize_assoc_ty_existential0() {
 }
 
 #[test]
-#[ignore] // FIXME: hangs with proof tree generation
 fn test_normalize_assoc_ty_existential1() {
     test_prove(
         Decls::empty(),
@@ -215,9 +204,5 @@ fn test_normalize_assoc_ty_existential1() {
             { <T as Iterator>::Item = u32 } => { <A as Iterator>::Item = u32 }",
         ),
     )
-    .assert_ok(expect![[r#"
-        {
-          Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_2 => !ty_1} },
-        }
-    "#]]);
+    .assert_ok(expect!["{Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [] }, known_true: true, substitution: {?ty_2 => !ty_1} }}"]);
 }

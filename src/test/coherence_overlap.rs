@@ -79,7 +79,6 @@ fn foo_crate_cannot_assume_CoreStruct_does_not_impl_CoreTrait() {
 }
 
 #[test]
-#[ignore] // FIXME: hangs with proof tree generation
 fn T_where_Foo_not_u32_impls() {
     crate::assert_err!(
         // Test positive impl that has a where-clause which checks for itself,
@@ -104,7 +103,7 @@ fn T_where_Foo_not_u32_impls() {
             check_trait_impl(impl <ty> Foo for ^ty0_0 where ^ty0_0 : Foo { })
 
             Caused by:
-                failed to prove {! Foo(!ty_1)} given {Foo(!ty_1)}, got {Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [] }, known_true: false, substitution: {} }}"#]]
+                failed to prove {! Foo(!ty_1)} given {Foo(!ty_1)}, got [Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [] }, known_true: false, substitution: {} }]"#]]
     )
 }
 

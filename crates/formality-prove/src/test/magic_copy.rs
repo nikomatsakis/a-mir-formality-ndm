@@ -22,7 +22,6 @@ fn decls() -> Decls {
 }
 
 #[test]
-#[ignore] // FIXME: hangs with proof tree generation
 fn all_t_not_magic() {
     test_prove(decls(), term("{} => {for<ty T> Magic(T)}")).assert_err(
     expect![[r#"
@@ -84,7 +83,6 @@ fn all_t_not_magic() {
 }
 
 #[test]
-#[ignore] // FIXME: hangs with proof tree generation
 fn all_t_not_copy() {
     test_prove(decls(), term("{} => {for<ty T> Copy(T)}")).assert_err(
     expect![[r#"

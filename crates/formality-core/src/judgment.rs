@@ -7,7 +7,8 @@ pub use assertion::JudgmentAssertion;
 
 mod proven_set;
 pub use proven_set::{
-    EachProof, FailedJudgment, FailedRule, ProofTree, ProvenSet, RuleFailureCause,
+    insert_smallest_proof, EachProof, FailedJudgment, FailedRule, ProofTree, ProvenSet,
+    RuleFailureCause,
 };
 
 mod test_fallible;
@@ -557,7 +558,7 @@ macro_rules! push_rules {
                 $child_proof_trees.clone(),
             );
             tracing::debug!("produced {:?} from rule {:?} in judgment {:?}", result, $rule_name, stringify!($judgment_name));
-            $output.insert(result, proof_tree);
+            $crate::judgment::insert_smallest_proof(&mut $output, result, proof_tree);
         }
     };
 

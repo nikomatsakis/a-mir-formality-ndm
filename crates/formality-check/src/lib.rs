@@ -171,7 +171,8 @@ impl Check<'_> {
             .find_map(|(c, proof_tree)| c.unconditionally_true().then_some(proof_tree))
             .cloned()
             .ok_or_else(|| {
-                anyhow!("failed to prove `{goal:?}` given `{assumptions:?}`: got {cs:?}")
+                let constraints: Vec<_> = cs.keys().collect();
+                anyhow!("failed to prove `{goal:?}` given `{assumptions:?}`: got {constraints:?}")
             })
     }
 
@@ -199,6 +200,7 @@ impl Check<'_> {
             return Ok(proof_tree.clone());
         }
 
-        bail!("failed to prove {goal:?} given {assumptions:?}, got {cs:?}")
+        let constraints: Vec<_> = cs.keys().collect();
+        bail!("failed to prove {goal:?} given {assumptions:?}, got {constraints:?}")
     }
 }
