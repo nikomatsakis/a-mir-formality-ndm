@@ -102,33 +102,52 @@ impl Check<'_> {
             decls: self.decls.clone(),
         };
 
+        let mut proof_tree = ProofTree::new(format!("check_body"), None, vec![]);
+
         // Check that basic blocks are well-typed
         for block in &*blocks {
-            env.check_block(fn_assumptions, block)?;
+            proof_tree
+                .children
+                .push(env.check_block(fn_assumptions, block)?);
         }
 
-        nll::borrow_check(&env, &fn_assumptions)?;
+        proof_tree
+            .children
+            .push(nll::borrow_check(&env, &fn_assumptions)?);
 
-        Ok(())
+        Ok(proof_tree)
     }
 }
 
 impl TypeckEnv {
-    fn check_block(&mut self, fn_assumptions: &Wcs, block: &minirust::BasicBlock) -> Fallible<()> {
+    fn check_block(
+        &mut self,
+        fn_assumptions: &Wcs,
+        block: &minirust::BasicBlock,
+    ) -> Fallible<ProofTree> {
+        let mut proof_tree = ProofTree::new(format!("check_block({:?})", block.id), None, vec![]);
+
         for statement in &block.statements {
-            self.check_statement(fn_assumptions, statement)?;
+            proof_tree
+                .children
+                .push(self.check_statement(fn_assumptions, statement)?);
         }
 
-        self.check_terminator(fn_assumptions, &block.terminator)?;
+        proof_tree
+            .children
+            .push(self.check_terminator(fn_assumptions, &block.terminator)?);
 
-        Ok(())
+        Ok(proof_tree)
     }
 
     fn check_statement(
         &mut self,
         fn_assumptions: &Wcs,
         statement: &minirust::Statement,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
+        let mut proof_tree =
+            ProofTree::new(format!("check_statement({statement:?})"), None, vec![]);
+
         match statement {
             minirust::Statement::Assign(place_expression, value_expression) => {
                 // Check if the place expression is well-formed.
@@ -138,7 +157,11 @@ impl TypeckEnv {
                 let value_ty = self.check_value(fn_assumptions, value_expression)?;
 
                 // Check that the type of the value is a subtype of the place's type
-                self.prove_goal(Location, fn_assumptions, Relation::sub(value_ty, place_ty))?;
+                proof_tree.children.push(self.prove_goal(
+                    Location,
+                    fn_assumptions,
+                    Relation::sub(value_ty, place_ty),
+                )?);
 
                 // Record if the return place has been initialised.
                 if *place_expression == PlaceExpression::Local(self.ret_id.clone()) {
@@ -168,14 +191,17 @@ impl TypeckEnv {
                 }
             }
         }
-        Ok(())
+        Ok(proof_tree)
     }
 
     fn check_terminator(
         &mut self,
         fn_assumptions: &Wcs,
         terminator: &minirust::Terminator,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
+        let mut proof_tree =
+            ProofTree::new(format!("check_terminator({terminator:?})"), None, vec![]);
+
         match terminator {
             minirust::Terminator::Goto(bb_id) => {
                 // Check that the basic block `bb_id` exists.
@@ -209,22 +235,22 @@ impl TypeckEnv {
                     let actual_ty =
                         self.check_argument_expression(fn_assumptions, actual_argument)?;
                     // Check if the actual argument type passed in is the subtype of expect argument type.
-                    self.prove_goal(
+                    proof_tree.children.push(self.prove_goal(
                         Location,
                         fn_assumptions,
                         Relation::sub(&actual_ty, &declared_ty),
-                    )?;
+                    )?);
                 }
 
                 // Check whether ret place is well-formed.
                 let actual_return_ty = self.check_place(fn_assumptions, ret)?;
 
                 // Check if the fn's declared return type is a subtype of the type of the local variable `ret`
-                self.prove_goal(
+                proof_tree.children.push(self.prove_goal(
                     Location,
                     fn_assumptions,
                     Relation::sub(&self.output_ty, &actual_return_ty),
-                )?;
+                )?);
 
                 // Check the validity of next bb_id.
                 if let Some(bb_id) = next_block {
@@ -246,7 +272,12 @@ impl TypeckEnv {
                 // Check if the value is well-formed.
                 let value_ty = self.check_value(fn_assumptions, switch_value).unwrap();
 
-                self.prove_judgment(Location, &fn_assumptions, value_ty, ty_is_int)?;
+                proof_tree.children.push(self.prove_judgment(
+                    Location,
+                    &fn_assumptions,
+                    value_ty,
+                    ty_is_int,
+                )?);
 
                 // Ensure all bbid are valid.
                 for switch_target in switch_targets {
@@ -255,7 +286,7 @@ impl TypeckEnv {
                 self.check_block_exists(fallback)?;
             }
         }
-        Ok(())
+        Ok(proof_tree)
     }
 
     /// Hacky method that type-checks a place that has already been type-checked.
@@ -623,7 +654,7 @@ impl TypeckEnv {
         // to a set of constraints which, if true, mean the goal is true.
         //
         // i.e., `\forall c \in cs. (c => (assumptions => goal))`
-        let cs = cs.into_set()?;
+        let cs = cs.into_map()?;
 
         // The set of constraints is always non-empty or else the judgment is considered to have failed.
         assert!(!cs.is_empty());
@@ -676,7 +707,7 @@ impl TypeckEnv {
             assert!(c.substitution().is_empty());
 
             match self.convert_to_pending_outlives(&location, c) {
-                Some(p_o) => pending_outlives_sets.push((p_o, proof_tree)),
+                Some(p_o) => pending_outlives_sets.push((p_o, proof_tree.clone())),
                 None => bail!("failed to convert `{c:?}` to pending-outlives"),
             }
         }

@@ -68,7 +68,9 @@ impl super::Check<'_> {
                 }
             }
         }
-        Ok(())
+        Ok(ProofTree::leaf(format!(
+            "check_trait_items_have_unique_names"
+        )))
     }
 
     fn check_trait_item(
@@ -77,7 +79,7 @@ impl super::Check<'_> {
         where_clauses: &[WhereClause],
         trait_item: &TraitItem,
         crate_id: &CrateId,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         match trait_item {
             TraitItem::Fn(v) => self.check_fn_in_trait(env, where_clauses, v, crate_id),
             TraitItem::AssociatedTy(v) => self.check_associated_ty(env, where_clauses, v),
@@ -90,7 +92,7 @@ impl super::Check<'_> {
         where_clauses: &[WhereClause],
         f: &Fn,
         crate_id: &CrateId,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         self.check_fn(env, where_clauses, f, crate_id)
     }
 
@@ -99,10 +101,10 @@ impl super::Check<'_> {
         trait_env: &Env,
         trait_where_clauses: &[WhereClause],
         associated_ty: &AssociatedTy,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         let mut env = trait_env.clone();
 
-        let AssociatedTy { id: _, binder } = associated_ty;
+        let AssociatedTy { id, binder } = associated_ty;
         let AssociatedTyBoundData {
             ensures: _,
             where_clauses,
@@ -116,6 +118,10 @@ impl super::Check<'_> {
 
         // FIXME: Do we prove ensures WF? And what do we assume when we do so?
 
-        Ok(())
+        Ok(ProofTree::new(
+            format!("check_associated_ty({id:?})"),
+            None,
+            vec![],
+        ))
     }
 }

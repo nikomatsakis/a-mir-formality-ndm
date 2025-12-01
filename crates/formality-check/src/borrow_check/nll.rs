@@ -1,4 +1,7 @@
-use formality_core::{judgment_fn, set, term, variable::CoreVariable, Cons, Fallible, Set, Upcast};
+use formality_core::{
+    judgment::ProofTree, judgment_fn, set, term, variable::CoreVariable, Cons, Fallible, Set,
+    Upcast,
+};
 use formality_rust::grammar::minirust::{
     ArgumentExpression, BasicBlock, BbId, FieldProjection, PlaceExpression, Statement, Terminator,
     ValueExpression,
@@ -129,16 +132,18 @@ enum AccessKind {
 /// Given the `TypeckEnv`, which includes a (populated) list of `pending_outlives`
 /// constraints, it attempts to find values for the existential lifetime variables (inference variables)
 /// that satisfy those pending-outlives constraints and which meet the borrow checker's rules.
-pub fn borrow_check(env: &TypeckEnv, fn_assumptions: &Wcs) -> Fallible<()> {
+pub fn borrow_check(env: &TypeckEnv, fn_assumptions: &Wcs) -> Fallible<ProofTree> {
+    let proof_tree = ProofTree::new(format!("borrow_check"), None, vec![]);
+
     // Start the check from the entry block.
     //
     // The judgment requires that loans in all blocks
     // reachable from the start are also respected.
     let Some(start_bb) = env.blocks.first() else {
-        return Ok(());
+        return Ok(proof_tree);
     };
     loans_in_basic_block_respected(env, fn_assumptions, (), &start_bb.id).check_proven()?;
-    Ok(())
+    Ok(proof_tree)
 }
 
 judgment_fn! {

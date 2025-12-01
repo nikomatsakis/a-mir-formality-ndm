@@ -1,13 +1,14 @@
 use std::collections::HashSet;
 
 use anyhow::bail;
+use formality_core::judgment::ProofTree;
 use formality_prove::Env;
 use formality_rust::grammar::{Adt, AdtBoundData, Field, Variant};
 use formality_types::grammar::Fallible;
 
 impl super::Check<'_> {
-    pub(super) fn check_adt(&self, adt: &Adt) -> Fallible<()> {
-        let Adt { id: _, binder } = adt;
+    pub(super) fn check_adt(&self, adt: &Adt) -> Fallible<ProofTree> {
+        let Adt { id, binder } = adt;
 
         // names is used to check that there are no name conflicts
         let mut names = HashSet::new();
@@ -38,6 +39,6 @@ impl super::Check<'_> {
             }
         }
 
-        Ok(())
+        Ok(ProofTree::new(format!("check_adt({id:?})"), None, vec![]))
     }
 }

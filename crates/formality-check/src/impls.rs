@@ -78,7 +78,7 @@ impl super::Check<'_> {
     }
 
     #[context("check_neg_trait_impl({trait_impl:?})")]
-    pub(super) fn check_neg_trait_impl(&self, trait_impl: &NegTraitImpl) -> Fallible<()> {
+    pub(super) fn check_neg_trait_impl(&self, trait_impl: &NegTraitImpl) -> Fallible<ProofTree> {
         let NegTraitImpl { binder, safety } = trait_impl;
 
         let mut env = Env::default();
@@ -101,11 +101,19 @@ impl super::Check<'_> {
 
         self.prove_goal(&env, &where_clauses, trait_ref.not_implemented())?;
 
-        Ok(())
+        Ok(ProofTree::new(
+            format!("check_neg_trait_impl({trait_ref:?})"),
+            None,
+            vec![],
+        ))
     }
 
     /// Validate that the declared safety of an impl matches the one from the trait declaration.
-    fn check_safety_matches(&self, trait_decl: &Trait, trait_impl: &TraitImpl) -> Fallible<()> {
+    fn check_safety_matches(
+        &self,
+        trait_decl: &Trait,
+        trait_impl: &TraitImpl,
+    ) -> Fallible<ProofTree> {
         let proof_tree = ProofTree::leaf(format!(
             "safety_matches({:?}, {:?})",
             trait_decl.safety, trait_impl.safety
@@ -242,7 +250,11 @@ impl super::Check<'_> {
             Relation::sub(ii_output_ty, ti_output_ty),
         )?;
 
-        Ok(())
+        Ok(ProofTree::new(
+            format!("check_fn_in_impl({:?})", ii_fn.id),
+            None,
+            vec![],
+        ))
     }
 
     #[context("check_associated_ty_value({impl_value:?})")]
@@ -252,7 +264,7 @@ impl super::Check<'_> {
         impl_assumptions: impl ToWcs,
         trait_items: &[TraitItem],
         impl_value: &AssociatedTyValue,
-    ) -> Fallible<()> {
+    ) -> Fallible<ProofTree> {
         let impl_assumptions: Wcs = impl_assumptions.to_wcs();
 
         assert!(
@@ -305,7 +317,11 @@ impl super::Check<'_> {
         let ensures: Wcs = ti_ensures.iter().map(|e| e.to_wc(&ii_ty)).collect();
         self.prove_goal(&env, (&impl_assumptions, &ii_where_clauses), ensures)?;
 
-        Ok(())
+        Ok(ProofTree::new(
+            format!("check_associated_ty_value({:?})", impl_value.id),
+            None,
+            vec![],
+        ))
     }
 
     /// Given a binder from some impl item `I` and a binder from the corresponding trait item `T`,
