@@ -1,9 +1,9 @@
 use formality_core::judgment_fn;
-use formality_types::grammar::{Parameter, Relation, RigidTy, TyData, Wcs};
+use formality_types::grammar::{Lt, Parameter, Relation, RigidTy, TyData, Wcs};
 
 use crate::{
     decls::Decls,
-    prove::{prove, prove_after::prove_after, prove_normalize::prove_normalize},
+    prove::{prove, prove_after::prove_after, prove_normalize::prove_normalize, prove_outlives::prove_outlives},
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -45,11 +45,10 @@ judgment_fn! {
             (prove_sub(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
         )
 
-        // FIXME: uncomment this when adding prove_outlives
-        //(
-        //    (prove_outlives(decls, env, assumptions, a, b) => c)
-        //    ----------------------------- ("lifetime => outlives")
-        //    (prove_sub(decls, env, assumptions, a: Lt, b: Lt) => c)
-        //)
+        (
+            (prove_outlives(decls, env, assumptions, a, b) => c)
+            ----------------------------- ("lifetime => outlives")
+            (prove_sub(decls, env, assumptions, a: Lt, b: Lt) => c)
+        )
     }
 }

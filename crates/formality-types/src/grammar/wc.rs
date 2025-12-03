@@ -42,6 +42,21 @@ impl Wcs {
             .upcasted()
             .collect()
     }
+
+    /// Goal(s) to prove `a0: b` for all `a0` in `a`
+    pub fn all_outlives(a: impl Upcast<Vec<Parameter>>, b: impl Upcast<Parameter>) -> Wcs {
+        let a: Vec<Parameter> = a.upcast();
+        let b: Parameter = b.upcast();
+        a.into_iter()
+            .map(|a| Relation::outlives(a, &b))
+            .upcasted()
+            .collect()
+    }
+
+    /// Iterate over where-clauses
+    pub fn iter(&self) -> impl Iterator<Item = Wc> + use<'_> {
+        self.set.iter().cloned()
+    }
 }
 
 impl<'w> IntoIterator for &'w Wcs {

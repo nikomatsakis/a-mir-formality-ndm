@@ -10,6 +10,7 @@ use crate::{
         prove,
         prove_after::prove_after,
         prove_eq::prove_eq,
+        prove_outlives::prove_outlives,
         prove_sub::prove_sub,
         prove_via::prove_via,
         prove_wf::prove_wf,

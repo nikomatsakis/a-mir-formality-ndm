@@ -57,6 +57,12 @@ pub struct Env {
     ///
     /// Whenever a "successful" proof results, the pending obligations
     pending: Vec<Wc>,
+
+    /// When true, outlives constraints like `'a: 'b` can be deferred as pending
+    /// obligations rather than being proven immediately. This is used during
+    /// type checking to accumulate constraints that will be verified by the
+    /// borrow checker. When false, outlives must be proven from assumptions.
+    allow_pending_outlives: bool,
 }
 
 impl Env {
@@ -65,6 +71,7 @@ impl Env {
             variables: Default::default(),
             bias,
             pending: vec![],
+            allow_pending_outlives: false,
         }
     }
 
@@ -74,6 +81,24 @@ impl Env {
 
     pub fn bias(&self) -> Bias {
         self.bias
+    }
+
+    pub fn allow_pending_outlives(&self) -> bool {
+        self.allow_pending_outlives
+    }
+
+    /// Return a clone of the environment with `allow_pending_outlives` set to the given value
+    pub fn with_allow_pending_outlives(&self, allow: bool) -> Self {
+        let mut env = self.clone();
+        env.allow_pending_outlives = allow;
+        env
+    }
+
+    /// Return a clone of the environment with `w` as a pending where-clause
+    pub fn with_pending(&self, w: impl Upcast<Wc>) -> Self {
+        let mut env = self.clone();
+        env.pending.push(w.upcast());
+        env
     }
 }
 
@@ -279,6 +304,7 @@ impl Env {
                 .collect(),
             bias: self.bias,
             pending: vs.apply(&self.pending),
+            allow_pending_outlives: self.allow_pending_outlives,
         }
     }
 
