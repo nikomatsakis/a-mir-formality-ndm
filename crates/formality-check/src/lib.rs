@@ -14,6 +14,7 @@ use formality_types::{
     rust::Visit,
 };
 
+mod borrow_check;
 mod mini_rust_check;
 
 /// Check all crates in the program. The crates must be in dependency order

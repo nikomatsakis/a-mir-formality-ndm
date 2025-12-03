@@ -10,7 +10,7 @@ use formality_rust::grammar::minirust::{
 };
 use formality_rust::grammar::FnBoundData;
 use formality_types::grammar::{
-    CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, VariantId, Wcs,
+    CrateId, FnId, Parameter, Relation, RigidName, RigidTy, Ty, TyData, RefKind, VariantId, Wcs,
 };
 
 use crate::{Check, CrateItem};
@@ -36,15 +36,19 @@ impl Check<'_> {
         let output_ty: Ty = output_ty.upcast();
 
         // (1) Check that all the types declared for each local variable are well-formed
-        for lv in &body.locals {
+        for lv in &body.params {
+            self.prove_goal(&env, &fn_assumptions, lv.ty.well_formed())?;
+        }
+        for lv in &body.binder.open().1.locals {
             self.prove_goal(&env, &fn_assumptions, lv.ty.well_formed())?;
         }
 
         // Check whether the local_id in function arguments are declared.
         for function_arg_id in &body.args {
             if body
-                .locals
+                .params
                 .iter()
+                .chain(body.binder.open().1.locals.iter())
                 .find(|declared_decl| declared_decl.id == *function_arg_id)
                 .is_none()
             {
@@ -54,8 +58,9 @@ impl Check<'_> {
 
         // Check whether the local_id in the return place are declared.
         if body
-            .locals
+            .params
             .iter()
+            .chain(body.binder.open().1.locals.iter())
             .find(|declared_decl| declared_decl.id == body.ret)
             .is_none()
         {
@@ -63,8 +68,9 @@ impl Check<'_> {
         }
 
         let local_variables: Map<LocalId, Ty> = body
-            .locals
+            .params
             .iter()
+            .chain(body.binder.open().1.locals.iter())
             .map(|lv| (lv.id.clone(), lv.ty.clone()))
             .collect();
 
@@ -88,7 +94,7 @@ impl Check<'_> {
             env: env.clone(),
             output_ty,
             local_variables,
-            blocks: body.blocks.clone(),
+            blocks: body.binder.open().1.blocks.clone(),
             ret_id: body.ret,
             ret_place_is_initialised: false,
             declared_input_tys,
@@ -98,7 +104,7 @@ impl Check<'_> {
         };
 
         // (4) Check statements in body are valid
-        for block in body.blocks {
+        for block in body.binder.open().1.blocks {
             self.check_block(&mut env, fn_assumptions, &block)?;
         }
 
@@ -309,6 +315,28 @@ impl Check<'_> {
 
                 place_ty = fields[field_projection.index].ty.clone();
             }
+            PlaceExpression::Deref(place) => {
+                let ty = self.check_place(env, place)?;
+                // For now, assume it's a reference type and extract the referent type
+                // This is a simplified implementation
+                if let TyData::RigidTy(rigid_ty) = ty.data() {
+                    if let RigidName::Ref(RefKind::Shared) = &rigid_ty.name {
+                        if let Some(referent_param) = rigid_ty.parameters.get(1) {
+                            if let Parameter::Ty(referent_ty) = referent_param {
+                                place_ty = referent_ty.clone();
+                            } else {
+                                bail!("Invalid reference type structure");
+                            }
+                        } else {
+                            bail!("Reference type missing referent parameter");
+                        }
+                    } else {
+                        bail!("Cannot dereference non-reference type: {:?}", ty);
+                    }
+                } else {
+                    bail!("Cannot dereference non-rigid type: {:?}", ty);
+                }
+            }
         }
         Ok(place_ty.clone())
     }
@@ -434,6 +462,11 @@ impl Check<'_> {
 
                 Ok(ty.clone())
             }
+            ValueExpression::Ref(lt, place_expression) => {
+                let place_ty = self.check_place(typeck_env, place_expression)?;
+                let ref_ty = place_ty.ref_ty(lt);
+                Ok(ref_ty)
+            }
         }
     }
 
@@ -465,7 +498,8 @@ impl Check<'_> {
     }
 }
 
-struct TypeckEnv {
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TypeckEnv {
     env: Env,
 
     /// The declared return type from the function signature.
@@ -496,6 +530,13 @@ struct TypeckEnv {
 
     /// LocalId of function argument.
     fn_args: Vec<LocalId>,
+}
+
+impl TypeckEnv {
+    /// Find a basic block by its ID.
+    pub fn basic_block(&self, bb_id: &BbId) -> Option<&BasicBlock> {
+        self.blocks.iter().find(|block| block.id == *bb_id)
+    }
 }
 
 judgment_fn! {

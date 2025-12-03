@@ -1,0 +1,241 @@
+diff --git a/crates/formality-core/src/judgment/proven_set.rs b/crates/formality-core/src/judgment/proven_set.rs
+index 8156ec0..585c0f3 100644
+--- a/crates/formality-core/src/judgment/proven_set.rs
++++ b/crates/formality-core/src/judgment/proven_set.rs
+@@ -1,46 +1,47 @@
+-use crate::{set, Set};
++use crate::{judgment::IfThen, set, Map, Set};
+ use std::{
+     fmt::Debug,
+     hash::{Hash, Hasher},
++    panic::Location,
+ };
+ 
++pub type Proven<J> = (J, ProofTree);
++
++#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
++#[must_use]
++pub struct ProofTree {
++    /// Name of the judgment being proved
++    pub judgment_name: String,
++
++    /// Attributes as field: value pairs
++    pub attributes: Vec<(String, String)>,
++
++    /// Succeeded with this rule-name and index, if Some;
++    /// if None, then there is only a single rule and this is not relevant.
++    pub rule_name: Option<&'static str>,
++
++    /// ...located in this file...
++    pub file: String,
++
++    /// ...at this line...
++    pub line: u32,
++
++    /// ...and this column...
++    pub column: u32,
++
++    /// ...with these subproofs.
++    pub children: Vec<ProofTree>,
++}
++
++impl ProofTree {
++    /// Create a leaf "proof tree" from a value.
++    ///
++    /// The origin will be the caller of this function
++    /// and there won't be any child trees.
++    #[track_caller]
++    pub fn leaf(judgment: impl ToString) -> Self {
++        Self::new(judgment, None, Vec::new())
++    }
++
++    pub fn with_all(
++        judgment_name: impl ToString,
++        attributes: Vec<(String, String)>,
++        rule_name: Option<&'static str>,
++        file: impl ToString,
++        line: u32,
++        column: u32,
++        children: Vec<ProofTree>,
++    ) -> Self {
++        Self {
++            judgment_name: judgment_name.to_string(),
++            attributes,
++            rule_name,
++            file: file.to_string(),
++            line,
++            column,
++            children,
++        }
++    }
++
++    /// Create a "proof tree" from a value.
++    /// The origin will be the caller of this function.
++    #[track_caller]
++    pub fn new(
++        judgment: impl ToString,
++        rule_name: Option<&'static str>,
++        children: Vec<ProofTree>,
++    ) -> Self {
++        let caller = Location::caller();
++        let proof = ProofTree {
++            judgment_name: judgment.to_string(),
++            attributes: Vec::new(),
++            rule_name,
++            file: caller.file().to_string(),
++            line: caller.line(),
++            column: caller.column(),
++            children,
++        };
++        proof
++    }
++
++    /// Total number of nodes in the proof tree.
++    pub fn total_nodes(&self) -> usize {
++        1 + self.children.iter().map(|c| c.total_nodes()).sum::<usize>()
++    }
++}
++
++/// Insert a proof tree into the map, keeping the smaller tree if one already exists.
++/// Comparison is by total nodes first, then by string representation as tiebreaker.
++pub fn insert_smallest_proof<K: Ord + Clone>(
++    map: &mut Map<K, ProofTree>,
++    key: K,
++    proof: ProofTree,
++) {
++    match map.get(&key) {
++        Some(existing) => {
++            let dominated = (proof.total_nodes(), format!("{:?}", proof))
++                < (existing.total_nodes(), format!("{:?}", existing));
++            if dominated {
++                map.insert(key, proof);
++            }
++        }
++        None => {
++            map.insert(key, proof);
++        }
++    }
++}
++
++impl std::fmt::Display for ProofTree {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        write!(f, "{}", self.judgment_name)
++    }
++}
++
++impl std::fmt::Debug for ProofTree {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        std::fmt::Display::fmt(self, f)
++    }
++}
++
++pub type EachProof<T> = dyn FnMut(Proven<T>);
++
+ /// Represents a set of items that were successfully proven using a judgment.
+ /// If the set is empty, then tracks the reason that the judgment failed for diagnostic purposes.
+ #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ #[must_use]
+-pub struct ProvenSet<T> {
+-    data: Data<T>,
++pub struct ProvenSet<J> {
++    data: ProvenSetData<J>,
+ }
+ 
+ #[derive(Clone)]
+-enum Data<T> {
++enum ProvenSetData<J> {
+     Failure(Box<FailedJudgment>),
+-    Success(Set<T>),
++    Success(Map<J, ProofTree>),
+ }
+ 
+-impl<T> From<Data<T>> for ProvenSet<T> {
+-    fn from(data: Data<T>) -> Self {
++impl<J> From<ProvenSetData<J>> for ProvenSet<J> {
++    fn from(data: ProvenSetData<J>) -> Self {
+         ProvenSet { data }
+     }
+ }
+ 
+-impl<T> From<FailedJudgment> for ProvenSet<T> {
++impl<J> From<FailedJudgment> for ProvenSet<J> {
+     fn from(failure: FailedJudgment) -> Self {
+-        Data::Failure(Box::new(failure)).into()
++        ProvenSetData::<J>::Failure(Box::new(failure)).into()
+     }
+ }
+ 
+-impl<T: Ord + Debug> ProvenSet<T> {
++impl<J: Ord + Debug + Clone> ProvenSet<J> {
+     /// Creates a judgment set with a single item that was successfully proven.
+-    pub fn singleton(item: T) -> Self {
+-        Self::proven(set![item])
++    pub fn singleton(item: Proven<J>) -> Self {
++        Self::proven(std::iter::once(item).collect())
+     }
+ 
+     /// Creates a judgment set with a set of `T` items that were successfully proven.
+     /// The set should be non-empty.
+-    pub fn proven(data: Set<T>) -> Self {
++    pub fn proven(data: Map<J, ProofTree>) -> Self {
+         assert!(!data.is_empty());
+-        Data::Success(data).into()
++        ProvenSetData::Success(data).into()
+     }
+ 
+     /// Creates a `JudgmentSet` from a Rust function that failed for the given reason.
+@@ -65,26 +66,19 @@ impl<T: Ord + Debug> ProvenSet<T> {
+     /// True if the judgment whose result this set represents was proven at least once.
+     pub fn is_proven(&self) -> bool {
+         match &self.data {
+-            Data::Failure(_) => false,
+-            Data::Success(s) => {
++            ProvenSetData::Failure(_) => false,
++            ProvenSetData::Success(s) => {
+                 assert!(!s.is_empty());
+                 true
+             }
+         }
+     }
+ 
+-    pub fn check_proven(self) -> Result<(), Box<FailedJudgment>> {
+-        match self.data {
+-            Data::Failure(e) => Err(e),
+-            Data::Success(_) => Ok(()),
+-        }
+-    }
+-
+     /// Convert to a non-empty set of proven results (if ok) or an error (otherwise).
+-    pub fn into_set(self) -> Result<Set<T>, Box<FailedJudgment>> {
++    pub fn into_map(self) -> Result<Map<J, ProofTree>, Box<FailedJudgment>> {
+         match self.data {
+-            Data::Failure(e) => Err(e),
+-            Data::Success(s) => {
++            ProvenSetData::Failure(e) => Err(e),
++            ProvenSetData::Success(s) => {
+                 assert!(!s.is_empty());
+                 Ok(s)
+             }
+@@ -92,10 +86,13 @@ impl<T: Ord + Debug> ProvenSet<T> {
+     }
+ }
+ 
+-impl<I: Ord + Debug> FromIterator<I> for ProvenSet<I> {
+-    fn from_iter<T: IntoIterator<Item = I>>(iter: T) -> Self {
+-        let set: Set<I> = iter.into_iter().collect();
++impl ProvenSet<()> {
++    /// For cases where the "value" is just `()`, we can just extract the singular proof-tree directly
++    pub fn check_proven(self) -> Result<ProofTree, Box<FailedJudgment>> {
++        match self.data {
++            ProvenSetData::Failure(e) => Err(e),
++            ProvenSetData::Success(mut map) => Ok(map.remove(&()).expect("non-empty")),
++        }
++    }
++}
++
++impl<J: Ord + Debug + Clone> FromIterator<Proven<J>> for ProvenSet<J> {
++    fn from_iter<T: IntoIterator<Item = Proven<J>>>(iter: T) -> Self {
++        let set: Map<J, ProofTree> = iter.into_iter().collect();
+         if set.is_empty() {
+             ProvenSet::failed("collect", "empty collection")
+         } else {
