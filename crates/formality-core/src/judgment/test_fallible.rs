@@ -76,9 +76,9 @@ fn is_equal_44() {
 fn is_not_equal() {
     jfn(Check { x: 22 }, 23).assert_err(expect_test::expect![[r#"
         judgment `jfn { c: Check { x: 22 }, x: 23 }` failed at the following rule(s):
-          the rule "other-rule" failed at step #0 (src/file.rs:LL:CC) because
+          the rule "other-rule" failed at step #0 (test_fallible.rs) because
             expected 22 got 23
-          the rule "rule" failed at step #0 (src/file.rs:LL:CC) because
+          the rule "rule" failed at step #0 (test_fallible.rs) because
             expected 22 got 23"#]]);
 }
 

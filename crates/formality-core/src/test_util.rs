@@ -38,11 +38,14 @@
 use std::fmt::{Debug, Display};
 
 /// Converts `s` to a string and replaces path/line/column patterns like `src/blah/foo.rs:22:33` in the string
-/// with `"src/file.rs:LL:CC"`. This makes error messages resilient against changes to the source code.
+/// with just the filename `foo.rs`. This makes error messages resilient against changes to the source code
+/// while still showing which file the error came from.
 pub fn normalize_paths(s: impl Display) -> String {
     let s = s.to_string();
-    let re = regex::Regex::new(r"\([^()]+.rs:\d+:\d+\)").unwrap();
-    re.replace_all(&s, "(src/file.rs:LL:CC)").to_string()
+    // Capture the filename (without path) and strip line:column
+    // Handle both forward slashes (Unix) and backslashes (Windows) as path separators
+    let re = regex::Regex::new(r"\((?:[^()]+[/\\])?([^()/\\]+\.rs):\d+:\d+\)").unwrap();
+    re.replace_all(&s, "($1)").to_string()
 }
 
 /// Extension methods for writing tests on functions that return [`Fallible`](crate::Fallible) values.
