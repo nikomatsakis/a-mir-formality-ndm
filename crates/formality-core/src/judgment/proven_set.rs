@@ -4,6 +4,47 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+/// A proof tree that tracks not just whether proofs succeed, but why they succeeded.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[must_use]
+pub struct ProofTree {
+    /// Name of the judgment being proved
+    pub judgment_name: String,
+    
+    /// Succeeded with this rule-name and index, if Some;
+    /// if None, then there is only a single rule and this is not relevant.
+    pub rule_name: Option<&'static str>,
+    
+    /// Child proof trees
+    pub children: Vec<ProofTree>,
+}
+
+impl ProofTree {
+    /// Create a new proof tree
+    pub fn new(
+        judgment: impl ToString,
+        rule_name: Option<&'static str>,
+        children: Vec<ProofTree>,
+    ) -> Self {
+        Self {
+            judgment_name: judgment.to_string(),
+            rule_name,
+            children,
+        }
+    }
+    
+    /// Create a leaf proof tree from a judgment name
+    pub fn leaf(judgment: impl ToString) -> Self {
+        Self::new(judgment, None, Vec::new())
+    }
+}
+
+impl std::fmt::Display for ProofTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.judgment_name)
+    }
+}
+
 /// Represents a set of items that were successfully proven using a judgment.
 /// If the set is empty, then tracks the reason that the judgment failed for diagnostic purposes.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

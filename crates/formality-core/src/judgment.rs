@@ -6,7 +6,7 @@ mod assertion;
 pub use assertion::JudgmentAssertion;
 
 mod proven_set;
-pub use proven_set::{FailedJudgment, FailedRule, ProvenSet, RuleFailureCause, TryIntoIter};
+pub use proven_set::{FailedJudgment, FailedRule, ProofTree, ProvenSet, RuleFailureCause, TryIntoIter};
 
 mod test_fallible;
 mod test_filtered;

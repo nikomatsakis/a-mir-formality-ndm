@@ -45,7 +45,7 @@ pub use collections::Deduplicate;
 pub use collections::Map;
 pub use collections::Set;
 pub use collections::SetExt;
-pub use judgment::ProvenSet;
+pub use judgment::{ProofTree, ProvenSet};
 
 /// Run an action with a tracing log subscriber. The logging level is loaded
 /// from `RUST_LOG`. The `formality_macro::test` expansion uses this to enable logs.
