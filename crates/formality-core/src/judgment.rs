@@ -10,6 +10,7 @@ pub use proven_set::{FailedJudgment, FailedRule, ProofTree, ProvenSet, RuleFailu
 
 mod test_fallible;
 mod test_filtered;
+mod test_for_all;
 mod test_reachable;
 
 pub type JudgmentStack<J, O> = RefCell<FixedPointStack<J, Set<O>>>;
@@ -400,6 +401,25 @@ macro_rules! push_rules {
                     )*
                 ],
             });
+        }
+    };
+
+    (@body $args:tt; $inputs:tt; $step_index:expr; (for_all($loop_var:ident in $collection:expr) $($inner_step:tt)*) $($m:tt)*) => {
+        // for_all implementation: succeeds vacuously for empty collections
+        {
+            let collection = $collection;
+            let items: Vec<_> = std::iter::IntoIterator::into_iter(collection).collect();
+            
+            if items.is_empty() {
+                // Empty collection succeeds vacuously
+                $crate::push_rules!(@body $args; $inputs; $step_index + 1; $($m)*);
+            } else {
+                // For non-empty collections, execute inner steps for each item
+                for $loop_var in &items {
+                    $crate::push_rules!(@body $args; $inputs; $step_index; $($inner_step)*);
+                }
+                $crate::push_rules!(@body $args; $inputs; $step_index + 1; $($m)*);
+            }
         }
     };
 
