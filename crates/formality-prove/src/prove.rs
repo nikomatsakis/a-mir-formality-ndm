@@ -38,11 +38,20 @@ pub fn prove(
     let assumptions: Wcs = assumptions.upcast();
     let goal: Wcs = goal.upcast();
 
+    // "Minimize" the env/assumptions/goals so that we better detect cycles.
     let (env, (assumptions, goal), min) = minimize::minimize(env, (assumptions, goal));
 
+    // Establish context for debugging/tracing logs.
     let span = tracing::span!(Level::DEBUG, "prove", ?goal, ?assumptions, ?env, ?decls);
     let _guard = span.enter();
 
+    // Fail if the terms are getting too large ("overflow detection").
+    // This is meant to capture complex recursion cycles that will never terminate but also
+    // never reach a (simple) cycle, e.g., proving `A: Foo` requires proving `Vec<A>: Foo`
+    // requires proving `Vec<Vec<A>>: Foo` etc.
+    //
+    // In the compiler we use recursion depth instead. We avoid recursion depth because it requires
+    // knowing the context in which the proof occurs.
     let term_in = (&assumptions, &goal);
     if term_in.size() > decls.max_size {
         tracing::debug!(

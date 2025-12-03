@@ -9,6 +9,7 @@ use crate::{
 use super::{env::Env, prove_wc::prove_wc};
 
 judgment_fn! {
+    /// Prove that all elements in `goals`, a list of where-clauses, are true, one after the other.
     pub fn prove_wc_list(
         _decls: Decls,
         env: Env,

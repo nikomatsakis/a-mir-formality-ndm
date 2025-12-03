@@ -193,6 +193,10 @@ impl Env {
         vars
     }
 
+    /// Returns `(e,s)` where
+    ///
+    /// * `s` is a list of fresh universal variables for each variable bound in `b`; and,
+    /// * `e` is an extended environment with these universal variables in scope.
     pub fn universal_substitution<T>(&self, b: &Binder<T>) -> (Env, Vec<UniversalVar>)
     where
         T: Fold,
@@ -205,6 +209,8 @@ impl Env {
         (env, subst)
     }
 
+    /// Given a bound value `<X..> v`, returns `v` with `X...` replaced with fresh universal variables.
+    /// Modifies `self` to bring those variables into scope.
     pub fn instantiate_universally<T>(&mut self, b: &Binder<T>) -> T
     where
         T: Fold,
@@ -216,6 +222,10 @@ impl Env {
         b.instantiate_with(&subst).unwrap()
     }
 
+    /// Returns `(e,s)` where
+    ///
+    /// * `s` is a list of fresh inference variables for each variable bound in `b`; and,
+    /// * `e` is an extended environment with these inference variables in scope.
     pub fn existential_substitution<T>(&self, b: &Binder<T>) -> (Env, Vec<ExistentialVar>)
     where
         T: Fold,
