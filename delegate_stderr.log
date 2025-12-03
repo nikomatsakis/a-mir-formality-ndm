@@ -13,7 +13,10 @@
 
 [2K[1G[38;5;244m╭───────────────────────────────[39m Did you know? [38;5;244m────────────────────────────────╮[39m
 [38;5;244m│                                                                              │
-[39m[38;5;244m│[39m        Run [38;5;141m/prompts[0m to learn how to build & run repeatable workflows         [38;5;244m│[39m
+[39m[38;5;244m│[39m        You can specify wait time (in ms) for mcp server loading with         [38;5;244m│[39m
+[38;5;244m│[39m         [38;5;141mkiro-cli settings mcp.initTimeout {timeout in int}[0m. Servers          [38;5;244m│[39m
+[38;5;244m│[39m    that take longer than the specified time will continue to load in the     [38;5;244m│[39m
+[38;5;244m│[39m                background. Use /tools to see pending servers.                [38;5;244m│[39m
 [38;5;244m│                                                                              │
 [39m[38;5;244m╰──────────────────────────────────────────────────────────────────────────────╯[39m
 
@@ -26,28 +29,8 @@ Learn more at [38;5;141mhttps://kiro.dev/docs/cli/chat/security/#using-tools-tr
 
 
 
-[38;5;252m[0m[?25l[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m ⋮ 
-[1m[38;5;9m ● Execution failed after 0.7s:
-[0m[38;5;9mThis tool only supports reading 400000 bytes at a
-time. You tried to read 437755 bytes. Try executing with fewer lines specified.[0m
-
-[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m ⋮ 
-[1m[38;5;9m ● Execution failed after 0.3s:
-[0m[38;5;9mno occurrences of "        // Check whether the local_id in the function arguments are declared.
-        for function_arg_id in &body.args {
-            if body
-                .locals
-                .iter()
-                .find(|declared_decl| declared_decl.id == *function_arg_id)" were found[0m
-
-[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m ⋮ 
-[1m[38;5;9m ● Execution failed after 0.2s:
-[0m[38;5;9m2 occurrences of old_str were found when only 1 is expected[0m
-
-[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[1mTool validation failed: [0m
-[38;5;9mFailed to validate tool parameters: Path is not a file: 
-[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m ⋮ 
+[38;5;252m[0m[?25l[?25l[0m[0m[?25l[0m[?25l[0m[0m ⋮ 
 [1m[38;5;9m ● Execution failed after 0.1s:
-[0m[38;5;9m2 occurrences of old_str were found when only 1 is expected[0m
+[0m[38;5;9mMcp error: -32603: Failed to log progress({"error":"Other error: No .symposium directory found in directory tree","message":"Starting final integration task - checking current build status"})[0m
 
-[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m
+[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m[?25l[0m[?25l[0m[0m

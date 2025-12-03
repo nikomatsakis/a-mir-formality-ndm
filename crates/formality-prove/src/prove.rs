@@ -1,4 +1,4 @@
-mod combinators;
+pub mod combinators;
 mod constraints;
 mod env;
 mod is_local;
@@ -15,9 +15,9 @@ mod prove_wc_list;
 mod prove_wf;
 
 pub use constraints::Constraints;
-use formality_core::judgment::{FailedRule, TryIntoIter};
+use formality_core::judgment::{EachProof, FailedRule, ProofTree};
 use formality_core::visit::CoreVisit;
-use formality_core::{set, ProvenSet, Upcast};
+use formality_core::{map, set, ProvenSet, Upcast};
 use formality_types::grammar::Wcs;
 use tracing::Level;
 
@@ -60,11 +60,16 @@ pub fn prove(
             term_in.size(),
             decls.max_size
         );
-        return ProvenSet::singleton(Constraints::none(env).ambiguous());
+        return ProvenSet::singleton((
+            Constraints::none(env).ambiguous(),
+            ProofTree::leaf("max term size exceeded"),
+        ));
     }
 
+    // Assert the term we are trying to prove should not have any variables that are not in the environment.
     assert!(env.encloses(term_in));
 
+    // Call `prove_wc_list` to do the real work.
     struct ProveFailureLabel(String);
     let label = ProveFailureLabel(format!(
         "prove {{ goal: {goal:?}, assumptions: {assumptions:?}, env: {env:?}, decls: {decls:?} }}"
@@ -74,16 +79,27 @@ pub fn prove(
             f.write_str(&self.0)
         }
     }
-    let result_set =
-        match prove_wc_list(decls, &env, assumptions, goal).try_into_iter(|| "".to_string()) {
-            Ok(s) => ProvenSet::from_iter(s),
-            Err(e) => ProvenSet::failed_rules(label, set![FailedRule::new(e)]),
-        };
+    let mut results = map![];
+    let result_set = if let Err(e) = prove_wc_list(decls, &env, assumptions, goal).each_proof(
+        || "".to_string(),
+        |(result, proof_tree)| {
+            results.insert(result, proof_tree);
+        },
+    ) {
+        ProvenSet::failed_rules(label, set![FailedRule::new(e)])
+    } else {
+        ProvenSet::proven(results)
+    };
 
     tracing::debug!(?result_set);
 
-    result_set.map(|r| {
+    // Map the results back to the "unminimized" form ("reconstitute").
+    let maxified = result_set.map(|(r, proof_tree)| {
         assert!(r.is_valid_extension_of(&env));
-        min.reconstitute(r)
-    })
+        (min.reconstitute(r), proof_tree)
+    });
+
+    tracing::debug!(?maxified);
+
+    maxified
 }

@@ -10,9 +10,9 @@ This plan organizes the git history cleanup for: This branch implements a "first
 * [x] Simplify error assertion macros to reduce noise
 * [x] Add new `for_all` statement form to avoid extraneous judgments  
 * [x] Add comments and documentation to existing logic
-* [ ] Implement borrow checker liveness analysis
-* [ ] Implement core borrow checker with NLL
-* [ ] Integrate borrow checker with main checking pipeline
+* [x] Implement borrow checker liveness analysis
+* [x] Implement core borrow checker with NLL
+* [~] Integrate borrow checker with main checking pipeline (PARTIAL - delegated agent encountered file path issues)
 
 ## Agent Instructions
 

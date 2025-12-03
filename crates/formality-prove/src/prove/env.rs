@@ -263,6 +263,18 @@ impl Env {
         (env, subst)
     }
 
+    /// Given a bound value `<X..> v`, returns `v` with `X...` replaced with fresh inference variables.
+    /// Modifies `self` to bring those variables into scope.
+    pub fn instantiate_existentially<T>(&mut self, b: &Binder<T>) -> T
+    where
+        T: Fold,
+    {
+        let (env, subst) = self.existential_substitution(b);
+        let result = b.instantiate_with(&subst).unwrap();
+        *self = env;
+        result
+    }
+
     /// Given a set of variables that was returned by
     /// `existential_substitution` or `universal_substitution`,
     /// removes those variables from `self` along with anything created afterwards.
