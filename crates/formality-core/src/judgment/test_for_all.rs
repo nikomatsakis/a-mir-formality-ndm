@@ -34,31 +34,48 @@ judgment_fn! {
 #[test]
 fn test_for_all_success() {
     let nums = vec![Num(2), Num(4), Num(6)];
-    all_even(nums).assert_ok(expect_test::expect![[r#"
-        {
-          (),
-        }
-    "#]]);
+    all_even(nums).assert_ok(expect_test::expect!["{()}"]);
 }
 
 #[test]
-fn test_for_all_with_mixed_numbers() {
-    // NOTE: This test currently passes but should fail when proper "for all" semantics are implemented
-    // The current implementation provides syntax but not full semantics
+fn test_for_all_failure() {
     let nums = vec![Num(2), Num(3), Num(6)];
-    all_even(nums).assert_ok(expect_test::expect![[r#"
-        {
-          (),
-        }
-    "#]]);
+    all_even(nums).assert_err(expect_test::expect![[r#"
+        the rule "all_even" at (test_for_all.rs) failed because
+          expression evaluated to an empty collection: `is_even(n)`"#]]);
 }
 
 #[test]
 fn test_for_all_empty() {
     let nums: Vec<Num> = vec![];
-    all_even(nums).assert_ok(expect_test::expect![[r#"
-        {
-          (),
-        }
-    "#]]);
+    all_even(nums).assert_ok(expect_test::expect!["{()}"]);
+}
+
+// Test for_all with accumulator
+judgment_fn! {
+    fn sum_all(
+        nums: Vec<Num>,
+    ) => Num {
+        debug(nums)
+
+        (
+            (let acc: Num = Num(0))
+            (for_all(n in &nums) with(acc)
+                (let acc: Num = Num(acc.0 + n.0)))
+            --------------------------------------- ("sum")
+            (sum_all(nums) => acc)
+        )
+    }
+}
+
+#[test]
+fn test_for_all_with_accumulator() {
+    let nums = vec![Num(1), Num(2), Num(3)];
+    sum_all(nums).assert_ok(expect_test::expect!["{Num(6)}"]);
+}
+
+#[test]
+fn test_for_all_with_accumulator_empty() {
+    let nums: Vec<Num> = vec![];
+    sum_all(nums).assert_ok(expect_test::expect!["{Num(0)}"]);
 }

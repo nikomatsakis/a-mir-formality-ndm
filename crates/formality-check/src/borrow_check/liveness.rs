@@ -1,4 +1,4 @@
-use formality_core::{Set, SetExt, Upcast};
+use formality_core::{fixed_point, Set, SetExt, Upcast};
 use formality_rust::grammar::minirust::{
     ArgumentExpression, BasicBlock, BbId, PlaceExpression, Statement, Terminator, ValueExpression,
 };
@@ -8,7 +8,7 @@ use crate::mini_rust_check::TypeckEnv;
 pub type LivePlaces = Set<PlaceExpression>;
 
 /// Given a basic-block id, returns the places live on entry to the basic block.
-/// This is a simplified version without fixed-point iteration for now.
+#[fixed_point]
 fn places_live_before_basic_block(env: &TypeckEnv, bb_id: &BbId) -> LivePlaces {
     let BasicBlock {
         id: _,
@@ -16,7 +16,7 @@ fn places_live_before_basic_block(env: &TypeckEnv, bb_id: &BbId) -> LivePlaces {
         terminator,
     } = env.basic_block(bb_id).expect("valid basic block id");
 
-    let places = places_live_before_terminator(env, &terminator);
+    let places = places_live_before_terminator(env, terminator);
     let places = statements.live_before(env, places);
     places
 }

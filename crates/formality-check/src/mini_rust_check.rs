@@ -213,7 +213,7 @@ impl TypeckEnv {
         match terminator {
             minirust::Terminator::Goto(bb_id) => {
                 // Check that the basic block `bb_id` exists.
-                proof_tree.children.push(self.check_block_exists(bb_id)?);
+                self.check_block_exists(bb_id)?;
             }
             minirust::Terminator::Call {
                 callee,
@@ -264,7 +264,7 @@ impl TypeckEnv {
 
                 // Check the validity of next bb_id.
                 if let Some(bb_id) = next_block {
-                    proof_tree.children.push(self.check_block_exists(bb_id)?);
+                    self.check_block_exists(bb_id)?;
                 };
             }
             minirust::Terminator::Return => {
@@ -292,9 +292,9 @@ impl TypeckEnv {
 
                 // Ensure all bbid are valid.
                 for switch_target in switch_targets {
-                    proof_tree.children.push(self.check_block_exists(&switch_target.target)?);
+                    self.check_block_exists(&switch_target.target)?;
                 }
-                proof_tree.children.push(self.check_block_exists(fallback)?);
+                self.check_block_exists(fallback)?;
             }
         }
         Ok(proof_tree)
@@ -550,10 +550,10 @@ impl TypeckEnv {
         }
     }
 
-    fn check_block_exists(&self, id: &BbId) -> Fallible<ProofTree> {
+    fn check_block_exists(&self, id: &BbId) -> Fallible<()> {
         for block in self.blocks.iter() {
             if *id == block.id {
-                return Ok(ProofTree::leaf(format!("check_block_exists({id:?})")));
+                return Ok(());
             }
         }
         bail!("Basic block {:?} does not exist", id)

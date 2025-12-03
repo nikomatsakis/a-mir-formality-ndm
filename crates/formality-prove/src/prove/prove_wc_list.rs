@@ -14,11 +14,11 @@ judgment_fn! {
         _decls: Decls,
         env: Env,
         assumptions: Wcs,
-        goal: Wcs,
+        goals: Wcs,
     ) => Constraints {
-        debug(goal, assumptions, env)
+        debug(goals, assumptions, env)
 
-        assert(env.encloses((&assumptions, &goal)))
+        assert(env.encloses((&assumptions, &goals)))
 
         (
             --- ("none")

@@ -783,7 +783,7 @@ fn test_ref_identity() {
 /// ```
 #[test]
 fn test_borrow_check_basic() {
-    crate::assert_ok!(
+    crate::assert_err!(
         [
             crate Foo {
                 fn foo() -> i32 = minirust() -> v0 {
@@ -809,6 +809,20 @@ fn test_borrow_check_basic() {
                 };
             }
         ]
+
+        [
+        ]
+
+        expect_test::expect![[r#"
+            the rule "borrow of disjoint places" at (nll.rs) failed because
+              condition evaluted to false: `place_disjoint_from_place(&loan.place, &access.place)`
+                &loan.place = local(v1)
+                &access.place = local(v1)
+
+            the rule "loan_cannot_outlive" at (nll.rs) failed because
+              condition evaluted to false: `!outlived_by_loan.contains(&lifetime.upcast())`
+                outlived_by_loan = {?lt_1, ?lt_2}
+                &lifetime.upcast() = ?lt_1"#]]
     )
 }
 
@@ -824,7 +838,7 @@ fn test_borrow_check_basic() {
 /// ```
 #[formality_core::test]
 fn test_ref_not_subtype() {
-    crate::assert_ok!(
+    crate::assert_err!(
         [
             crate Foo {
                 fn foo<lt a, lt b>(&a u32) -> &b u32 = minirust(v1) -> v0 {
@@ -845,6 +859,11 @@ fn test_ref_not_subtype() {
                 };
             }
         ]
+
+        [
+        ]
+
+        expect_test::expect!["judgment had no applicable rules: `verify_universal_outlives { env: TypeckEnv { program: [crate Foo { fn foo <lt, lt> (&^lt0_0 u32) -> &^lt0_1 u32 = minirust(v1) -> v0 { let v0 : &^lt0_1 u32 ; let v1 : &^lt0_0 u32 ; exists <lt> { let v2 : &^lt0_0 u32 ; bb0 : { statements{ local(v2) = load(local(v1)) ; local(v0) = load(local(v2)) ; } return ; } } } ; }], env: Env { variables: [!lt_1, !lt_2, ?lt_3], bias: Soundness, pending: [], allow_pending_outlives: false }, output_ty: &!lt_2 u32, local_variables: {v0: &!lt_2 u32, v1: &!lt_1 u32, v2: &?lt_3 u32}, blocks: [bb0 : { statements{ local(v2) = load(local(v1)) ; local(v0) = load(local(v2)) ; } return ; }], ret_id: v0, ret_place_is_initialised: true, declared_input_tys: [&!lt_1 u32], callee_input_tys: {}, crate_id: Foo, fn_args: [v1], pending_outlives: [PendingOutlives { location: Location, a: !lt_1, b: ?lt_3 }, PendingOutlives { location: Location, a: ?lt_3, b: !lt_2 }], decls: decls(222, [], [], [], [], [], [], {}, {}) }, fn_assumptions: {} }`"]
     )
 }
 

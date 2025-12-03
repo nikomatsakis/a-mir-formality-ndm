@@ -11,8 +11,6 @@ use formality_types::grammar::{
 };
 
 impl Program {
-    /// Convert this Rust program into declarations that can be used by the proof engine.
-    /// This extracts all the traits, impls, ADTs, and other declarations needed for proving.
     pub fn to_prove_decls(&self) -> prove::Decls {
         formality_prove::Decls {
             max_size: formality_prove::Decls::DEFAULT_MAX_SIZE,
@@ -338,8 +336,6 @@ impl Crate {
     }
 }
 
-/// Trait for converting various types into where-clauses (Wcs).
-/// This provides a uniform interface for extracting constraints from different Rust constructs.
 pub trait ToWcs {
     fn to_wcs(&self) -> Wcs;
 }

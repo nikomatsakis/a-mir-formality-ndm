@@ -55,7 +55,7 @@ impl Wcs {
 
     /// Iterate over where-clauses
     pub fn iter(&self) -> impl Iterator<Item = Wc> + use<'_> {
-        self.set.iter().cloned()
+        self.into_iter()
     }
 }
 

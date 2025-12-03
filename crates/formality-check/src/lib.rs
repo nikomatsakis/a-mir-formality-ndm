@@ -72,7 +72,7 @@ impl Check<'_> {
         let Crate { id, items } = c;
         let mut proof_tree = ProofTree::new(format!("check_current_crate({id:?})"), None, vec![]);
 
-        proof_tree.children.push(self.check_for_duplicate_items()?);
+        self.check_for_duplicate_items()?;
 
         for item in items {
             proof_tree.children.push(self.check_crate_item(item, &id)?);
@@ -83,7 +83,7 @@ impl Check<'_> {
         Ok(proof_tree)
     }
 
-    fn check_for_duplicate_items(&self) -> Fallible<ProofTree> {
+    fn check_for_duplicate_items(&self) -> Fallible<()> {
         let Program { crates } = &self.program;
         for c in crates.iter() {
             let mut items = Set::new();
@@ -116,7 +116,7 @@ impl Check<'_> {
             }
         }
 
-        Ok(ProofTree::leaf("check_for_duplicate_items"))
+        Ok(())
     }
 
     fn check_crate_item(&self, c: &CrateItem, crate_id: &CrateId) -> Fallible<ProofTree> {
