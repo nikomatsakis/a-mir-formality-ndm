@@ -4,11 +4,11 @@ use crate::grammar::minirust::{
     Terminator, ValueExpression,
 };
 use crate::grammar::PredicateTy;
+use crate::grammar::{AdtBoundData, Variant};
 use crate::grammar::{
     AliasTy, Lt, LtData, Parameter, RefKind, Relation, RigidName, RigidTy, Ty, TyData, Variable,
     VariantId, Wcs,
 };
-use crate::grammar::{AdtBoundData, Variant};
 use crate::prove::prove::prove;
 use formality_core::{judgment::ProofTree, judgment_fn, set, term, Cons, Fallible, Set, Upcast};
 use std::sync::Arc;
