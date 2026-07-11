@@ -1,11 +1,10 @@
 use crate::grammar::{
-    AdtId, AliasName, AliasTy, AssociatedTy, AssociatedTyBoundData, AssociatedTyValue,
-    AssociatedTyValueBoundData, Binder, Crate, CrateId, CrateItem, Crates, ImplItem, NegTraitImpl,
-    Parameter, Predicate, Relation, Trait, TraitBoundData, TraitId, TraitImpl, TraitImplBoundData,
-    TraitItem, TraitRef, Ty, Wc, Wcs,
+    AdtId, AliasName, AliasTy, AssociatedTyValue, AssociatedTyValueBoundData, Binder, Crate,
+    CrateId, CrateItem, Crates, ImplItem, NegTraitImpl, Trait, TraitId, TraitImpl,
+    TraitImplBoundData, Ty, Wcs,
 };
 use crate::prove::ToWcs;
-use formality_core::{seq, Downcasted, Set, To, Upcast, Upcasted};
+use formality_core::{seq, Downcasted, To, Upcast, Upcasted};
 use formality_macros::term;
 use std::sync::Arc;
 
@@ -77,6 +76,11 @@ impl Program {
                     })
             })
             .collect()
+    }
+
+    /// Return the raw trait definitions from all crates.
+    pub fn traits(&self) -> Vec<Trait> {
+        self.crates.items_from_all_crates().downcasted().collect()
     }
 
     pub fn trait_impls_in_crate(&self, krate: &Crate) -> Vec<TraitImpl> {
@@ -167,120 +171,6 @@ impl Program {
             .collect()
     }
 
-    /// Return the set of implied requirements for all traits.
-    pub fn trait_requirements(&self) -> Set<TraitRequirement> {
-        self.crates
-            .items_from_all_crates()
-            .filter_map(|item| match item {
-                CrateItem::Trait(t) => Some(t),
-                _ => None,
-            })
-            .flat_map(Self::requirements_for_trait)
-            .collect()
-    }
-
-    /// Return the implied requirements declared by `trait_def`.
-    ///
-    /// For example, `trait Eq where Self: PartialEq` yields the requirement
-    /// `forall<Self> Eq(Self) => PartialEq(Self)`.
-    fn requirements_for_trait(trait_def: &Trait) -> Set<TraitRequirement> {
-        let (
-            variables,
-            TraitBoundData {
-                where_clauses,
-                trait_items,
-            },
-        ) = trait_def.binder.open();
-        let self_var: Parameter = variables[0].upcast();
-        let source = TraitRef::new(&trait_def.id, &variables);
-
-        let make_requirement = |required| TraitRequirement {
-            binder: Binder::new(
-                &variables,
-                TraitRequirementBoundData {
-                    source: source.clone(),
-                    required,
-                },
-            ),
-        };
-
-        fn is_supertrait(self_var: &Parameter, wc: &Wc) -> bool {
-            match wc {
-                Wc::Predicate(Predicate::IsImplemented(trait_ref)) => {
-                    trait_ref.parameters[0] == *self_var
-                }
-                Wc::Relation(Relation::Outlives(a, _)) => *a == *self_var,
-                Wc::Predicate(_) => false,
-                Wc::Relation(_) => false,
-                Wc::ForAll(binder) => is_supertrait(self_var, binder.peek()),
-                Wc::Implies(_, consequence) => is_supertrait(self_var, consequence),
-            }
-        }
-
-        let mut requirements: Set<_> = where_clauses
-            .to_wcs()
-            .into_iter()
-            .filter(|required| is_supertrait(&self_var, required))
-            .map(&make_requirement)
-            .collect();
-
-        // A Rust declaration like
-        //
-        //     trait Foo {
-        //         type Bar<T>: Ord where T: Copy;
-        //     }
-        //
-        // gives rise to the requirement
-        //
-        //     forall<Self> Foo(Self) =>
-        //         forall<T> if { Copy(T) } Ord(<Self as Foo>::Bar<T>).
-        //
-        // The associated type's own variables are therefore bound inside `required`, while
-        // the trait's variables bind the entire requirement, including its `source`.
-        for trait_item in trait_items {
-            let TraitItem::AssociatedTy(AssociatedTy { id, binder }) = trait_item else {
-                continue;
-            };
-            let (
-                associated_variables,
-                AssociatedTyBoundData {
-                    ensures,
-                    where_clauses,
-                },
-            ) = binder.open();
-            let alias_parameters: Vec<Parameter> = variables
-                .iter()
-                .chain(&associated_variables)
-                .upcasted()
-                .collect();
-            let alias = AliasTy::associated_ty(
-                &trait_def.id,
-                &id,
-                associated_variables.len(),
-                alias_parameters,
-            );
-            let has_conditions = !where_clauses.is_empty();
-            let conditions = where_clauses.to_wcs();
-
-            for ensure in ensures {
-                let required = ensure.to_wc(&alias);
-                let required = if has_conditions {
-                    Wc::Implies(conditions.clone(), Arc::new(required))
-                } else {
-                    required
-                };
-                let required = if associated_variables.is_empty() {
-                    required
-                } else {
-                    Wc::for_all(Binder::new(&associated_variables, required))
-                };
-                requirements.insert(make_requirement(required));
-            }
-        }
-
-        requirements
-    }
-
     /// Create a `Program` wrapping the given items in a single crate named "test".
     pub fn program_from_items(items: Vec<CrateItem>) -> Crates {
         Crates {
@@ -321,27 +211,6 @@ pub enum Safety {
     #[default]
     Safe,
     Unsafe,
-}
-
-/// A trait requirement is a rule like
-/// `forall<T> Implemented(T: Eq) => Implemented(T: PartialEq)`.
-///
-/// The `source` trait-ref implies the `required` where-clause. The ordinary solver uses this
-/// implication to elaborate implied bounds. Impl validation will also use these requirements
-/// when validating a selected impl.
-#[term]
-pub struct TraitRequirement {
-    pub binder: Binder<TraitRequirementBoundData>,
-}
-
-/// The data bound by a [`TraitRequirement`].
-#[term($source => $required)]
-pub struct TraitRequirementBoundData {
-    /// The implemented trait-ref that gives rise to this requirement.
-    pub source: TraitRef,
-
-    /// The where-clause implied by the source trait-ref.
-    pub required: Wc,
 }
 
 /// An "alias equal declaration" declares when an alias type can be normalized

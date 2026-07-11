@@ -264,8 +264,7 @@ fn test_let_with_ill_formed_type() {
         }
     }])
     .err(expect_test::expect![[r#"
-                the rule "trait requirement" at (prove_wc.rs) failed because
-                  expression evaluated to an empty collection: `decls.trait_requirements()`"#]])
+                crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Trait1(S1), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]])
 }
 
 // Test calling a function that does not exist.

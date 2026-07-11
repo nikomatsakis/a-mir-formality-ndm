@@ -37,10 +37,7 @@ fn missing_dependent_where_clause() {
     .err(expect_test::expect![[r#"
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ WellFormedTraitRef(Trait2(S1<!ty_0>)), via: Trait2(S1<!ty_0>), assumptions: {Trait2(S1<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Trait1(!ty_0), via: Trait2(S1<!ty_0>), assumptions: {Trait2(S1<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        the rule "trait requirement" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `decls.trait_requirements()`"#]])
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Trait1(!ty_0), via: Trait2(S1<!ty_0>), assumptions: {Trait2(S1<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 #[test]

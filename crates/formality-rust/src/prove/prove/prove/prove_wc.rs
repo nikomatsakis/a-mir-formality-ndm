@@ -18,6 +18,7 @@ use crate::prove::prove::{
         prove_via_impl::prove_via_impl,
         prove_wf::prove_wf,
     },
+    requirements::trait_requirement,
 };
 
 use super::constraints::{Constrained, Constraints};
@@ -108,7 +109,9 @@ judgment_fn! {
         // (`Eq(U)`). This lazily elaborates implied bounds rather than adding all of their
         // consequences to the assumptions eagerly.
         (
-            (requirement in decls.trait_requirements())
+            (trait_def in decls.traits())
+            // Requirement generation is partial, so commit only after this trait yields one.
+            (trait_requirement(trait_def) => requirement)!
             (let (env, subst) = env.existential_substitution(&requirement.binder))
             (let requirement = requirement.binder.instantiate_with(&subst).unwrap())
             (prove_via_assumption(decls, env, assumptions, &requirement.required, trait_ref) => c)

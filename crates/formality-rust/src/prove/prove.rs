@@ -13,6 +13,7 @@ use crate::rust::FormalityLang;
 mod db;
 mod decls;
 mod prove;
+mod requirements;
 
 pub use decls::*;
 pub use prove::combinators;
@@ -23,6 +24,7 @@ pub use prove::{is_definitely_not_proveable, may_not_be_provable, negation_via_f
 pub(crate) use prove::{prove_via_impl, ImplApplication};
 pub use prove::{Bias, Env, MaxUniverse, Universe};
 pub use prove::{Constrained, Constraints};
+pub use requirements::*;
 
 #[cfg(test)]
 mod test;
