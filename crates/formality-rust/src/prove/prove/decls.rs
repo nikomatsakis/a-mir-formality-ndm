@@ -1,8 +1,8 @@
 use crate::grammar::{
     AdtId, AliasName, AliasTy, AssociatedTy, AssociatedTyBoundData, AssociatedTyValue,
     AssociatedTyValueBoundData, Binder, Crate, CrateId, CrateItem, Crates, ImplItem, NegTraitImpl,
-    NegTraitImplBoundData, Parameter, Predicate, Relation, Trait, TraitBoundData, TraitId,
-    TraitImpl, TraitImplBoundData, TraitItem, TraitRef, Ty, Wc, Wcs,
+    Parameter, Predicate, Relation, Trait, TraitBoundData, TraitId, TraitImpl,
+    TraitImplBoundData, TraitItem, TraitRef, Ty, Wc, Wcs,
 };
 use crate::prove::ToWcs;
 use formality_core::{seq, Downcasted, Set, To, Upcast, Upcasted};
@@ -87,27 +87,17 @@ impl Program {
         krate.items.iter().downcasted().collect()
     }
 
-    pub fn impl_decls(&self, trait_id: &TraitId) -> Vec<ImplDecl> {
+    pub fn neg_trait_impls_for(&self, trait_id: &TraitId) -> Vec<NegTraitImpl> {
         self.crates
             .items_from_all_crates()
             .filter_map(|item| match item {
-                CrateItem::TraitImpl(ti) => Some(ti),
+                CrateItem::NegTraitImpl(neg_trait_impl)
+                    if neg_trait_impl.binder.peek().trait_id == *trait_id =>
+                {
+                    Some(neg_trait_impl.clone())
+                }
                 _ => None,
             })
-            .filter(|ti| ti.binder.peek().trait_id == *trait_id)
-            .map(Self::grammar_trait_impl_to_decl)
-            .collect()
-    }
-
-    pub fn neg_impl_decls(&self, trait_id: &TraitId) -> Vec<NegImplDecl> {
-        self.crates
-            .items_from_all_crates()
-            .filter_map(|item| match item {
-                CrateItem::NegTraitImpl(nti) => Some(nti),
-                _ => None,
-            })
-            .filter(|nti| nti.binder.peek().trait_id == *trait_id)
-            .map(Self::grammar_neg_trait_impl_to_decl)
             .collect()
     }
 
@@ -115,51 +105,6 @@ impl Program {
     pub fn trait_decl(&self, trait_id: &TraitId) -> TraitDecl {
         let grammar_trait = self.crates.trait_named(trait_id).unwrap();
         Self::grammar_trait_to_decl(grammar_trait)
-    }
-
-    fn grammar_trait_impl_to_decl(ti: &TraitImpl) -> ImplDecl {
-        let (
-            vars,
-            TraitImplBoundData {
-                trait_id,
-                self_ty,
-                trait_parameters,
-                where_clauses,
-                impl_items: _,
-            },
-        ) = ti.binder.open();
-        ImplDecl {
-            safety: ti.safety.clone(),
-            binder: Binder::new(
-                vars,
-                ImplDeclBoundData {
-                    trait_ref: trait_id.with(self_ty, trait_parameters),
-                    where_clause: where_clauses.to_wcs(),
-                },
-            ),
-        }
-    }
-
-    fn grammar_neg_trait_impl_to_decl(nti: &NegTraitImpl) -> NegImplDecl {
-        let (
-            vars,
-            NegTraitImplBoundData {
-                trait_id,
-                self_ty,
-                trait_parameters,
-                where_clauses,
-            },
-        ) = nti.binder.open();
-        NegImplDecl {
-            safety: nti.safety.clone(),
-            binder: Binder::new(
-                vars,
-                NegImplDeclBoundData {
-                    trait_ref: trait_id.with(self_ty, trait_parameters),
-                    where_clause: where_clauses.to_wcs(),
-                },
-            ),
-        }
     }
 
     fn grammar_trait_to_decl(t: &Trait) -> TraitDecl {
@@ -337,45 +282,6 @@ pub(crate) struct ImplCandidate {
 }
 
 formality_core::cast_impl!(ImplCandidate);
-
-/// An "impl decl" indicates that a trait is implemented for a given set of types.
-/// One "impl decl" is created for each impl in the Rust source.
-#[term($?safety impl $binder)]
-pub struct ImplDecl {
-    /// The safety this impl declares, which needs to match the implemented trait's safety.
-    pub safety: Safety,
-    /// The binder covers the generic variables from the impl
-    pub binder: Binder<ImplDeclBoundData>,
-}
-
-/// Data bound under the generics from [`ImplDecl`][]
-#[term($trait_ref $:where $where_clause)]
-pub struct ImplDeclBoundData {
-    /// The trait ref that is implemented
-    pub trait_ref: TraitRef,
-
-    ///
-    pub where_clause: Wcs,
-}
-
-/// A declaration that some trait will *not* be implemented for a type; derived from negative impls
-/// like `impl !Foo for Bar`.
-#[term($?safety impl $binder)]
-pub struct NegImplDecl {
-    /// The safety this negative impl declares
-    pub safety: Safety,
-
-    /// Binder comes the generics on the impl
-    pub binder: Binder<NegImplDeclBoundData>,
-}
-
-/// Data bound under the impl generics for a negative impl
-#[term(!$trait_ref $:where $where_clause)]
-pub struct NegImplDeclBoundData {
-    pub trait_ref: TraitRef,
-    pub where_clause: Wcs,
-}
-
 /// Mark a trait or trait impl as `unsafe`.
 #[term]
 #[derive(Default)]

@@ -1,4 +1,5 @@
 use crate::grammar::{Predicate, Relation, Wc, WcData, Wcs};
+use crate::prove::ToWcs;
 use formality_core::judgment_fn;
 
 use crate::prove::prove::{
@@ -83,11 +84,13 @@ judgment_fn! {
         )
 
         (
-            (i in decls.neg_impl_decls(&trait_ref.trait_id))
+            (i in decls.neg_trait_impls_for(&trait_ref.trait_id))
             (let (env, subst) = env.existential_substitution(&i.binder))
             (let i = i.binder.instantiate_with(&subst).unwrap())
-            (prove(decls, env, assumptions, Wcs::all_eq(&trait_ref.parameters, &i.trait_ref.parameters)) => c)
-            (prove_after(decls, c, assumptions, &i.where_clause) => c)
+            (let impl_trait_ref = i.trait_ref())
+            (let impl_where_clauses = i.where_clauses.to_wcs())
+            (prove(decls, env, assumptions, Wcs::all_eq(&trait_ref.parameters, &impl_trait_ref.parameters)) => c)
+            (prove_after(decls, c, assumptions, impl_where_clauses) => c)
             ----------------------------- ("negative impl")
             (prove_wc(decls, env, assumptions, Predicate::NotImplemented(trait_ref)) => c.pop_subst(&subst))
         )
