@@ -188,10 +188,21 @@ impl Program {
             variables,
             TraitBoundData {
                 where_clauses,
-                trait_items: _,
+                trait_items,
             },
         ) = trait_def.binder.open();
         let self_var: Parameter = variables[0].upcast();
+        let source = TraitRef::new(&trait_def.id, &variables);
+
+        let make_requirement = |required| TraitRequirement {
+            binder: Binder::new(
+                &variables,
+                TraitRequirementBoundData {
+                    source: source.clone(),
+                    required,
+                },
+            ),
+        };
 
         fn is_supertrait(self_var: &Parameter, wc: &Wc) -> bool {
             match wc {
@@ -206,20 +217,68 @@ impl Program {
             }
         }
 
-        where_clauses
+        let mut requirements: Set<_> = where_clauses
             .to_wcs()
             .into_iter()
             .filter(|required| is_supertrait(&self_var, required))
-            .map(|required| TraitRequirement {
-                binder: Binder::new(
-                    &variables,
-                    TraitRequirementBoundData {
-                        source: TraitRef::new(&trait_def.id, &variables),
-                        required,
-                    },
-                ),
-            })
-            .collect()
+            .map(&make_requirement)
+            .collect();
+
+        // A Rust declaration like
+        //
+        //     trait Foo {
+        //         type Bar<T>: Ord where T: Copy;
+        //     }
+        //
+        // gives rise to the requirement
+        //
+        //     forall<Self> Foo(Self) =>
+        //         forall<T> if { Copy(T) } Ord(<Self as Foo>::Bar<T>).
+        //
+        // The associated type's own variables are therefore bound inside `required`, while
+        // the trait's variables bind the entire requirement, including its `source`.
+        for trait_item in trait_items {
+            let TraitItem::AssociatedTy(AssociatedTy { id, binder }) = trait_item else {
+                continue;
+            };
+            let (
+                associated_variables,
+                AssociatedTyBoundData {
+                    ensures,
+                    where_clauses,
+                },
+            ) = binder.open();
+            let alias_parameters: Vec<Parameter> = variables
+                .iter()
+                .chain(&associated_variables)
+                .upcasted()
+                .collect();
+            let alias = AliasTy::associated_ty(
+                &trait_def.id,
+                &id,
+                associated_variables.len(),
+                alias_parameters,
+            );
+            let has_conditions = !where_clauses.is_empty();
+            let conditions = where_clauses.to_wcs();
+
+            for ensure in ensures {
+                let required = ensure.to_wc(&alias);
+                let required = if has_conditions {
+                    Wc::Implies(conditions.clone(), Arc::new(required))
+                } else {
+                    required
+                };
+                let required = if associated_variables.is_empty() {
+                    required
+                } else {
+                    Wc::for_all(Binder::new(&associated_variables, required))
+                };
+                requirements.insert(make_requirement(required));
+            }
+        }
+
+        requirements
     }
 
     /// Create a `Program` wrapping the given items in a single crate named "test".
