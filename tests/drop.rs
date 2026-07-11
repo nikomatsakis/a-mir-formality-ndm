@@ -99,11 +99,11 @@ fn drop_impl_extra_where_clause() {
     .err(expect_test::expect![[r#"
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Clone(!ty_0), via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        the rule "trait implied bound" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `decls.trait_invariants()`
+        the rule "trait requirement" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `decls.trait_requirements()`
 
-        the rule "trait implied bound" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+        the rule "trait requirement" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `decls.trait_requirements()`"#]])
 }
 
 /// Drop impl for a concrete instantiation (not generic enough).
@@ -137,8 +137,8 @@ fn drop_impl_concrete_type_param() {
 
         crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        the rule "trait implied bound" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+        the rule "trait requirement" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `decls.trait_requirements()`"#]])
 }
 
 /// Drop impl for a non-ADT type (e.g., u32).

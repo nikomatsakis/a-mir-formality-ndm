@@ -53,8 +53,8 @@ fn hello_world_fail() {
 
                 crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Baz(!ty_1), via: Bar(!ty_0, !ty_1), assumptions: {Bar(!ty_0, !ty_1)}, env: Env { variables: [!ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                the rule "trait implied bound" at (prove_wc.rs) failed because
-                  expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+                the rule "trait requirement" at (prove_wc.rs) failed because
+                  expression evaluated to an empty collection: `decls.trait_requirements()`"#]])
 }
 
 #[test]
@@ -104,8 +104,8 @@ fn basic_where_clauses_fail() {
 
                 crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: B(!ty_0), via: A(u32, ?ty_1), assumptions: {for <ty> A(u32, ^ty0_0)}, env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                the rule "trait implied bound" at (prove_wc.rs) failed because
-                  expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+            the rule "trait requirement" at (prove_wc.rs) failed because
+              expression evaluated to an empty collection: `decls.trait_requirements()`"#]])
 }
 
 #[test]

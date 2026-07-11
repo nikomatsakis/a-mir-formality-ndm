@@ -1079,8 +1079,8 @@ fn move_out_of_shared_ref() {
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: i64, via: Copy(<&?lt_0 Datum as Derefable>::Target), assumptions: {@ wf(?lt_0), @ wf(?lt_1), Copy(<&?lt_0 Datum as Derefable>::Target)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-                the rule "trait implied bound" at (prove_wc.rs) failed because
-                  expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+                the rule "trait requirement" at (prove_wc.rs) failed because
+                  expression evaluated to an empty collection: `decls.trait_requirements()`"#]])
 }
 
 /// Cannot move out of a mutable reference.
@@ -1738,8 +1738,8 @@ fn move_out_of_mut_ref() {
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: i64, via: Copy(<&mut ?lt_0 Datum as Derefable>::Target), assumptions: {@ wf(?lt_0), @ wf(?lt_1), Copy(<&mut ?lt_0 Datum as Derefable>::Target)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-                the rule "trait implied bound" at (prove_wc.rs) failed because
-                  expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+                the rule "trait requirement" at (prove_wc.rs) failed because
+                  expression evaluated to an empty collection: `decls.trait_requirements()`"#]])
 }
 
 /// Cannot move a place that has an active loan.

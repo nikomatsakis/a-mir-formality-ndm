@@ -1,8 +1,8 @@
 use crate::grammar::{
     AdtId, AliasName, AliasTy, AssociatedTy, AssociatedTyBoundData, AssociatedTyValue,
     AssociatedTyValueBoundData, Binder, Crate, CrateId, CrateItem, Crates, ImplItem, NegTraitImpl,
-    Parameter, Predicate, Relation, Trait, TraitBoundData, TraitId, TraitImpl,
-    TraitImplBoundData, TraitItem, TraitRef, Ty, Wc, Wcs,
+    Parameter, Predicate, Relation, Trait, TraitBoundData, TraitId, TraitImpl, TraitImplBoundData,
+    TraitItem, TraitRef, Ty, Wc, Wcs,
 };
 use crate::prove::ToWcs;
 use formality_core::{seq, Downcasted, Set, To, Upcast, Upcasted};
@@ -101,30 +101,9 @@ impl Program {
             .collect()
     }
 
-    /// Look up a trait by id from the program grammar and convert to a `TraitDecl`.
-    pub fn trait_decl(&self, trait_id: &TraitId) -> TraitDecl {
-        let grammar_trait = self.crates.trait_named(trait_id).unwrap();
-        Self::grammar_trait_to_decl(grammar_trait)
-    }
-
-    fn grammar_trait_to_decl(t: &Trait) -> TraitDecl {
-        let (
-            vars,
-            TraitBoundData {
-                where_clauses,
-                trait_items: _,
-            },
-        ) = t.binder.open();
-        TraitDecl {
-            safety: t.safety.clone(),
-            id: t.id.clone(),
-            binder: Binder::new(
-                vars,
-                TraitDeclBoundData {
-                    where_clause: where_clauses.iter().flat_map(|wc| wc.to_wcs()).collect(),
-                },
-            ),
-        }
+    /// Look up a raw trait definition by id.
+    pub fn trait_def(&self, trait_id: &TraitId) -> Trait {
+        self.crates.trait_named(trait_id).unwrap().clone()
     }
 
     pub fn alias_eq_decls(&self, name: &AliasName) -> Vec<AliasEqDecl> {
@@ -188,65 +167,59 @@ impl Program {
             .collect()
     }
 
-    /// Return the set of "trait invariants" for all traits.
-    /// See [`TraitDecl::trait_invariants`].
-    pub fn trait_invariants(&self) -> Set<TraitInvariant> {
+    /// Return the set of implied requirements for all traits.
+    pub fn trait_requirements(&self) -> Set<TraitRequirement> {
         self.crates
             .items_from_all_crates()
             .filter_map(|item| match item {
                 CrateItem::Trait(t) => Some(t),
                 _ => None,
             })
-            .flat_map(Self::grammar_trait_invariants)
+            .flat_map(Self::requirements_for_trait)
             .collect()
     }
 
-    fn grammar_trait_invariants(trait_def: &Trait) -> Set<TraitInvariant> {
-        let mut invariants = Self::grammar_trait_to_decl(trait_def).trait_invariants();
+    /// Return the implied requirements declared by `trait_def`.
+    ///
+    /// For example, `trait Eq where Self: PartialEq` yields the requirement
+    /// `forall<Self> Eq(Self) => PartialEq(Self)`.
+    fn requirements_for_trait(trait_def: &Trait) -> Set<TraitRequirement> {
         let (
-            trait_variables,
+            variables,
             TraitBoundData {
-                where_clauses: _,
-                trait_items,
+                where_clauses,
+                trait_items: _,
             },
         ) = trait_def.binder.open();
-        let source = TraitRef::new(&trait_def.id, &trait_variables);
+        let self_var: Parameter = variables[0].upcast();
 
-        for item in trait_items {
-            let TraitItem::AssociatedTy(AssociatedTy { id, binder }) = item else {
-                continue;
-            };
-            let (
-                associated_variables,
-                AssociatedTyBoundData {
-                    ensures,
-                    where_clauses,
-                },
-            ) = binder.open();
-            let alias_parameters: Vec<Parameter> = trait_variables
-                .iter()
-                .chain(&associated_variables)
-                .upcasted()
-                .collect();
-            let alias = AliasTy::associated_ty(
-                &trait_def.id,
-                &id,
-                associated_variables.len(),
-                alias_parameters,
-            );
-            let conditions = where_clauses.to_wcs();
-
-            invariants.extend(ensures.into_iter().map(|ensure| {
-                let required = Wc::implies(&conditions, ensure.to_wc(&alias));
-                let required = Wc::for_all(Binder::new(&associated_variables, required));
-                TraitInvariant::new(Binder::new(
-                    &trait_variables,
-                    TraitInvariantBoundData::new(&source, required),
-                ))
-            }));
+        fn is_supertrait(self_var: &Parameter, wc: &Wc) -> bool {
+            match wc {
+                Wc::Predicate(Predicate::IsImplemented(trait_ref)) => {
+                    trait_ref.parameters[0] == *self_var
+                }
+                Wc::Relation(Relation::Outlives(a, _)) => *a == *self_var,
+                Wc::Predicate(_) => false,
+                Wc::Relation(_) => false,
+                Wc::ForAll(binder) => is_supertrait(self_var, binder.peek()),
+                Wc::Implies(_, consequence) => is_supertrait(self_var, consequence),
+            }
         }
 
-        invariants
+        where_clauses
+            .to_wcs()
+            .into_iter()
+            .filter(|required| is_supertrait(&self_var, required))
+            .map(|required| TraitRequirement {
+                binder: Binder::new(
+                    &variables,
+                    TraitRequirementBoundData {
+                        source: TraitRef::new(&trait_def.id, &variables),
+                        required,
+                    },
+                ),
+            })
+            .collect()
     }
 
     /// Create a `Program` wrapping the given items in a single crate named "test".
@@ -291,84 +264,25 @@ pub enum Safety {
     Unsafe,
 }
 
-/// A "trait declaration" declares a trait that exists, its generics, and its where-clauses.
-/// It doesn't capture the trait items, which will be transformed into other sorts of rules.
+/// A trait requirement is a rule like
+/// `forall<T> Implemented(T: Eq) => Implemented(T: PartialEq)`.
 ///
-/// In Rust syntax, it covers the `trait Foo: Bar` part of the declaration, but not what appears in the `{...}`.
-#[term($?safety trait $id $binder)]
-pub struct TraitDecl {
-    /// The name of the trait
-    pub id: TraitId,
-
-    /// Whether the trait is `unsafe` or not
-    pub safety: Safety,
-
-    /// The binder here captures the generics of the trait; it always begins with a `Self` type.
-    pub binder: Binder<TraitDeclBoundData>,
-}
-
-impl TraitDecl {
-    /// Return the set of "trait invariants", i.e., things we know to be true
-    /// because of the trait where-clauses. For example, given `trait Ord<Self> where {PartialOrd(Self)}`,
-    /// this would return the set `{trait_invariant(<Self> Ord(Self) => PartialOrd(Self)}`
-    pub fn trait_invariants(&self) -> Set<TraitInvariant> {
-        let (variables, TraitDeclBoundData { where_clause }) = self.binder.open();
-        let self_var: Parameter = variables[0].upcast();
-
-        fn is_supertrait(self_var: &Parameter, wc: &Wc) -> bool {
-            match wc {
-                Wc::Predicate(Predicate::IsImplemented(trait_ref)) => {
-                    trait_ref.parameters[0] == *self_var
-                }
-                Wc::Relation(Relation::Outlives(a, _)) => *a == *self_var,
-                Wc::Predicate(_) => false,
-                Wc::Relation(_) => false,
-                Wc::ForAll(binder) => is_supertrait(self_var, binder.peek()),
-                Wc::Implies(_, c) => is_supertrait(self_var, c),
-            }
-        }
-
-        where_clause
-            .into_iter()
-            .filter(|where_clause| is_supertrait(&self_var, where_clause))
-            .map(|where_clause| TraitInvariant {
-                binder: Binder::new(
-                    &variables,
-                    TraitInvariantBoundData {
-                        trait_ref: TraitRef::new(&self.id, &variables),
-                        where_clause,
-                    },
-                ),
-            })
-            .collect()
-    }
-}
-
-/// A trait *invariant* is a rule like `<T> Implemented(T: Ord) => Implemented(T: PartialOrd)`.
-/// It indices that, if we know that `T: Ord` from the environment,
-/// we also know that `T: PartialOrd`.
-/// Invariants are produced from trait declarations during lowering; they derive from the
-/// where-clauses on the trait.
+/// The `source` trait-ref implies the `required` where-clause. The ordinary solver uses this
+/// implication to elaborate implied bounds. Impl validation will also use these requirements
+/// when validating a selected impl.
 #[term]
-pub struct TraitInvariant {
-    pub binder: Binder<TraitInvariantBoundData>,
+pub struct TraitRequirement {
+    pub binder: Binder<TraitRequirementBoundData>,
 }
 
-/// The "bound data" for a [`TraitInvariant`][] -- i.e., what is covered by the forall.
-#[term($trait_ref => $where_clause)]
-pub struct TraitInvariantBoundData {
-    /// Knowing that this trait-ref is implemented...
-    pub trait_ref: TraitRef,
+/// The data bound by a [`TraitRequirement`].
+#[term($source => $required)]
+pub struct TraitRequirementBoundData {
+    /// The implemented trait-ref that gives rise to this requirement.
+    pub source: TraitRef,
 
-    /// ...implies that these where-clauses hold.
-    pub where_clause: Wc,
-}
-
-/// The "bound data" for a [`TraitDecl`][] -- i.e., what is covered by the forall.
-#[term($:where $where_clause)]
-pub struct TraitDeclBoundData {
-    /// The where-clauses declared on the trait
-    pub where_clause: Wcs,
+    /// The where-clause implied by the source trait-ref.
+    pub required: Wc,
 }
 
 /// An "alias equal declaration" declares when an alias type can be normalized

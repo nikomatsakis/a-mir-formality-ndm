@@ -42,8 +42,8 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        the rule "trait implied bound" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `decls.trait_invariants()`"#]]);
+        the rule "trait requirement" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `decls.trait_requirements()`"#]]);
 }
 
 #[test]

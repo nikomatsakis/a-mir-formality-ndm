@@ -101,13 +101,19 @@ judgment_fn! {
             (prove_wc(decls, env, assumptions, Predicate::AliasEq(alias_ty, ty)) => c)
         )
 
+        // The Rust declaration `trait Eq: PartialEq` gives rise to the requirement template
+        // `forall<T> Eq(T) => PartialEq(T)`. Apply that requirement by backward chaining: for
+        // the goal `PartialEq(U)`, instantiate `T` with an inference variable, match the
+        // requirement's `required` clause against the goal, and then prove its `source`
+        // (`Eq(U)`). This lazily elaborates implied bounds rather than adding all of their
+        // consequences to the assumptions eagerly.
         (
-            (ti in decls.trait_invariants())
-            (let (env, subst) = env.existential_substitution(&ti.binder))
-            (let ti = ti.binder.instantiate_with(&subst).unwrap())
-            (prove_via_assumption(decls, env, assumptions, &ti.where_clause, trait_ref) => c)
-            (prove_after(decls, c, assumptions, &ti.trait_ref) => c)
-            ----------------------------- ("trait implied bound")
+            (requirement in decls.trait_requirements())
+            (let (env, subst) = env.existential_substitution(&requirement.binder))
+            (let requirement = requirement.binder.instantiate_with(&subst).unwrap())
+            (prove_via_assumption(decls, env, assumptions, &requirement.required, trait_ref) => c)
+            (prove_after(decls, c, assumptions, &requirement.source) => c)
+            ----------------------------- ("trait requirement")
             (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c.pop_subst(&subst))
         )
 
@@ -123,11 +129,18 @@ judgment_fn! {
             (prove_wc(decls, env, assumptions, WcData::Relation(Relation::Sub(a, b))) => c)
         )
 
+        // For example, `trait Foo<T> where T: Debug` means that the trait-ref `S: Foo<U>` is
+        // well formed only if `S` and `U` are well formed and `U: Debug`. In general, substitute
+        // the trait-ref's parameters into the Rust trait declaration and prove every resulting
+        // where-clause. This checks every trait-header condition; it is distinct from the
+        // trait-requirement rule above, which exposes only the clauses classified as implied
+        // requirements.
         (
             (for_all(decls, env, assumptions, &trait_ref.parameters, &prove_wf) => c)
-            (let t = decls.trait_decl(&trait_ref.trait_id))
-            (let t = t.binder.instantiate_with(&trait_ref.parameters).unwrap())
-            (prove_after(decls, c, assumptions, &t.where_clause) => c)
+            (let trait_def = decls.trait_def(&trait_ref.trait_id))
+            (let trait_data = trait_def.binder.instantiate_with(&trait_ref.parameters).unwrap())
+            (let trait_where_clauses = trait_data.where_clauses.to_wcs())
+            (prove_after(decls, c, assumptions, trait_where_clauses) => c)
             ----------------------------- ("trait well formed")
             (prove_wc(decls, env, assumptions, Predicate::WellFormedTraitRef(trait_ref)) => c)
         )

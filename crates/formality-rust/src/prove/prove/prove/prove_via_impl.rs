@@ -75,8 +75,8 @@ judgment_fn! {
 
             // Instantiate the trait's own well-formedness requirements using
             // the candidate header, exactly as the ordinary positive rule did.
-            (let trait_decl = decls
-                .trait_decl(&impl_trait_ref.trait_id)
+            (let trait_data = decls
+                .trait_def(&impl_trait_ref.trait_id)
                 .binder
                 .instantiate_with(&impl_trait_ref.parameters)
                 .unwrap())
@@ -94,7 +94,12 @@ judgment_fn! {
                 co_assumptions,
                 trait_impl.where_clauses.to_wcs(),
             ) => c)
-            (prove_after(decls, c, assumptions, &trait_decl.where_clause) => c)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                trait_data.where_clauses.to_wcs(),
+            ) => c)
             (let application = ImplApplication::new(candidate, impl_variables))
             ---------------------------------------------------- ("candidate")
             (prove_via_impl(

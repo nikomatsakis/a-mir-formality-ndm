@@ -39,6 +39,6 @@ fn trait_with_ill_formed_where_clause() {
         }
     ])
     .err(expect_test::expect![[r#"
-            the rule "trait implied bound" at (prove_wc.rs) failed because
-              expression evaluated to an empty collection: `decls.trait_invariants()`"#]]);
+            the rule "trait requirement" at (prove_wc.rs) failed because
+              expression evaluated to an empty collection: `decls.trait_requirements()`"#]]);
 }
