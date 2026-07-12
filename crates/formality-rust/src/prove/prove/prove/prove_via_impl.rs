@@ -1,9 +1,6 @@
 use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
-use crate::prove::prove::{
-    prove::{prove, prove_after::prove_after},
-    Constrained, Constraints, Env,
-};
+use crate::prove::prove::{prove::prove_after::prove_after, Constrained, Constraints, Env};
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
 
@@ -82,7 +79,7 @@ judgment_fn! {
                 .unwrap())
 
             (let co_assumptions = (assumptions, requested_trait_ref))
-            (prove(
+            (prove_after(
                 decls,
                 env,
                 co_assumptions,

@@ -5,7 +5,7 @@ use formality_core::judgment_fn;
 use crate::prove::prove::prove::prove_outlives::prove_outlives;
 use crate::prove::prove::{
     decls::Program,
-    prove::{prove, prove_after::prove_after, prove_normalize::prove_normalize},
+    prove::{prove_after::prove_after, prove_normalize::prove_normalize},
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -42,7 +42,7 @@ judgment_fn! {
             (let RigidTy { name: a_name, parameters: a_parameters } = a)
             (let RigidTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)!
-            (prove(decls, env, assumptions, Wcs::all_sub(a_parameters, b_parameters)) => c)
+            (prove_after(decls, env, assumptions, Wcs::all_sub(a_parameters, b_parameters)) => c)
             ----------------------------- ("rigid")
             (prove_sub(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
         )

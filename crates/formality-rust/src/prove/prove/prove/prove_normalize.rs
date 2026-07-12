@@ -9,13 +9,13 @@ use formality_core::{judgment_fn, Downcast};
 use crate::prove::prove::{
     decls::{AliasEqDeclBoundData, Program},
     prove::{
-        combinators::zip, env::Env, prove, prove_after::prove_after,
-        prove_eq::prove_existential_var_eq,
+        combinators::zip, env::Env, prove_after::prove_after, prove_eq::prove_existential_var_eq,
     },
 };
 
 use super::constraints::Constraints;
 
+// Normalization can generate nested proof goals, so they enter through `prove_after`.
 judgment_fn! {
     /// Normalize `p` one step, returning a set of constraints and a new parameter `q` that is
     /// semantically equivalent to `p`. e.g., if p is `<Vec<T> as IntoIterator>::Item`, this would
@@ -41,7 +41,7 @@ judgment_fn! {
             (let decl = decl.binder.instantiate_with(&subst).unwrap())
             (let AliasEqDeclBoundData { alias: AliasTy { name, parameters }, ty, where_clause } = decl)
             (assert a.name == *name)
-            (prove(decls, env, assumptions, Wcs::all_eq(&a.parameters, &parameters)) => c)
+            (prove_after(decls, env, assumptions, Wcs::all_eq(&a.parameters, &parameters)) => c)
             (prove_after(decls, c, assumptions, &where_clause) => c)
             (let ty = c.substitution().apply(ty))
             (let c = c.pop_subst(&subst))

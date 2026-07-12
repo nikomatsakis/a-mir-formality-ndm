@@ -3,7 +3,7 @@ use formality_core::judgment_fn;
 
 use crate::prove::prove::{
     decls::Program,
-    prove::{constraints::Constraints, env::Env, prove, prove_after::prove_after},
+    prove::{constraints::Constraints, env::Env, prove_after::prove_after},
 };
 
 judgment_fn! {
@@ -28,7 +28,7 @@ judgment_fn! {
             // `g` = "goal, the name for something that we are trying to prove.
             (let (skel_g, parameters_g) = pred_2.debone())
             (if skel_c == skel_g)!
-            (prove(decls, env, assumptions, Wcs::all_eq(parameters_c, parameters_g)) => c)
+            (prove_after(decls, env, assumptions, Wcs::all_eq(parameters_c, parameters_g)) => c)
             ----------------------------- ("predicate-congruence-axiom")
             (prove_via_assumption(decls, env, assumptions, WcData::Predicate(pred_1), WcData::Predicate(pred_2)) => c)
         )

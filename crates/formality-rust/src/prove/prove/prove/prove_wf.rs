@@ -6,7 +6,7 @@ use formality_core::{judgment_fn, Downcast, ProvenSet, Upcast};
 
 use crate::prove::prove::{
     decls::Program,
-    prove::{combinators::for_all, prove, prove_after::prove_after},
+    prove::{combinators::for_all, prove_after::prove_after},
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -104,5 +104,6 @@ pub fn prove_wf_recursive(
     assumptions: impl Upcast<Wcs>,
     param: impl Upcast<Parameter>,
 ) -> ProvenSet<Constraints> {
-    prove(program, env, assumptions, Relation::well_formed(param))
+    let env: Env = env.upcast();
+    prove_after(program, env, assumptions, Relation::well_formed(param))
 }

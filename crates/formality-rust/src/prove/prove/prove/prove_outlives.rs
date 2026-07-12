@@ -1,6 +1,6 @@
 use crate::grammar::Wc;
 use crate::grammar::{LtData, Parameter, Relation, RigidTy, Wcs};
-use crate::prove::prove::{decls::Program, prove};
+use crate::prove::prove::{decls::Program, prove::prove_after::prove_after};
 use formality_core::{judgment_fn, Set, Upcast};
 
 use super::{constraints::Constraints, env::Env};
@@ -66,7 +66,7 @@ judgment_fn! {
 
         // A rigid type `r` outlives `b` if all of `r`'s parameters outlive `b`
         (
-            (prove(decls, env, assumptions, Wcs::all_outlives(parameters, b)) => c)
+            (prove_after(decls, env, assumptions, Wcs::all_outlives(parameters, b)) => c)
             ----------------------------- ("rigid types")
             (prove_outlives(decls, env, assumptions, RigidTy { name: _, parameters }, b) => c)
         )

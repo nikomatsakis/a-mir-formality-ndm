@@ -8,7 +8,6 @@ use crate::prove::prove::{
         combinators::for_all,
         env::{Bias, Env},
         is_local::{is_local_trait_ref, may_be_remote},
-        prove,
         prove_after::prove_after,
         prove_const_has_type::prove_const_has_type,
         prove_eq::prove_eq,
@@ -90,7 +89,7 @@ judgment_fn! {
             (let i = i.binder.instantiate_with(&subst).unwrap())
             (let impl_trait_ref = i.trait_ref())
             (let impl_where_clauses = i.where_clauses.to_wcs())
-            (prove(decls, env, assumptions, Wcs::all_eq(&trait_ref.parameters, &impl_trait_ref.parameters)) => c)
+            (prove_after(decls, env, assumptions, Wcs::all_eq(&trait_ref.parameters, &impl_trait_ref.parameters)) => c)
             (prove_after(decls, c, assumptions, impl_where_clauses) => c)
             ----------------------------- ("negative impl")
             (prove_wc(decls, env, assumptions, Predicate::NotImplemented(trait_ref)) => c.pop_subst(&subst))
