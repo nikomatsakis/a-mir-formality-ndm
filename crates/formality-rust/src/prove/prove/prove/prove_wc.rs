@@ -33,6 +33,13 @@ judgment_fn! {
     ) => Constraints {
         debug(goal, assumptions, env)
 
+        // An exactly equal assumption proves the goal without introducing any constraints.
+        // This is the most general possible result, so exploring other rules cannot improve it.
+        trivial(
+            assumptions.iter().any(|assumption| assumption == goal)
+            => Constraints::none(env)
+        )
+
         (
             (let (env, subst) = env.universal_substitution(binder))
             (let p1 = binder.instantiate_with(&subst).unwrap())
@@ -172,5 +179,21 @@ judgment_fn! {
             ----------------------------- ("const has ty")
             (prove_wc(decls, env, assumptions, Predicate::ConstHasType(constant, ty)) => c)
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rust::term;
+
+    #[test]
+    fn exact_assumption_uses_trivial_proof() {
+        let goal: Wc = term("Exact(u32)");
+        let (_, proof) = prove_wc(Program::empty(), Env::default(), &goal, &goal)
+            .into_singleton()
+            .unwrap();
+
+        assert_eq!(proof.total_nodes(), 1, "{proof}");
     }
 }
