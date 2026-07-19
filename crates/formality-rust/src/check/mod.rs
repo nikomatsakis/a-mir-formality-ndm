@@ -225,13 +225,7 @@ fn prove_goal(
     goal: impl ToWcs + Debug,
 ) -> Fallible<ProofTree> {
     let goal: Wcs = goal.to_wcs();
-    prove_judgment(
-        program,
-        env,
-        assumptions,
-        goal.to_wcs(),
-        crate::prove::prove::prove,
-    )
+    prove_judgment(program, env, assumptions, goal, crate::prove::prove::prove)
 }
 
 fn prove_judgment<G>(

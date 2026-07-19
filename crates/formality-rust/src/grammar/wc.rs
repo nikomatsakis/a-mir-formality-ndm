@@ -54,6 +54,25 @@ impl Wcs {
     pub fn iter(&self) -> impl Iterator<Item = Wc> + use<'_> {
         self.into_iter()
     }
+
+    /// Wrap each clause in `Validate`.
+    pub fn validated(&self) -> Self {
+        self.iter().map(Wc::validate).collect()
+    }
+
+    /// Enter the post-validation phase by removing one outer `Validate` layer from each
+    /// assumption.
+    ///
+    /// This transformation is intentionally shallow. In particular,
+    /// `Validate(Validate(P))` becomes `Validate(P)`, not `P`.
+    pub fn promote_validation(&self) -> Self {
+        self.iter()
+            .map(|wc| match wc {
+                Wc::Validate(inner) => inner.upcast(),
+                wc => wc,
+            })
+            .collect()
+    }
 }
 
 impl<'w> IntoIterator for &'w Wcs {
@@ -62,7 +81,7 @@ impl<'w> IntoIterator for &'w Wcs {
     type IntoIter = Box<dyn Iterator<Item = Wc> + 'w>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.set.iter().cloned())
+        Box::new(self.set.iter().upcasted())
     }
 }
 
@@ -162,6 +181,12 @@ pub enum Wc {
 
     #[grammar(if $v0 $v1)]
     Implies(Wcs, Arc<Wc>),
+
+    /// Evidence that must be established while validating an impl.
+    ///
+    /// This wrapper is internal to the solver. It is deliberately not part of Rust's surface
+    /// where-clause grammar and cannot be eliminated during an ordinary proof.
+    Validate(Arc<Wc>),
 }
 
 /// Temporary alias for migration -- allows `WcData::Variant` to still compile.
@@ -180,7 +205,7 @@ impl UpcastFrom<Wc> for Wcs {
 impl DowncastTo<Wc> for Wcs {
     fn downcast_to(&self) -> Option<Wc> {
         if self.set.len() == 1 {
-            self.set.iter().next().cloned()
+            self.set.iter().next().map(Upcast::upcast)
         } else {
             None
         }

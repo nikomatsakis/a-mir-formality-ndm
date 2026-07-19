@@ -5,6 +5,7 @@ mod is_local;
 mod minimize;
 mod negation;
 mod prove_after;
+mod prove_after_validation;
 mod prove_const_has_type;
 mod prove_eq;
 mod prove_fully_normalize;
@@ -24,8 +25,10 @@ use formality_core::{ProvenSet, Upcast};
 use crate::prove::prove::decls::Program;
 
 pub use self::env::{Bias, Env, MaxUniverse, Universe};
-use self::prove_after::prove_after;
+pub(crate) use self::prove_after::prove_after;
+pub(crate) use self::prove_after_validation::prove_after_validation;
 pub(crate) use self::prove_fully_normalize::prove_fully_normalize_parameter;
+pub(crate) use self::prove_via_assumption::prove_via_assumption;
 pub(crate) use self::prove_via_impl::{prove_via_impl, ImplApplication};
 pub use negation::{is_definitely_not_proveable, may_not_be_provable, negation_via_failure};
 

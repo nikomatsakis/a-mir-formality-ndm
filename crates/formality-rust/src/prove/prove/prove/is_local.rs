@@ -12,8 +12,9 @@ use crate::prove::prove::{
         combinators::for_all, env::Bias, negation::may_not_be_provable,
         prove_normalize::prove_normalize, Constraints,
     },
-    Env,
 };
+
+use super::Env;
 
 // From https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html:
 //

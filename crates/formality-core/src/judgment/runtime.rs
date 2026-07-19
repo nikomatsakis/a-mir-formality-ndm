@@ -451,6 +451,13 @@ mod tests {
         ));
         assert_eq!(current, Map::from([(0, small.clone())]));
 
+        let mut current = Map::from([(0, large_proof())]);
+        assert!(!merge_proven_outputs(
+            &mut current,
+            Map::from([(0, small.clone())]),
+        ));
+        assert_eq!(current, Map::from([(0, small.clone())]));
+
         assert!(merge_proven_outputs(
             &mut current,
             Map::from([(0, large_proof()), (1, ProofTree::leaf("one"))]),

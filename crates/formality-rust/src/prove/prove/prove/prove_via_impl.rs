@@ -1,6 +1,10 @@
-use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Wcs};
+use crate::grammar::{ExistentialVar, Parameter, Predicate, TraitImpl, TraitRef, Wc, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
-use crate::prove::prove::{prove::prove_after::prove_after, Constrained, Constraints, Env};
+use crate::prove::prove::{
+    prove::{prove_after::prove_after, prove_after_validation::prove_after_validation},
+    requirements::validate_impl,
+    Constrained, Constraints, Env,
+};
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
 
@@ -56,7 +60,7 @@ judgment_fn! {
         (
             // The caller supplies exactly one candidate. A different trait id
             // is a mismatch, not an invitation to search another declaration.
-            (if candidate.trait_impl.trait_id() == &requested_trait_ref.trait_id)!
+            (if candidate.trait_impl.trait_id() == &requested_trait_ref.trait_id)
 
             // Retain these fresh variables in the result. Codegen needs them
             // to recover the inferred impl-binder arguments before popping the
@@ -69,33 +73,37 @@ judgment_fn! {
                 .instantiate_with(&impl_variables)
                 .unwrap())
             (let impl_trait_ref = trait_impl.trait_ref())
+            (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
 
-            // Instantiate the trait's own well-formedness requirements using
-            // the candidate header, exactly as the ordinary positive rule did.
-            (let trait_data = decls
-                .trait_def(&impl_trait_ref.trait_id)
-                .binder
-                .instantiate_with(&impl_trait_ref.parameters)
-                .unwrap())
-
-            (let co_assumptions = (assumptions, requested_trait_ref))
+            // Header matching is itself part of validation. Record this
+            // candidate before matching so normalization within equality can
+            // enter the post-validation phase and use the promised impl.
+            (let current_impl: Wc =
+                Predicate::is_implemented(requested_trait_ref).upcast())
+            (let validation_assumption = Wc::validate(current_impl))
+            (let assumptions = (assumptions, validation_assumption))
+            (let header_goals = Wcs::all_eq(
+                &requested_trait_ref.parameters,
+                &impl_trait_ref.parameters,
+            ).validated())
             (prove_after(
                 decls,
                 env,
-                co_assumptions,
-                Wcs::all_eq(&requested_trait_ref.parameters, &impl_trait_ref.parameters),
-            ) => c)
-            (prove_after(
-                decls,
-                c,
-                co_assumptions,
-                trait_impl.where_clauses.to_wcs(),
-            ) => c)
-            (prove_after(
+                assumptions,
+                header_goals,
+            ) => c)!
+
+            // Validate every structured trait requirement, instantiating
+            // associated-type requirements with this impl's concrete values.
+            (validate_impl(decls, c, assumptions, trait_impl) => c)
+
+            // The candidate's where-clauses are caller obligations. Prove
+            // them after validation, when `Validate(I)` becomes ordinary `I`.
+            (prove_after_validation(
                 decls,
                 c,
                 assumptions,
-                trait_data.where_clauses.to_wcs(),
+                impl_where_clauses,
             ) => c)
             (let application = ImplApplication::new(candidate, impl_variables))
             ---------------------------------------------------- ("candidate")

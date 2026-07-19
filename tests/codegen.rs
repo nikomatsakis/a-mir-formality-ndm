@@ -145,7 +145,7 @@ fn qualified_trait_call_without_impl_is_rejected() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:26:1: no applicable rules for prove_wc { goal: Bar(Ground), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]])
+        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Bar(Ground), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]])
 }
 
 #[test]

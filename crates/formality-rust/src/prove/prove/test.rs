@@ -6,5 +6,6 @@ mod expanding;
 mod is_local;
 mod magic_copy;
 mod occurs_check;
+mod proof_modes;
 mod simple_impl;
 mod universes;

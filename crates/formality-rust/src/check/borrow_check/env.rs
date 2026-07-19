@@ -77,20 +77,25 @@ impl TypeckEnv {
         Parameter: DowncastTo<T>,
     {
         let goal: Parameter = goal.upcast();
-        self.prove_judgment(state, assumptions, goal, prove_normalize)
-            .map(
-                |((value, state), proof_tree): Proven<(Parameter, FlowState)>| {
+        self.prove_judgment(
+            state,
+            assumptions,
+            goal,
+            |program, env, assumptions, goal| prove_normalize(program, env, assumptions, goal),
+        )
+        .map(
+            |((value, state), proof_tree): Proven<(Parameter, FlowState)>| {
+                (
                     (
-                        (
-                            value
-                                .downcast()
-                                .expect("to be the same kind as we started with"),
-                            state,
-                        ),
-                        proof_tree,
-                    )
-                },
-            )
+                        value
+                            .downcast()
+                            .expect("to be the same kind as we started with"),
+                        state,
+                    ),
+                    proof_tree,
+                )
+            },
+        )
     }
 
     /// Prove the goal with the function `judgment_fn`,

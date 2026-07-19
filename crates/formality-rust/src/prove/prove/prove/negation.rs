@@ -1,8 +1,9 @@
 use crate::grammar::{Substitution, Variable, Wcs};
-use crate::prove::prove::{Bias, Constraints, Env};
 use crate::rust::FormalityLang;
 use formality_core::judgment::FailureLocation;
 use formality_core::{fold::CoreFold, judgment::ProofTree, ProvenSet, Upcast};
+
+use super::{Bias, Constraints, Env};
 
 /// This succeeds if `f` definitely fails: there are no possible
 /// ways to prove its body.

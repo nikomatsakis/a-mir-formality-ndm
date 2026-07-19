@@ -1,11 +1,9 @@
 use crate::grammar::{WcData, Wcs};
-use formality_core::judgment_fn;
-
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
 };
-
+use formality_core::judgment_fn;
 judgment_fn! {
     /// Check whether the where-clause `via` (which is one of the `assumptions` that are in in scope)
     /// can be used to prove `goal` (the thing we are trying to prove).
@@ -21,6 +19,18 @@ judgment_fn! {
         goal: WcData,
     ) => Constraints {
         debug(goal, via, assumptions, env)
+
+        (
+            (prove_via_validate(decls, env, assumptions, via, goal) => c)
+            ----------------------------- ("validate")
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                WcData::Validate(via),
+                WcData::Validate(goal),
+            ) => c)
+        )
 
         (
             // `c` = "clause", the name for something that we are assuming is true.
@@ -45,11 +55,11 @@ judgment_fn! {
         // If you have `where for<'a> T: Trait<'a>` then you can prove `T: Trait<'b>` for any `'b`.
         (
             (let (env, subst) = env.existential_substitution(binder))
-            (let via1 = binder.instantiate_with(&subst).unwrap())
+            (let via1 = binder.instantiate_with(subst).unwrap())
             // Try to prove `T: Trait<?a> == goal`.
             (prove_via_assumption(decls, env, assumptions, via1, goal) => c)
             ----------------------------- ("forall")
-            (prove_via_assumption(decls, env, assumptions, WcData::ForAll(binder), goal) => c.pop_subst(&subst))
+            (prove_via_assumption(decls, env, assumptions, WcData::ForAll(binder), goal) => c.pop_subst(subst))
         )
 
         // If you have `where if (T: Debug) T: Foo` (not in Rust but it should be...)...
@@ -60,6 +70,83 @@ judgment_fn! {
             (prove_after(decls, c, assumptions, wc_condition) => c)
             ----------------------------- ("implies")
             (prove_via_assumption(decls, env, assumptions, WcData::Implies(wc_condition, wc_consequence), goal) => c)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Use `via` to prove `goal` while preserving validation mode.
+    fn prove_via_validate(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        via: WcData,
+        goal: WcData,
+    ) => Constraints {
+        debug(goal, via, assumptions, env)
+
+        (
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                WcData::predicate(via),
+                WcData::predicate(goal),
+            ) => c)
+            ----------------------------- ("atomic predicate")
+            (prove_via_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::Predicate(via),
+                WcData::Predicate(goal),
+            ) => c)
+        )
+
+        (
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                WcData::relation(via),
+                WcData::relation(goal),
+            ) => c)
+            ----------------------------- ("atomic relation")
+            (prove_via_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::Relation(via),
+                WcData::Relation(goal),
+            ) => c)
+        )
+
+        (
+            (let (env, subst) = env.existential_substitution(binder))
+            (let via = binder.instantiate_with(subst).unwrap())
+            (prove_via_validate(decls, env, assumptions, via, goal) => c)
+            ----------------------------- ("forall")
+            (prove_via_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::ForAll(binder),
+                goal,
+            ) => c.pop_subst(subst))
+        )
+
+        (
+            (prove_via_validate(decls, env, assumptions, consequence, goal) => c)
+            (let validated_conditions = conditions.validated())
+            (prove_after(decls, c, assumptions, validated_conditions) => c)
+            ----------------------------- ("implies")
+            (prove_via_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::Implies(conditions, consequence),
+                goal,
+            ) => c)
         )
     }
 }

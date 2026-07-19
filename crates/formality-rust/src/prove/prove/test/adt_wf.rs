@@ -41,10 +41,5 @@ fn not_well_formed_adt() {
         assumptions,
         Relation::WellFormed(goal),
     )
-    .assert_err(expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: u64 = u32, via: Foo(u64), assumptions: {Foo(u64)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: u64, via: Foo(u64), assumptions: {Foo(u64)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: u32, via: Foo(u64), assumptions: {Foo(u64)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+    .assert_err(expect!["crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:48:1: no applicable rules for prove_via_impl { _requested_trait_ref: Foo(u64), _candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 1 }, trait_impl: impl Foo for u32 { } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }

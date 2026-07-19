@@ -15,12 +15,41 @@ use crate::prove::prove::{
 
 use super::constraints::Constraints;
 
+judgment_fn! {
+    /// Normalize `p` one step, returning constraints and a semantically equivalent parameter `q`.
+    /// For example, `<Vec<T> as IntoIterator>::Item` normalizes to `T`.
+    ///
+    /// Reducing an alias observes its value and therefore enters the post-validation phase:
+    /// `Validate(P)` assumptions become ordinary `P` assumptions for normalization and its nested
+    /// proof goals. Rewriting a non-alias parameter from an equality assumption stays in the
+    /// current phase.
+    pub fn prove_normalize(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        p: Parameter,
+    ) => Constrained<Parameter> {
+        debug(p, assumptions, env)
+
+        (
+            (let assumptions = assumptions.promote_validation())
+            (prove_normalize_now(decls, env, assumptions, TyData::alias_ty(alias)) => c)
+            ----------------------------- ("alias after validation")
+            (prove_normalize(decls, env, assumptions, TyData::AliasTy(alias)) => c)
+        )
+
+        (
+            (if let None = p.downcast::<AliasTy>())!
+            (prove_normalize_now(decls, env, assumptions, p) => c)
+            ----------------------------- ("non-alias now")
+            (prove_normalize(decls, env, assumptions, p) => c)
+        )
+    }
+}
+
 // Normalization can generate nested proof goals, so they enter through `prove_after`.
 judgment_fn! {
-    /// Normalize `p` one step, returning a set of constraints and a new parameter `q` that is
-    /// semantically equivalent to `p`. e.g., if p is `<Vec<T> as IntoIterator>::Item`, this would
-    /// return `T`.
-    pub fn prove_normalize(
+    fn prove_normalize_now(
         _decls: Program,
         env: Env,
         assumptions: Wcs,
@@ -32,7 +61,7 @@ judgment_fn! {
             (a in assumptions)!
             (prove_normalize_via(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("normalize-via-assumption")
-            (prove_normalize(decls, env, assumptions, goal) => c)
+            (prove_normalize_now(decls, env, assumptions, goal) => c)
         )
 
         (
@@ -47,7 +76,7 @@ judgment_fn! {
             (let c = c.pop_subst(&subst))
             (assert c.env().encloses(&ty))
             ----------------------------- ("normalize-via-impl")
-            (prove_normalize(decls, env, assumptions, TyData::AliasTy(a)) => Constrained(ty, c))
+            (prove_normalize_now(decls, env, assumptions, TyData::AliasTy(a)) => Constrained(ty, c))
         )
     }
 }
@@ -152,7 +181,7 @@ judgment_fn! {
             (let RigidTy { name: a_name, parameters: a_parameters } = a)
             (let RigidTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)!
-            (zip(decls, env, assumptions, a_parameters.clone(), b_parameters.clone(), &prove_syntactically_eq) => c)
+            (zip(decls, env, assumptions, a_parameters, b_parameters, &prove_syntactically_eq) => c)
             ----------------------------- ("rigid")
             (prove_syntactically_eq(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
         )
@@ -161,7 +190,7 @@ judgment_fn! {
             (let AliasTy { name: a_name, parameters: a_parameters } = a)
             (let AliasTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)!
-            (zip(decls, env, assumptions, a_parameters.clone(), b_parameters.clone(), &prove_syntactically_eq) => c)
+            (zip(decls, env, assumptions, a_parameters, b_parameters, &prove_syntactically_eq) => c)
             ----------------------------- ("alias")
             (prove_syntactically_eq(decls, env, assumptions, TyData::AliasTy(a), TyData::AliasTy(b)) => c)
         )

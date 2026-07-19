@@ -1,6 +1,6 @@
 use crate::grammar::{Predicate, Relation, Wc, WcData, Wcs};
 use crate::prove::ToWcs;
-use formality_core::judgment_fn;
+use formality_core::{judgment_fn, Upcast};
 
 use crate::prove::prove::{
     decls::Program,
@@ -15,9 +15,9 @@ use crate::prove::prove::{
         prove_sub::prove_sub,
         prove_via_assumption::prove_via_assumption,
         prove_via_impl::prove_via_impl,
-        prove_wf::prove_wf,
+        prove_wf::{prove_wf, wf_requirements},
     },
-    requirements::trait_requirement,
+    requirements::{prove_via_trait_requirement, trait_requirement},
 };
 
 use super::constraints::{Constrained, Constraints};
@@ -42,10 +42,10 @@ judgment_fn! {
 
         (
             (let (env, subst) = env.universal_substitution(binder))
-            (let p1 = binder.instantiate_with(&subst).unwrap())
+            (let p1 = binder.instantiate_with(subst).unwrap())
             (prove_wc(decls, env, assumptions, p1) => c)
             --- ("forall")
-            (prove_wc(decls, env, assumptions, WcData::ForAll(binder)) => c.pop_subst(&subst))
+            (prove_wc(decls, env, assumptions, WcData::ForAll(binder)) => c.pop_subst(subst))
         )
 
         (
@@ -55,13 +55,22 @@ judgment_fn! {
         )
 
         (
-            (a in assumptions)!
+            (prove_validate(decls, env, assumptions, validate_goal) => c)
+            --- ("validate")
+            (prove_wc(decls, env, assumptions, WcData::Validate(validate_goal)) => c)
+        )
+
+        (
+            // `Validate(P)` cannot be eliminated in the ordinary phase.
+            (a in assumptions)
+            (if !matches!(a, Wc::Validate(_)))!
             (prove_via_assumption(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("assumption - predicate")
             (prove_wc(decls, env, assumptions, WcData::Predicate(goal)) => c)
         )
         (
-            (a in assumptions)!
+            (a in assumptions)
+            (if !matches!(a, Wc::Validate(_)))!
             (prove_via_assumption(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("assumption - relation")
             (prove_wc(decls, env, assumptions, WcData::Relation(goal)) => c)
@@ -93,13 +102,13 @@ judgment_fn! {
         (
             (i in decls.neg_trait_impls_for(&trait_ref.trait_id))
             (let (env, subst) = env.existential_substitution(&i.binder))
-            (let i = i.binder.instantiate_with(&subst).unwrap())
+            (let i = i.binder.instantiate_with(subst).unwrap())
             (let impl_trait_ref = i.trait_ref())
             (let impl_where_clauses = i.where_clauses.to_wcs())
             (prove_after(decls, env, assumptions, Wcs::all_eq(&trait_ref.parameters, &impl_trait_ref.parameters)) => c)
             (prove_after(decls, c, assumptions, impl_where_clauses) => c)
             ----------------------------- ("negative impl")
-            (prove_wc(decls, env, assumptions, Predicate::NotImplemented(trait_ref)) => c.pop_subst(&subst))
+            (prove_wc(decls, env, assumptions, Predicate::NotImplemented(trait_ref)) => c.pop_subst(subst))
         )
 
         (
@@ -116,14 +125,19 @@ judgment_fn! {
         // consequences to the assumptions eagerly.
         (
             (trait_def in decls.traits())
-            // Requirement generation is partial, so commit only after this trait yields one.
-            (trait_requirement(trait_def) => requirement)!
-            (let (env, subst) = env.existential_substitution(&requirement.binder))
-            (let requirement = requirement.binder.instantiate_with(&subst).unwrap())
-            (prove_via_assumption(decls, env, assumptions, &requirement.required, trait_ref) => c)
-            (prove_after(decls, c, assumptions, &requirement.source) => c)
+            (trait_requirement(trait_def) => requirements)
+            (requirement in requirements)
+            (let goal: Wc = Predicate::is_implemented(trait_ref).upcast())
+            (prove_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                trait_def,
+                requirement,
+                goal,
+            ) => c)!
             ----------------------------- ("trait requirement")
-            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c.pop_subst(&subst))
+            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
         )
 
         (
@@ -195,5 +209,102 @@ mod tests {
             .unwrap();
 
         assert_eq!(proof.total_nodes(), 1, "{proof}");
+    }
+}
+
+judgment_fn! {
+    /// Prove that `validate_goal` holds as an impl-validation requirement.
+    fn prove_validate(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        validate_goal: Wc,
+    ) => Constraints {
+        debug(validate_goal, assumptions, env)
+
+        // An exact validation assumption is the most general possible proof, so no other rule can
+        // contribute a distinct result.
+        trivial(
+            assumptions.iter().any(|assumption| assumption == Wc::validate(&validate_goal))
+            => Constraints::none(env)
+        )
+
+        (
+            (let (env, subst) = env.universal_substitution(binder))
+            (let validate_goal = binder.instantiate_with(subst).unwrap())
+            (prove_validate(decls, env, assumptions, validate_goal) => c)
+            --- ("forall")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::ForAll(binder),
+            ) => c.pop_subst(subst))
+        )
+
+        (
+            (let validated_conditions = conditions.validated())
+            (prove_validate(
+                decls,
+                env,
+                (assumptions, validated_conditions),
+                consequence,
+            ) => c)
+            --- ("implies")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::Implies(conditions, consequence),
+            ) => c)
+        )
+
+        (
+            (wf_requirements(decls, parameter) => requirements)
+            (let requirements = requirements.validated())
+            (prove_after(decls, env, assumptions, requirements) => c)
+            --- ("well formed")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::Relation(Relation::WellFormed(parameter)),
+            ) => c)
+        )
+
+        (
+            (a in assumptions)
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                a,
+                Wc::validate(validate_goal),
+            ) => c)!
+            ----------------------------- ("assumption")
+            (prove_validate(decls, env, assumptions, validate_goal) => c)
+        )
+
+        (
+            (prove_wc(decls, env, assumptions, WcData::predicate(validate_goal)) => c)
+            --- ("atomic predicate")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::Predicate(validate_goal),
+            ) => c)
+        )
+
+        (
+            (prove_wc(decls, env, assumptions, WcData::relation(validate_goal)) => c)
+            --- ("atomic relation")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                WcData::Relation(validate_goal),
+            ) => c)
+        )
     }
 }

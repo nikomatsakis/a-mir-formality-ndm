@@ -1,7 +1,7 @@
 use crate::grammar::{
-    AdtId, AliasName, AliasTy, AssociatedTyValue, AssociatedTyValueBoundData, Binder, Crate,
-    CrateId, CrateItem, Crates, ImplItem, NegTraitImpl, Trait, TraitId, TraitImpl,
-    TraitImplBoundData, Ty, Wcs,
+    AdtId, AliasName, AliasTy, AssociatedTy, AssociatedTyValue, AssociatedTyValueBoundData, Binder,
+    Crate, CrateId, CrateItem, Crates, Fallible, ImplItem, NegTraitImpl, Predicate, Trait, TraitId,
+    TraitImpl, TraitImplBoundData, TraitRef, Ty, Wcs,
 };
 use crate::prove::ToWcs;
 use formality_core::{seq, Downcasted, To, Upcast, Upcasted};
@@ -91,6 +91,18 @@ impl Program {
         krate.items.iter().downcasted().collect()
     }
 
+    pub fn trait_impls_for(&self, trait_id: &TraitId) -> Vec<TraitImpl> {
+        self.crates
+            .items_from_all_crates()
+            .filter_map(|item| match item {
+                CrateItem::TraitImpl(trait_impl) if trait_impl.trait_id() == trait_id => {
+                    Some(trait_impl.upcast())
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     pub fn neg_trait_impls_for(&self, trait_id: &TraitId) -> Vec<NegTraitImpl> {
         self.crates
             .items_from_all_crates()
@@ -98,7 +110,7 @@ impl Program {
                 CrateItem::NegTraitImpl(neg_trait_impl)
                     if neg_trait_impl.binder.peek().trait_id == *trait_id =>
                 {
-                    Some(neg_trait_impl.clone())
+                    Some(neg_trait_impl.upcast())
                 }
                 _ => None,
             })
@@ -107,7 +119,7 @@ impl Program {
 
     /// Look up a raw trait definition by id.
     pub fn trait_def(&self, trait_id: &TraitId) -> Trait {
-        self.crates.trait_named(trait_id).unwrap().clone()
+        self.crates.trait_named(trait_id).unwrap().upcast()
     }
 
     pub fn alias_eq_decls(&self, name: &AliasName) -> Vec<AliasEqDecl> {
@@ -124,7 +136,7 @@ impl Program {
                         trait_id,
                         self_ty,
                         trait_parameters,
-                        where_clauses: impl_wc,
+                        where_clauses: _,
                         impl_items,
                     },
                 ) = ti.binder.open();
@@ -140,26 +152,33 @@ impl Program {
                             let (
                                 assoc_vars,
                                 AssociatedTyValueBoundData {
-                                    where_clauses: assoc_wc,
+                                    where_clauses: _,
                                     ty,
                                 },
                             ) = binder.open();
+                            let alias = AliasTy::associated_ty(
+                                &trait_id,
+                                item_id,
+                                assoc_vars.len(),
+                                seq![
+                                    self_ty.to::<crate::grammar::Parameter>(),
+                                    ..trait_parameters.iter().upcasted(),
+                                    ..assoc_vars.iter().upcasted(),
+                                ],
+                            );
+                            let (trait_ref, associated_ty_conditions) =
+                                self.associated_ty_requirements(&alias).ok()?;
                             Some(AliasEqDecl {
                                 binder: Binder::new(
                                     (&impl_vars, &assoc_vars),
                                     AliasEqDeclBoundData {
-                                        alias: AliasTy::associated_ty(
-                                            &trait_id,
-                                            item_id,
-                                            assoc_vars.len(),
-                                            seq![
-                                                self_ty.to(),
-                                                ..trait_parameters.iter().cloned(),
-                                                ..assoc_vars.iter().upcasted(),
-                                            ],
-                                        ),
+                                        alias,
                                         ty,
-                                        where_clause: (&impl_wc, assoc_wc).to_wcs(),
+                                        where_clause: (
+                                            Predicate::is_implemented(trait_ref),
+                                            associated_ty_conditions,
+                                        )
+                                            .to_wcs(),
                                     },
                                 ),
                             })
@@ -169,6 +188,47 @@ impl Program {
             })
             .filter(|a| a.alias_name() == *name)
             .collect()
+    }
+
+    /// Return the trait evidence and associated-item conditions required to use an associated
+    /// type projection.
+    pub fn associated_ty_requirements(&self, alias: &AliasTy) -> Fallible<(TraitRef, Wcs)> {
+        let AliasName::AssociatedTyId(name) = &alias.name;
+        let trait_parameter_count = alias
+            .parameters
+            .len()
+            .checked_sub(name.item_arity)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "associated type alias {:?} has fewer parameters than its item arity",
+                    alias
+                )
+            })?;
+        let (trait_parameters, associated_ty_parameters) =
+            alias.parameters.split_at(trait_parameter_count);
+
+        let trait_def = self.crates.trait_named(&name.trait_id)?;
+        let trait_data = trait_def.binder.instantiate_with(trait_parameters)?;
+        let associated_ty = trait_data
+            .trait_items
+            .iter()
+            .downcasted::<AssociatedTy>()
+            .find(|associated_ty| associated_ty.id == name.item_id)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "trait {:?} has no associated type {:?}",
+                    name.trait_id,
+                    name.item_id
+                )
+            })?;
+        let associated_ty_data = associated_ty
+            .binder
+            .instantiate_with(associated_ty_parameters)?;
+
+        Ok((
+            TraitRef::new(&name.trait_id, trait_parameters),
+            associated_ty_data.where_clauses.to_wcs(),
+        ))
     }
 
     /// Create a `Program` wrapping the given items in a single crate named "test".
@@ -224,7 +284,7 @@ pub struct AliasEqDecl {
 
 impl AliasEqDecl {
     pub fn alias_name(&self) -> AliasName {
-        self.binder.peek().alias.name.clone()
+        (&self.binder.peek().alias.name).upcast()
     }
 }
 
