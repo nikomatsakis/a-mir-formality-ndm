@@ -16,14 +16,16 @@ use crate::prove::prove::{
 use super::constraints::Constraints;
 
 judgment_fn! {
-    /// Normalize `p` one step, returning constraints and a semantically equivalent parameter `q`.
-    /// For example, `<Vec<T> as IntoIterator>::Item` normalizes to `T`.
+    /// Normalize `p` one step, entering post-validation before reducing an alias.
+    ///
+    /// Returns constraints and a semantically equivalent parameter `q`. For example,
+    /// `<Vec<T> as IntoIterator>::Item` normalizes to `T`.
     ///
     /// Reducing an alias observes its value and therefore enters the post-validation phase:
     /// `Validate(P)` assumptions become ordinary `P` assumptions for normalization and its nested
     /// proof goals. Rewriting a non-alias parameter from an equality assumption stays in the
     /// current phase.
-    pub fn prove_normalize(
+    pub fn prove_normalize_after_validation(
         _decls: Program,
         env: Env,
         assumptions: Wcs,
@@ -35,14 +37,19 @@ judgment_fn! {
             (let assumptions = assumptions.promote_validation())
             (prove_normalize_now(decls, env, assumptions, TyData::alias_ty(alias)) => c)
             ----------------------------- ("alias after validation")
-            (prove_normalize(decls, env, assumptions, TyData::AliasTy(alias)) => c)
+            (prove_normalize_after_validation(
+                decls,
+                env,
+                assumptions,
+                TyData::AliasTy(alias),
+            ) => c)
         )
 
         (
             (if let None = p.downcast::<AliasTy>())!
             (prove_normalize_now(decls, env, assumptions, p) => c)
             ----------------------------- ("non-alias now")
-            (prove_normalize(decls, env, assumptions, p) => c)
+            (prove_normalize_after_validation(decls, env, assumptions, p) => c)
         )
     }
 }

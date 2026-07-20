@@ -5,7 +5,7 @@
 //! The base operations we export are:
 //!
 //! * [`prove`][] -- prove a set of where-clauses to be true
-//! * [`prove_normalize`][] -- normalize a type one step (typically used in a recursive setup)
+//! * [`prove_normalize_after_validation`][] -- normalize a type one step (typically used in a recursive setup)
 
 // Defines the language used by derive(term) and friends.
 use crate::rust::FormalityLang;
@@ -19,7 +19,7 @@ pub use decls::*;
 pub use prove::combinators;
 pub use prove::prove;
 pub(crate) use prove::prove_fully_normalize_parameter;
-pub use prove::prove_normalize::prove_normalize;
+pub use prove::prove_normalize::prove_normalize_after_validation;
 pub use prove::{is_definitely_not_proveable, may_not_be_provable, negation_via_failure};
 pub(crate) use prove::{prove_via_impl, ImplApplication};
 pub use prove::{Bias, Env, MaxUniverse, Universe};

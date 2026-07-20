@@ -10,7 +10,7 @@ use crate::prove::prove::{
     decls::Program,
     prove::{
         combinators::for_all, env::Bias, negation::may_not_be_provable,
-        prove_normalize::prove_normalize, Constraints,
+        prove_normalize::prove_normalize_after_validation, Constraints,
     },
 };
 
@@ -162,7 +162,7 @@ judgment_fn! {
 
         // Alias types: normalize and check result
         (
-            (prove_normalize(decls, env, assumptions, parameter) => Constrained(p, c))
+            (prove_normalize_after_validation(decls, env, assumptions, parameter) => Constrained(p, c))
             (let assumptions = c.substitution().apply(assumptions))
             (may_contain_downstream_type(decls, env, assumptions, p) => ())
             --- ("via normalize")
@@ -190,7 +190,12 @@ judgment_fn! {
         debug(parameter, assumptions, env)
 
         (
-            (prove_normalize(decls, env, assumptions, parameter) => Constrained(parameter, c1))
+            (prove_normalize_after_validation(
+                decls,
+                env,
+                assumptions,
+                parameter,
+            ) => Constrained(parameter, c1))
             (let assumptions = c1.substitution().apply(assumptions))
             (is_not_downstream(decls, env, assumptions, parameter) => c2)
             --- ("ambiguous")
@@ -260,7 +265,12 @@ judgment_fn! {
         )
 
         (
-            (prove_normalize(decls, env, assumptions, parameter) => Constrained(p, c1))
+            (prove_normalize_after_validation(
+                decls,
+                env,
+                assumptions,
+                parameter,
+            ) => Constrained(p, c1))
             (let assumptions = c1.substitution().apply(assumptions))
             (is_not_downstream(decls, c1.env(), assumptions, p) => c2)
             --- ("via normalize")
@@ -289,7 +299,7 @@ judgment_fn! {
 
         // If we can normalize `goal` to something else, check if that normalized form is local.
         (
-            (prove_normalize(decls, env, assumptions, goal) => Constrained(p, c1))
+            (prove_normalize_after_validation(decls, env, assumptions, goal) => Constrained(p, c1))
             (let assumptions = c1.substitution().apply(assumptions))
             (is_local_parameter(decls, c1.env(), assumptions, p) => c2)
             --- ("local parameter")

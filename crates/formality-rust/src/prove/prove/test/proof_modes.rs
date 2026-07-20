@@ -10,7 +10,7 @@ use formality_core::{Downcast, Upcast};
 use formality_macros::test;
 
 use crate::prove::prove::prove::{
-    prove_after, prove_after_validation, prove_normalize::prove_normalize,
+    prove_after, prove_after_validation, prove_normalize::prove_normalize_after_validation,
 };
 
 fn decls() -> Program {
@@ -105,7 +105,7 @@ fn post_validation_promotes_and_elaborates_validation_assumptions() {
 
 #[test]
 fn normalizing_alias_enters_post_validation_context() {
-    let result = prove_normalize(
+    let result = prove_normalize_after_validation(
         normalization_decls(),
         (),
         validated(term::<Wc>("Marker(u32)")),
@@ -117,7 +117,7 @@ fn normalizing_alias_enters_post_validation_context() {
 
 #[test]
 fn normalizing_non_alias_does_not_enter_post_validation_context() {
-    let result = prove_normalize(
+    let result = prove_normalize_after_validation(
         Program::empty(),
         (),
         validated(term::<Wc>("u32 = bool")),

@@ -7,7 +7,7 @@ use crate::prove::prove::{
     decls::Program,
     prove::{
         prove_after::prove_after, prove_after_validation::prove_after_validation,
-        prove_normalize::prove_normalize,
+        prove_normalize::prove_normalize_after_validation,
     },
 };
 
@@ -28,7 +28,12 @@ judgment_fn! {
         trivial(a == b => Constraints::none(env))
 
         (
-            (prove_normalize(decls, env, assumptions, TyData::alias_ty(alias)) => Constrained(y, c))
+            (prove_normalize_after_validation(
+                decls,
+                env,
+                assumptions,
+                TyData::alias_ty(alias),
+            ) => Constrained(y, c))
             (prove_after_validation(decls, c, assumptions, Relation::sub(y, z)) => c)
             ----------------------------- ("normalize alias left after validation")
             (prove_sub(decls, env, assumptions, TyData::AliasTy(alias), z) => c)
@@ -36,14 +41,19 @@ judgment_fn! {
 
         (
             (if let None = x.downcast::<AliasTy>())!
-            (prove_normalize(decls, env, assumptions, x) => Constrained(y, c))
+            (prove_normalize_after_validation(decls, env, assumptions, x) => Constrained(y, c))
             (prove_after(decls, c, assumptions, Relation::sub(y, z)) => c)
             ----------------------------- ("normalize non-alias left now")
             (prove_sub(decls, env, assumptions, x, z) => c)
         )
 
         (
-            (prove_normalize(decls, env, assumptions, TyData::alias_ty(alias)) => Constrained(z, c))
+            (prove_normalize_after_validation(
+                decls,
+                env,
+                assumptions,
+                TyData::alias_ty(alias),
+            ) => Constrained(z, c))
             (prove_after_validation(decls, c, assumptions, Relation::sub(x, &z)) => c)
             ----------------------------- ("normalize alias right after validation")
             (prove_sub(decls, env, assumptions, x, TyData::AliasTy(alias)) => c)
@@ -51,7 +61,7 @@ judgment_fn! {
 
         (
             (if let None = y.downcast::<AliasTy>())!
-            (prove_normalize(decls, env, assumptions, y) => Constrained(z, c))
+            (prove_normalize_after_validation(decls, env, assumptions, y) => Constrained(z, c))
             (prove_after(decls, c, assumptions, Relation::sub(x, &z)) => c)
             ----------------------------- ("normalize non-alias right now")
             (prove_sub(decls, env, assumptions, x, y) => c)

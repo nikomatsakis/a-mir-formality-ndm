@@ -12,7 +12,8 @@ use crate::prove::prove::{
     decls::Program,
     prove::{
         constraints::occurs_in, prove_after::prove_after,
-        prove_after_validation::prove_after_validation, prove_normalize::prove_normalize,
+        prove_after_validation::prove_after_validation,
+        prove_normalize::prove_normalize_after_validation,
     },
 };
 
@@ -72,7 +73,12 @@ judgment_fn! {
         // Reflexivity, existential-variable binding, and structural congruence above remain in
         // the current phase.
         (
-            (prove_normalize(decls, env, assumptions, alias) => Constrained(normalized, c))
+            (prove_normalize_after_validation(
+                decls,
+                env,
+                assumptions,
+                alias,
+            ) => Constrained(normalized, c))
             (prove_after_validation(decls, c, assumptions, eq(normalized, z)) => c)
             ----------------------------- ("normalize alias after validation")
             (prove_eq(decls, env, assumptions, TyData::AliasTy(alias), z) => c)
@@ -83,7 +89,7 @@ judgment_fn! {
         // proving another equality. Only observing an associated type changes phase.
         (
             (if let None = x.downcast::<AliasTy>())!
-            (prove_normalize(decls, env, assumptions, x) => Constrained(y, c))
+            (prove_normalize_after_validation(decls, env, assumptions, x) => Constrained(y, c))
             (prove_after(decls, c, assumptions, eq(y, z)) => c)
             ----------------------------- ("normalize non-alias now")
             (prove_eq(decls, env, assumptions, x, z) => c)

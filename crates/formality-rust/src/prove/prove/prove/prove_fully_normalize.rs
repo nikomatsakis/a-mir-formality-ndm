@@ -1,5 +1,5 @@
 use crate::grammar::{Const, ConstData, Lt, Parameter, RigidConstData, RigidTy, Ty, TyData, Wcs};
-use crate::prove::prove::prove_normalize;
+use crate::prove::prove::prove_normalize_after_validation;
 use crate::prove::prove::{Constrained, Constraints, Env, Program};
 use formality_core::{judgment_fn, Downcast, Upcast};
 
@@ -25,7 +25,12 @@ judgment_fn! {
         )
 
         (
-            (prove_normalize(decls, env, assumptions, &alias) => Constrained(parameter, c0))
+            (prove_normalize_after_validation(
+                decls,
+                env,
+                assumptions,
+                &alias,
+            ) => Constrained(parameter, c0))
             (let parameter = c0.substitution().apply(parameter))
             (if let Some(ty) = parameter.downcast::<Ty>())!
             (let assumptions = c0.substitution().apply(assumptions))

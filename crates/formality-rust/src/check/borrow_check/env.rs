@@ -5,7 +5,9 @@ use crate::check::borrow_check::flow_state::{FlowState, PendingOutlives};
 use crate::check::borrow_check::outlives::verify_universal_outlives;
 use crate::grammar::{Binder, ExistentialVar, Relation, Ty, UniversalVar, Wcs};
 use crate::grammar::{Crates, Parameter};
-use crate::prove::prove::{prove_normalize, Constrained, Constraints, Env, Program};
+use crate::prove::prove::{
+    prove_normalize_after_validation, Constrained, Constraints, Env, Program,
+};
 use crate::rust::Fold;
 use formality_core::judgment::{FailureLocation, ProofTree, Proven};
 use formality_core::{cast_impl, Downcast, DowncastTo, Set, Upcast};
@@ -77,25 +79,20 @@ impl TypeckEnv {
         Parameter: DowncastTo<T>,
     {
         let goal: Parameter = goal.upcast();
-        self.prove_judgment(
-            state,
-            assumptions,
-            goal,
-            |program, env, assumptions, goal| prove_normalize(program, env, assumptions, goal),
-        )
-        .map(
-            |((value, state), proof_tree): Proven<(Parameter, FlowState)>| {
-                (
+        self.prove_judgment(state, assumptions, goal, prove_normalize_after_validation)
+            .map(
+                |((value, state), proof_tree): Proven<(Parameter, FlowState)>| {
                     (
-                        value
-                            .downcast()
-                            .expect("to be the same kind as we started with"),
-                        state,
-                    ),
-                    proof_tree,
-                )
-            },
-        )
+                        (
+                            value
+                                .downcast()
+                                .expect("to be the same kind as we started with"),
+                            state,
+                        ),
+                        proof_tree,
+                    )
+                },
+            )
     }
 
     /// Prove the goal with the function `judgment_fn`,
