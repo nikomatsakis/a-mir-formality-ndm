@@ -76,9 +76,8 @@ judgment_fn! {
             (let requirement =
                 requirement.binder.instantiate_with(trait_subst)?)
             (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
-            (let required = quantified_requirement(
+            (let required = quantified_goal(
                 supertrait,
-                Wcs::t(),
                 |trait_ref| Predicate::is_implemented(trait_ref).upcast(),
             ))
             (prove_via_assumption(decls, env, assumptions, required, goal) => c)
@@ -485,9 +484,8 @@ judgment_fn! {
         debug(constraints, assumptions, trait_impl, requirement)
 
         (
-            (let goal = quantified_requirement(
+            (let goal = quantified_goal(
                 supertrait,
-                trait_impl.where_clauses.to_wcs(),
                 |trait_ref| Predicate::is_implemented(trait_ref).upcast(),
             ))
             (let goal = Wc::validate(goal))
@@ -503,9 +501,8 @@ judgment_fn! {
         )
 
         (
-            (let goal = quantified_requirement(
+            (let goal = quantified_goal(
                 outlives,
-                trait_impl.where_clauses.to_wcs(),
                 |relation| relation.upcast(),
             ))
             (let goal = Wc::validate(goal))
@@ -536,15 +533,12 @@ judgment_fn! {
     }
 }
 
-fn quantified_requirement<T>(binder: &Binder<T>, conditions: Wcs, to_wc: impl FnOnce(T) -> Wc) -> Wc
+fn quantified_goal<T>(binder: &Binder<T>, to_wc: impl FnOnce(T) -> Wc) -> Wc
 where
     T: crate::rust::Term,
 {
     let (variables, value) = binder.open();
-    Wc::for_all(Binder::new(
-        &variables,
-        Wc::implies(conditions, to_wc(value)),
-    ))
+    Wc::for_all(Binder::new(&variables, to_wc(value)))
 }
 
 fn associated_ty_validation_goals(

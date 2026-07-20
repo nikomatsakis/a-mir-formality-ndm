@@ -209,6 +209,50 @@ fn candidate_cannot_validate_its_own_missing_supertrait() {
 }
 
 #[test]
+fn impl_where_clause_cannot_justify_its_matching_supertrait() {
+    // Constructing `Magic(Ground)` requires `Prerequisite(Ground)`, and no such impl exists.
+    // Validation must not treat the impl prerequisite as provisional evidence for the matching
+    // supertrait:
+    //
+    //     Validate(Prerequisite(Ground) => Prerequisite(Ground))
+    //
+    // combined with the post-validation `Magic(Ground) => Prerequisite(Ground)` implied bound
+    // would let the prerequisite and supertrait justify one another.
+    FormalityTest::new(crates![crate test {
+        trait Prerequisite {}
+
+        trait Magic
+        where
+            Self: Prerequisite,
+        {}
+
+        struct Ground {}
+
+        impl<T> Magic for T
+        where
+            T: Prerequisite,
+        {}
+
+        fn require_magic<T>() -> ()
+        where
+            T: Magic,
+        {
+            trusted
+        }
+
+        fn main() -> () {
+            require_magic::<Ground>();
+        }
+    }])
+    .skip_execute()
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via.rs:7:1: no applicable rules for prove_via { goal: Prerequisite(Ground), via: validate(Magic(Ground)), assumptions: {validate(Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+}
+
+#[test]
 fn gat_value_may_delegate_to_ground_trait_impl() {
     // The `u32` GAT delegates to the GAT of its argument. For the ground argument `i32`, that
     // projection has a matching impl and bottoms out at `()`.
