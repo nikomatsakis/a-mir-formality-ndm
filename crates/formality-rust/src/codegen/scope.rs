@@ -2,8 +2,8 @@
 
 use crate::check::borrow_check::env::TypeckEnv;
 use crate::check::borrow_check::flow_state::FlowState;
-use crate::grammar::{expr::LabelId, Crates, Fallible, Parameter, Ty, ValueId, Wcs};
-use crate::prove::prove::{Env, Program};
+use crate::grammar::{expr::LabelId, Const, Crates, Fallible, Lt, Parameter, Ty, ValueId, Wcs};
+use crate::prove::prove::{Constrained, Env, Program};
 use formality_core::Upcast;
 use libspecr::prelude::Map;
 use minirust_rs::lang;
@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use super::code_block::CodeBlock;
 use super::minirust::*;
+use super::normalize::normalize_mono_key;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct MonoKey {
@@ -27,17 +28,32 @@ impl MonoKey {
     }
 }
 
+/// A monomorphization key that is ground and recursively free of aliases and
+/// other type forms unsupported by code generation.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+struct NormalizedMonoKey(MonoKey);
+
+impl NormalizedMonoKey {
+    fn new(key: MonoKey) -> Fallible<Self> {
+        if key.args.iter().all(is_normalized_parameter) {
+            Ok(Self(key))
+        } else {
+            anyhow::bail!("monomorphization key is not ground and recursively alias-free: {key:?}")
+        }
+    }
+}
+
 /// Cross-function state: tracks the set of monomorphized functions discovered
 /// during codegen and allocates globally-unique function names.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct CodegenGlobal {
-    /// Input program.
-    pub(super) crates: Crates,
+    /// Input program, including the solver declarations used to normalize keys.
+    pub(super) program: Program,
     /// Monotonically increasing counter for generating unique function names.
     fn_counter: u32,
     /// Map from monomorphized call sites to MiniRust function names.
     /// Entries are added on first encounter; codegen loops until all are compiled.
-    fn_map: Vec<(MonoKey, MiniRustFn)>,
+    fn_map: Vec<(NormalizedMonoKey, MiniRustFn)>,
 }
 
 /// Per-function state: locals, basic-block counters, type environment.
@@ -105,7 +121,7 @@ impl CodegenGlobal {
     /// Create a fresh global state for codegen over the given crates.
     pub(super) fn new(crates: &Crates) -> Self {
         CodegenGlobal {
-            crates: crates.clone(),
+            program: crates.to_prove_decls(),
             fn_counter: 0,
             fn_map: Vec::new(),
         }
@@ -121,7 +137,7 @@ impl CodegenGlobal {
 
     /// Return the MiniRust function name for a monomorphized call site,
     /// allocating a new entry if this is the first time we've seen this key.
-    pub(super) fn ensure_fn(&self, key: MonoKey) -> (lang::FnName, Self) {
+    fn ensure_normalized_fn(&self, key: NormalizedMonoKey) -> (lang::FnName, Self) {
         for (k, name) in &self.fn_map {
             if *k == key {
                 return (name.0, self.clone());
@@ -132,6 +148,30 @@ impl CodegenGlobal {
         (name, g)
     }
 
+    /// Normalize and classify a proposed key before it can enter the worklist.
+    pub(super) fn ensure_monomorphized_fn(&self, key: MonoKey) -> Fallible<(lang::FnName, Self)> {
+        let initial_env = Env::default();
+        let results = normalize_mono_key(&self.program, &initial_env, Wcs::t(), key)
+            .into_map()
+            .map_err(|error| anyhow::anyhow!("{}", error.format_leaves()))?;
+
+        if results.len() != 1 {
+            anyhow::bail!(
+                "codegen requires exactly one normal form for a monomorphization key, found {}",
+                results.len(),
+            );
+        }
+
+        let (Constrained(key, constraints), _) = results.into_iter().next().unwrap();
+        if constraints.env() != &initial_env || !constraints.unconditionally_true() {
+            anyhow::bail!(
+                "codegen requires an unconditional normal form in the initial environment: {constraints:?}"
+            );
+        }
+
+        Ok(self.ensure_normalized_fn(NormalizedMonoKey::new(key)?))
+    }
+
     /// Return the next function in `fn_map` that hasn't been compiled yet.
     pub(super) fn next_pending(
         &self,
@@ -140,7 +180,29 @@ impl CodegenGlobal {
         self.fn_map
             .iter()
             .find(|(_, n)| !done.contains_key(n.0))
-            .map(|(k, n)| (k.clone(), n.0))
+            .map(|(k, n)| ((&k.0).upcast(), n.0))
+    }
+}
+
+fn is_normalized_parameter(parameter: &Parameter) -> bool {
+    match parameter {
+        Parameter::Ty(ty) => match ty.as_ref() {
+            Ty::RigidTy(rigid) => rigid.parameters.iter().all(is_normalized_parameter),
+            Ty::AliasTy(_) | Ty::PredicateTy(_) | Ty::Variable(_) => false,
+        },
+        Parameter::Lt(lt) => matches!(lt.as_ref(), Lt::Static | Lt::Erased),
+        Parameter::Const(constant) => is_normalized_const(constant),
+    }
+}
+
+fn is_normalized_const(constant: &Const) -> bool {
+    match constant {
+        Const::Scalar(_) => true,
+        Const::RigidValue(rigid) => {
+            rigid.parameters.iter().all(is_normalized_parameter)
+                && rigid.values.iter().all(is_normalized_const)
+        }
+        Const::Block(_) | Const::Variable(_) => false,
     }
 }
 
@@ -269,5 +331,48 @@ impl CodegenScope {
             break_target,
         });
         s
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CodegenGlobal, MonoKey, NormalizedMonoKey};
+    use crate::grammar::{Crates, Ty, ValueId};
+    use crate::rust::term;
+
+    fn normalization_program() -> Crates {
+        term(
+            "[
+                crate test {
+                    trait Family { type Output : []; }
+                    impl Family for () { type Output = i32; }
+                    fn identity<T>(value: T) -> T { return value; }
+                }
+            ]",
+        )
+    }
+
+    fn identity_key(ty: Ty) -> MonoKey {
+        MonoKey::new(term::<ValueId>("identity"), vec![ty])
+    }
+
+    #[test]
+    fn raw_worklist_key_rejects_an_alias() {
+        let key = identity_key(term("<() as Family>::Output"));
+        assert!(NormalizedMonoKey::new(key).is_err());
+    }
+
+    #[test]
+    fn alias_and_rigid_spelling_share_one_worklist_entry() {
+        let global = CodegenGlobal::new(&normalization_program());
+        let (alias_name, global) = global
+            .ensure_monomorphized_fn(identity_key(term("<() as Family>::Output")))
+            .unwrap();
+        let (rigid_name, global) = global
+            .ensure_monomorphized_fn(identity_key(term("i32")))
+            .unwrap();
+
+        assert_eq!(alias_name, rigid_name);
+        assert_eq!(global.fn_map.len(), 1);
     }
 }

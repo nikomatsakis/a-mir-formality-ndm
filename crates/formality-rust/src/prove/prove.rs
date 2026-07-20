@@ -17,6 +17,7 @@ mod prove;
 pub use decls::*;
 pub use prove::combinators;
 pub use prove::prove;
+pub(crate) use prove::prove_fully_normalize_parameter;
 pub use prove::prove_normalize::prove_normalize;
 pub use prove::{is_definitely_not_proveable, may_not_be_provable, negation_via_failure};
 pub use prove::{Bias, Env, MaxUniverse, Universe};

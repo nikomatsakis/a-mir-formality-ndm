@@ -7,6 +7,7 @@ mod negation;
 mod prove_after;
 mod prove_const_has_type;
 mod prove_eq;
+mod prove_fully_normalize;
 pub mod prove_normalize;
 mod prove_outlives;
 mod prove_sub;
@@ -25,6 +26,7 @@ use tracing::Level;
 use crate::prove::prove::decls::Program;
 
 pub use self::env::{Bias, Env, MaxUniverse, Universe};
+pub(crate) use self::prove_fully_normalize::prove_fully_normalize_parameter;
 use self::prove_wc_list::prove_wc_list;
 pub use negation::{is_definitely_not_proveable, may_not_be_provable, negation_via_failure};
 

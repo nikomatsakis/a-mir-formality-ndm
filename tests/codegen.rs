@@ -80,6 +80,33 @@ fn generic_function_calls() {
 }
 
 #[test]
+fn aliases_in_free_function_keys_are_fully_normalized() {
+    FormalityTest::new(crates![crate test {
+        trait Family {
+            type Output : [];
+        }
+
+        impl Family for () {
+            type Output = i32;
+        }
+
+        fn identity<T>(value: T) -> T {
+            return value;
+        }
+
+        fn main() -> () {
+            let first: i32 = identity::<<() as Family>::Output>(22 _ i32);
+            let second: i32 = identity::<i32>(44 _ i32);
+            println!(first);
+            println!(second);
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n44\n")
+    .ok()
+}
+
+#[test]
 fn qualified_trait_call_typechecks() {
     FormalityTest::new(crates![crate test {
         trait Bar {

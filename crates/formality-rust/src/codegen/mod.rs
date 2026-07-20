@@ -16,6 +16,7 @@ use minirust_rs::lang;
 mod code_block;
 mod helpers;
 mod minirust;
+mod normalize;
 mod scope;
 
 use code_block::CodeBlock;
@@ -36,7 +37,7 @@ pub fn codegen_program(crates: &Crates) -> Fallible<lang::Program> {
         id: crate::rust::term("main"),
         args: vec![],
     };
-    let (main_fn_name, g2) = g.ensure_fn(main_key);
+    let (main_fn_name, g2) = g.ensure_monomorphized_fn(main_key)?;
     g = g2;
     let mut functions: Map<lang::FnName, lang::Function> = Map::new();
     while let Some((key, fn_name)) = g.next_pending(&functions) {
@@ -72,7 +73,7 @@ judgment_fn! {
 
         (
             (let (fn_data, body) = resolve_fn_body(global, key)?)
-            (let cfn = CodegenFn::new(&global.crates, &fn_data.output_ty))
+            (let cfn = CodegenFn::new(global.program.program(), &fn_data.output_ty))
             (let (ret_local, arg_locals, scope, cfn) = setup_fn_args(cfn, fn_data)?)
             (codegen_block(global, cfn, scope, body) => (code, global, cfn))
             (let function = build_function(cfn, code, ret_local, arg_locals))
@@ -317,7 +318,7 @@ judgment_fn! {
             // uniquely identifies a callee.
             (type_expr(cfn, scope, callee) => callee_ty)
             (resolve_rigid(cfn, scope, callee_ty) => RigidTy { name: RigidName::FnDef(FnName::FreeId(fn_id)), parameters })
-            (let (fn_name, global) = global.ensure_fn(MonoKey::new(fn_id, parameters)))
+            (let (fn_name, global) = global.ensure_monomorphized_fn(MonoKey::new(fn_id, parameters))?)
             // Evaluate callee for side effects (value is zero-sized for FnDef).
             (let (callee_temp, cfn) = cfn.alloc_temp(&callee_ty)?)
             (codegen_expr_into(global, cfn, scope, callee_temp, callee) => (code, global, cfn))

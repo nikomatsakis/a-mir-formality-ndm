@@ -106,7 +106,7 @@ pub(super) fn resolve_fn_body(
     g: &CodegenGlobal,
     key: &MonoKey,
 ) -> Fallible<(grammar::FnBoundData, Block)> {
-    let fn_def = g.crates.fn_named(&key.id)?;
+    let fn_def = g.program.program().fn_named(&key.id)?;
     let fn_data = fn_def.binder.instantiate_with(&key.args)?;
     let body = match &fn_data.body {
         grammar::MaybeFnBody::FnBody(grammar::FnBody::Expr(b)) => b.clone(),
