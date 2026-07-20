@@ -33,8 +33,19 @@ judgment_fn! {
     ) => Constraints {
         debug(goal, assumptions, env)
 
-        // An exactly equal assumption proves the goal without introducing any constraints.
-        // This is the most general possible result, so exploring other rules cannot improve it.
+        // Prefer an exactly equal assumption before exploring derived proofs. This cut is
+        // important when validating associated type requirements of the form
+        // `forall<T> conditions => goal`: opening the binder creates a fresh universal and adds
+        // the conditions to the assumptions. Even when one of those assumptions proves the goal,
+        // exhaustive search would otherwise also explore the impl rule, which can recursively
+        // validate the same associated type requirement. Each recursion opens `forall<T>` again,
+        // so the assumptions grow with distinct universals (`!T_1`, `!T_2`, ...); the fixed-point
+        // machinery therefore sees distinct calls instead of recognizing a cycle.
+        //
+        // `trivial` acts as a logical cut here. The exact assumption proves the goal without
+        // introducing constraints, which is the most general possible result, so no alternative
+        // derivation can improve it. This cut would not be valid if the result were more
+        // restrictive.
         trivial(
             assumptions.iter().any(|assumption| assumption == goal)
             => Constraints::none(env)
