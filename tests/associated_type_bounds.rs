@@ -262,11 +262,11 @@ fn associated_type_value_must_be_well_formed() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: validate(Foo(())), assumptions: {validate(Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: validate(a, Foo(())), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(Foo(())), assumptions: {validate(Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(a, Foo(())), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(Foo(())), assumptions: {validate(Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(a, Foo(())), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -327,17 +327,14 @@ fn associated_type_projection_requires_a_valid_impl() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(Foo(X)), assumptions: {validate(Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(a, Foo(X)), assumptions: {validate(a, Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
-fn conditional_associated_bound_does_not_yet_elaborate_validation_assumption() {
-    // FIXME(XXX) -- supertrait elaboration in implication
-    //
-    // Ultimately, the caller-supplied `T: Sub` dictionary should provide its `T: Super`
-    // supertrait. The current validation representation cannot distinguish that dictionary from
-    // provisional evidence for an impl presently being validated, so it conservatively rejects
-    // this program.
+fn conditional_associated_bound_elaborates_staged_validation_assumption() {
+    // The associated type's caller-supplied `T: Sub` condition is stage-B validation evidence,
+    // so it can provide its `T: Super` supertrait while validating the associated value. This is
+    // distinct from the stage-A evidence for an impl whose dictionary is still being constructed.
     FormalityTest::new(crates![crate test {
         trait Super {}
 
@@ -370,13 +367,7 @@ fn conditional_associated_bound_does_not_yet_elaborate_validation_assumption() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect![[r#"
-        the rule "assumption - predicate" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `assumptions`
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Super(!ty_1), via: validate(Family(u32)), assumptions: {validate(Family(u32)), validate(Sub(!ty_1))}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Super(!ty_1), via: validate(Sub(!ty_1)), assumptions: {validate(Family(u32)), validate(Sub(!ty_1))}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+    .ok();
 }
 
 #[test]
@@ -452,7 +443,7 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(Family(())), assumptions: {validate(Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(a, Family(())), assumptions: {validate(a, Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -568,7 +559,7 @@ fn post_validation_alias_normalization_still_checks_the_normalized_type() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:48:1: no applicable rules for prove_via_impl { _requested_trait_ref: Target(Bar, X), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Target(Bar, X), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]

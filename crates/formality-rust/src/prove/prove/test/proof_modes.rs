@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::grammar::{AliasTy, Binder, Const, Parameter, Predicate, Relation, Ty, Wc, Wcs};
+use crate::grammar::{
+    AliasTy, Binder, Const, Parameter, Predicate, Relation, Ty, ValidationState, Wc, Wcs,
+};
 use crate::prove::prove::{
     decls::Program,
     prove::{Constraints, Env},
@@ -28,9 +30,17 @@ fn sub() -> Wc {
     term("Sub(u32)")
 }
 
-fn validated(wc: impl Upcast<Wc>) -> Wc {
+fn validated_at(state: ValidationState, wc: impl Upcast<Wc>) -> Wc {
     let wc: Wc = wc.upcast();
-    Wc::validate(wc)
+    Wc::validate(state, wc)
+}
+
+fn validated(wc: impl Upcast<Wc>) -> Wc {
+    validated_at(ValidationState::A, wc)
+}
+
+fn validated_b(wc: impl Upcast<Wc>) -> Wc {
+    validated_at(ValidationState::B, wc)
 }
 
 fn normalization_decls() -> Program {
@@ -60,6 +70,17 @@ fn higher_ranked_supertrait_decls() -> Program {
             term("trait Super<'a> where {}"),
             term("trait Sub where for<'a> Self : Super<'a> {}"),
             term("impl<T> Sub for T where for<'a> T : Super<'a> {}"),
+        ])),
+        ..Program::empty()
+    }
+}
+
+fn transitive_supertrait_decls() -> Program {
+    Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Super where {}"),
+            term("trait Mid where Self : Super {}"),
+            term("trait Sub where Self : Mid {}"),
         ])),
         ..Program::empty()
     }
@@ -141,6 +162,81 @@ fn validation_evidence_is_not_ordinary_evidence() {
 
     let ordinary_result = prove_after(decls(), Constraints::none(()), validated_sub, sub());
     assert!(!ordinary_result.is_proven());
+}
+
+#[test]
+fn stage_b_validation_evidence_can_discharge_stage_a_goal() {
+    let result = prove_after(
+        decls(),
+        Constraints::none(()),
+        validated_b(sub()),
+        validated(sub()),
+    );
+
+    assert!(result.is_proven());
+}
+
+#[test]
+fn stage_a_validation_evidence_cannot_discharge_stage_b_goal() {
+    let result = prove_after(
+        decls(),
+        Constraints::none(()),
+        validated(sub()),
+        validated_b(sub()),
+    );
+
+    assert!(!result.is_proven());
+}
+
+#[test]
+fn ordinary_evidence_can_discharge_stage_b_goal() {
+    let result = prove_after(decls(), Constraints::none(()), sub(), validated_b(sub()));
+
+    assert!(result.is_proven());
+}
+
+#[test]
+fn stage_b_validation_evidence_elaborates_supertrait() {
+    let result = prove_after(
+        decls(),
+        Constraints::none(()),
+        validated_b(sub()),
+        validated(term::<Wc>("Super(u32)")),
+    );
+
+    assert!(result.is_proven());
+}
+
+#[test]
+fn stage_b_validation_preserves_stage_through_implication() {
+    let implication = Wc::implies(sub(), term::<Wc>("Super(u32)"));
+    let result = prove_after(decls(), Constraints::none(()), (), validated_b(implication));
+
+    assert!(result.is_proven());
+}
+
+#[test]
+fn stage_b_validation_evidence_elaborates_transitive_supertrait() {
+    let result = prove_after(
+        transitive_supertrait_decls(),
+        Constraints::none(()),
+        validated_b(sub()),
+        validated(term::<Wc>("Super(u32)")),
+    );
+
+    assert!(result.is_proven());
+}
+
+#[test]
+fn stage_b_validation_evidence_elaborates_higher_ranked_supertrait() {
+    let result = prove_after(
+        higher_ranked_supertrait_decls(),
+        Constraints::none(()),
+        validated_b(sub()),
+        validated(term::<Wc>("for<'a> Super(u32, 'a)")),
+    );
+
+    assert!(result.is_proven());
 }
 
 #[test]
@@ -327,10 +423,20 @@ fn validation_preserves_mode_through_well_formedness() {
 
 #[test]
 fn validation_promotion_removes_exactly_one_layer() {
-    let assumptions: Wcs = validated(validated(sub())).upcast();
-    let expected: Wcs = validated(sub()).upcast();
+    let assumptions: Wcs = validated(validated_b(sub())).upcast();
+    let expected: Wcs = validated_b(sub()).upcast();
 
     assert_eq!(assumptions.promote_validation(), expected);
+}
+
+#[test]
+fn validation_promotion_discards_either_stage() {
+    for assumption in [validated(sub()), validated_b(sub())] {
+        let assumptions: Wcs = assumption.upcast();
+        let expected: Wcs = sub().upcast();
+
+        assert_eq!(assumptions.promote_validation(), expected);
+    }
 }
 
 #[test]

@@ -22,9 +22,9 @@ judgment_fn! {
     /// `<Vec<T> as IntoIterator>::Item` normalizes to `T`.
     ///
     /// Reducing an alias observes its value and therefore enters the post-validation phase:
-    /// `Validate(P)` assumptions become ordinary `P` assumptions for normalization and its nested
-    /// proof goals. Rewriting a non-alias parameter from an equality assumption stays in the
-    /// current phase.
+    /// `Validate(A, P)` and `Validate(B, P)` assumptions become ordinary `P` assumptions for
+    /// normalization and its nested proof goals. Rewriting a non-alias parameter from an equality
+    /// assumption stays in the current phase.
     pub fn prove_normalize_after_validation(
         _decls: Program,
         env: Env,

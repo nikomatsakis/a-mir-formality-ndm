@@ -1,4 +1,6 @@
-use crate::grammar::{ExistentialVar, Parameter, Predicate, TraitImpl, TraitRef, Wc, Wcs};
+use crate::grammar::{
+    ExistentialVar, Parameter, Predicate, TraitImpl, TraitRef, ValidationState, Wc, Wcs,
+};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::{
     prove::{prove_after::prove_after, prove_after_validation::prove_after_validation},
@@ -80,12 +82,13 @@ judgment_fn! {
             // enter the post-validation phase and use the promised impl.
             (let current_impl: Wc =
                 Predicate::is_implemented(requested_trait_ref).upcast())
-            (let validation_assumption = Wc::validate(current_impl))
+            (let validation_assumption =
+                Wc::validate(ValidationState::A, current_impl))
             (let assumptions = (assumptions, validation_assumption))
             (let header_goals = Wcs::all_eq(
                 &requested_trait_ref.parameters,
                 &impl_trait_ref.parameters,
-            ).validated())
+            ).validated(ValidationState::A))
             (prove_after(
                 decls,
                 env,

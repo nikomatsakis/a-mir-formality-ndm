@@ -55,20 +55,21 @@ impl Wcs {
         self.into_iter()
     }
 
-    /// Wrap each clause in `Validate`.
-    pub fn validated(&self) -> Self {
-        self.iter().map(Wc::validate).collect()
+    /// Wrap each clause in `Validate` at the given validation stage.
+    pub fn validated(&self, state: impl Upcast<ValidationState>) -> Self {
+        let state: ValidationState = state.upcast();
+        self.iter().map(|wc| Wc::validate(&state, wc)).collect()
     }
 
     /// Enter the post-validation phase by removing one outer `Validate` layer from each
     /// assumption.
     ///
     /// This transformation is intentionally shallow. In particular,
-    /// `Validate(Validate(P))` becomes `Validate(P)`, not `P`.
+    /// `Validate(A, Validate(B, P))` becomes `Validate(B, P)`, not `P`.
     pub fn promote_validation(&self) -> Self {
         self.iter()
             .map(|wc| match wc {
-                Wc::Validate(inner) => inner.upcast(),
+                Wc::Validate(_, inner) => inner.upcast(),
                 wc => wc,
             })
             .collect()
@@ -164,6 +165,28 @@ impl DowncastTo<()> for Wcs {
     }
 }
 
+/// The strength of evidence available while validating an impl.
+///
+/// Stage A is provisional evidence for a dictionary currently being constructed. Stage B is
+/// caller-supplied evidence that may expose declaration-side requirements such as supertraits.
+#[term]
+pub enum ValidationState {
+    A,
+    B,
+}
+
+impl ValidationState {
+    /// True if evidence at `self` is strong enough to establish `goal`.
+    pub(crate) fn can_prove(&self, goal: &Self) -> bool {
+        match (self, goal) {
+            (ValidationState::A, ValidationState::A)
+            | (ValidationState::B, ValidationState::A)
+            | (ValidationState::B, ValidationState::B) => true,
+            (ValidationState::A, ValidationState::B) => false,
+        }
+    }
+}
+
 #[term]
 pub enum Wc {
     /// Means the built-in relation holds.
@@ -182,11 +205,11 @@ pub enum Wc {
     #[grammar(if $v0 $v1)]
     Implies(Wcs, Arc<Wc>),
 
-    /// Evidence that must be established while validating an impl.
+    /// Evidence that must be established at a particular stage while validating an impl.
     ///
     /// This wrapper is internal to the solver. It is deliberately not part of Rust's surface
     /// where-clause grammar and cannot be eliminated during an ordinary proof.
-    Validate(Arc<Wc>),
+    Validate(ValidationState, Arc<Wc>),
 }
 
 /// Temporary alias for migration -- allows `WcData::Variant` to still compile.

@@ -1,4 +1,4 @@
-use crate::grammar::{WcData, Wcs};
+use crate::grammar::{ValidationState, WcData, Wcs};
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
@@ -21,14 +21,23 @@ judgment_fn! {
         debug(goal, via, assumptions, env)
 
         (
-            (prove_via_validate(decls, env, assumptions, via, goal) => c)
+            (if via_state.can_prove(goal_state))
+            (prove_via_validate(
+                decls,
+                env,
+                assumptions,
+                via_state,
+                goal_state,
+                via,
+                goal,
+            ) => c)
             ----------------------------- ("validate")
             (prove_via_assumption(
                 decls,
                 env,
                 assumptions,
-                WcData::Validate(via),
-                WcData::Validate(goal),
+                WcData::Validate(via_state, via),
+                WcData::Validate(goal_state, goal),
             ) => c)
         )
 
@@ -80,10 +89,12 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
+        via_state: ValidationState,
+        goal_state: ValidationState,
         via: WcData,
         goal: WcData,
     ) => Constraints {
-        debug(goal, via, assumptions, env)
+        debug(goal_state, goal, via_state, via, assumptions, env)
 
         (
             (prove_via_assumption(
@@ -98,6 +109,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
+                via_state,
+                goal_state,
                 WcData::Predicate(via),
                 WcData::Predicate(goal),
             ) => c)
@@ -116,6 +129,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
+                via_state,
+                goal_state,
                 WcData::Relation(via),
                 WcData::Relation(goal),
             ) => c)
@@ -124,26 +139,46 @@ judgment_fn! {
         (
             (let (env, subst) = env.existential_substitution(binder))
             (let via = binder.instantiate_with(subst).unwrap())
-            (prove_via_validate(decls, env, assumptions, via, goal) => c)
+            (prove_via_validate(
+                decls,
+                env,
+                assumptions,
+                via_state,
+                goal_state,
+                via,
+                goal,
+            ) => c)
             ----------------------------- ("forall")
             (prove_via_validate(
                 decls,
                 env,
                 assumptions,
+                via_state,
+                goal_state,
                 WcData::ForAll(binder),
                 goal,
             ) => c.pop_subst(subst))
         )
 
         (
-            (prove_via_validate(decls, env, assumptions, consequence, goal) => c)
-            (let validated_conditions = conditions.validated())
+            (prove_via_validate(
+                decls,
+                env,
+                assumptions,
+                via_state,
+                goal_state,
+                consequence,
+                goal,
+            ) => c)
+            (let validated_conditions = conditions.validated(via_state))
             (prove_after(decls, c, assumptions, validated_conditions) => c)
             ----------------------------- ("implies")
             (prove_via_validate(
                 decls,
                 env,
                 assumptions,
+                via_state,
+                goal_state,
                 WcData::Implies(conditions, consequence),
                 goal,
             ) => c)

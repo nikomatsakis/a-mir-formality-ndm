@@ -26,6 +26,7 @@ use crate::prove::prove::decls::Program;
 
 pub use self::env::{Bias, Env, MaxUniverse, Universe};
 pub(crate) use self::prove_after::prove_after;
+#[cfg(test)]
 pub(crate) use self::prove_after_validation::prove_after_validation;
 pub(crate) use self::prove_fully_normalize::prove_fully_normalize_parameter;
 pub(crate) use self::prove_via_assumption::prove_via_assumption;

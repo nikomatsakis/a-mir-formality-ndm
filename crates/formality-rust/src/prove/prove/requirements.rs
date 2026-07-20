@@ -3,7 +3,7 @@
 use crate::grammar::{
     AliasTy, AssociatedItemId, AssociatedTy, AssociatedTyBoundData, AssociatedTyValueBoundData,
     Binder, BoundVar, ImplItem, Parameter, ParameterKind, Predicate, Relation, Trait,
-    TraitBoundData, TraitImplBoundData, TraitItem, TraitRef, Ty, Wc, WcData, Wcs,
+    TraitBoundData, TraitImplBoundData, TraitItem, TraitRef, Ty, ValidationState, Wc, WcData, Wcs,
 };
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, set, Cons, Set, Upcast};
@@ -151,6 +151,53 @@ judgment_fn! {
             ) => c.pop_subst(trait_subst))
         )
 
+    }
+}
+
+judgment_fn! {
+    /// Use a supertrait requirement while preserving staged validation.
+    ///
+    /// For a declaration `trait Sub: Super`, this derives `Validate(S, Super(T))` from
+    /// `Validate(B, Sub(T))`, where `S` may be A or B.
+    ///
+    /// The target can be validated at either stage, but the originating trait must be available
+    /// at stage B. This permits caller-supplied associated-type conditions to expose their
+    /// supertraits without allowing stage-A evidence for a dictionary under construction to
+    /// validate its own requirements.
+    pub fn prove_validate_via_supertrait_requirement(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        trait_def: Trait,
+        requirement: TraitRequirement,
+        goal: Wc,
+    ) => Constraints {
+        debug(assumptions, trait_def, requirement, goal, env)
+
+        (
+            (let (env, trait_subst) =
+                env.existential_substitution(&requirement.binder))
+            (let requirement =
+                requirement.binder.instantiate_with(trait_subst)?)
+            (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
+            (let required = quantified_goal(
+                supertrait,
+                |trait_ref| Predicate::is_implemented(trait_ref).upcast(),
+            ))
+            (prove_via_assumption(decls, env, assumptions, required, goal) => c)
+            (let source: Wc = TraitRef::new(&trait_def.id, trait_subst).upcast())
+            (let source = Wc::validate(ValidationState::B, source))
+            (prove_after(decls, c, assumptions, source) => c)
+            ----------------------------- ("supertrait")
+            (prove_validate_via_supertrait_requirement(
+                decls,
+                env,
+                assumptions,
+                trait_def,
+                requirement,
+                goal,
+            ) => c.pop_subst(trait_subst))
+        )
     }
 }
 
@@ -488,7 +535,7 @@ judgment_fn! {
                 supertrait,
                 |trait_ref| Predicate::is_implemented(trait_ref).upcast(),
             ))
-            (let goal = Wc::validate(goal))
+            (let goal = Wc::validate(ValidationState::A, goal))
             (prove_after(decls, c, assumptions, goal) => c)
             ----------------------------- ("supertrait")
             (validate_impl_against_requirement(
@@ -505,7 +552,7 @@ judgment_fn! {
                 outlives,
                 |relation| relation.upcast(),
             ))
-            (let goal = Wc::validate(goal))
+            (let goal = Wc::validate(ValidationState::A, goal))
             (prove_after(decls, c, assumptions, goal) => c)
             ----------------------------- ("outlives")
             (validate_impl_against_requirement(
@@ -594,16 +641,19 @@ fn associated_ty_validation_goals(
         .binder
         .instantiate_with(&associated_variables)?;
     let conditions = (trait_impl.where_clauses.to_wcs(), where_clauses.to_wcs()).to_wcs();
+    let validation_conditions = conditions.validated(ValidationState::B);
 
     let value_wf: Wc = Relation::well_formed(ty).upcast();
     Ok(std::iter::once(value_wf)
         .chain(value_bounds)
         .map(|goal| {
-            let conditional = Wc::for_all(Binder::new(
+            Wc::for_all(Binder::new(
                 &associated_variables,
-                Wc::implies(&conditions, goal),
-            ));
-            Wc::validate(conditional)
+                Wc::implies(
+                    &validation_conditions,
+                    Wc::validate(ValidationState::A, goal),
+                ),
+            ))
         })
         .collect())
 }
@@ -714,6 +764,73 @@ mod tests {
 
         goal_counts.sort();
         assert_eq!(goal_counts, vec![1, 3]);
+    }
+
+    #[test]
+    fn associated_type_validation_uses_b_antecedents_and_a_consequences() {
+        let program = Program {
+            crates: Arc::new(Program::program_from_items(vec![
+                term("trait Required where {}"),
+                term(
+                    "trait Family where {
+                        type Item<T> : [Required]
+                        where
+                            T : Required;
+                    }",
+                ),
+                term(
+                    "impl Family for () where (): Required {
+                        type Item<T> = T
+                        where
+                            T : Required;
+                    }",
+                ),
+            ])),
+            ..Program::empty()
+        };
+        let trait_def = program.trait_def(&crate::grammar::TraitId::new("Family"));
+        let trait_impl = program
+            .trait_impls_for(&trait_def.id)
+            .into_iter()
+            .next()
+            .unwrap();
+        let (_, trait_impl) = trait_impl.binder.open();
+        let trait_ref = trait_impl.trait_ref();
+        let associated = requirements_for(&trait_def)
+            .iter()
+            .find_map(|requirement| {
+                let requirement = requirement
+                    .binder
+                    .instantiate_with(&trait_ref.parameters)
+                    .unwrap();
+                let TraitRequirementBoundData::AssociatedTyRequirement(associated) = requirement
+                else {
+                    return None;
+                };
+                Some(associated)
+            })
+            .unwrap();
+
+        let goals = associated_ty_validation_goals(&program, &trait_impl, &associated).unwrap();
+        assert_eq!(goals.iter().count(), 2);
+
+        for goal in goals {
+            let Wc::ForAll(binder) = goal else {
+                panic!("expected quantified validation goal");
+            };
+            let (_, body) = binder.open();
+            let Wc::Implies(conditions, consequence) = body else {
+                panic!("expected conditional validation goal");
+            };
+
+            assert!(conditions
+                .iter()
+                .all(|condition| matches!(condition, Wc::Validate(ValidationState::B, _))));
+            assert!(matches!(
+                consequence.as_ref(),
+                Wc::Validate(ValidationState::A, _)
+            ));
+        }
     }
 
     #[test]

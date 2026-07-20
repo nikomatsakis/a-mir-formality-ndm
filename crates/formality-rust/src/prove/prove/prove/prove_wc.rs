@@ -1,4 +1,4 @@
-use crate::grammar::{Predicate, Relation, Wc, WcData, Wcs};
+use crate::grammar::{Predicate, Relation, ValidationState, Wc, WcData, Wcs};
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
 
@@ -17,7 +17,9 @@ use crate::prove::prove::{
         prove_via_impl::prove_via_impl,
         prove_wf::{prove_wf, wf_requirements},
     },
-    requirements::{prove_via_trait_requirement, trait_requirement},
+    requirements::{
+        prove_validate_via_supertrait_requirement, prove_via_trait_requirement, trait_requirement,
+    },
 };
 
 use super::constraints::{Constrained, Constraints};
@@ -66,9 +68,14 @@ judgment_fn! {
         )
 
         (
-            (prove_validate(decls, env, assumptions, validate_goal) => c)
+            (prove_validate(decls, env, assumptions, validation_state, validate_goal) => c)
             --- ("validate")
-            (prove_wc(decls, env, assumptions, WcData::Validate(validate_goal)) => c)
+            (prove_wc(
+                decls,
+                env,
+                assumptions,
+                WcData::Validate(validation_state, validate_goal),
+            ) => c)
         )
 
         (
@@ -218,6 +225,18 @@ mod tests {
 
         assert_eq!(proof.total_nodes(), 1, "{proof}");
     }
+
+    #[test]
+    fn stronger_validation_assumption_uses_trivial_validation_proof() {
+        let inner: Wc = term("Exact(u32)");
+        let assumption = Wc::validate(ValidationState::B, &inner);
+        let goal = Wc::validate(ValidationState::A, inner);
+        let (_, proof) = prove_wc(Program::empty(), Env::default(), assumption, goal)
+            .into_singleton()
+            .unwrap();
+
+        assert_eq!(proof.total_nodes(), 2, "{proof}");
+    }
 }
 
 judgment_fn! {
@@ -226,36 +245,51 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
+        validation_state: ValidationState,
         validate_goal: Wc,
     ) => Constraints {
-        debug(validate_goal, assumptions, env)
+        debug(validation_state, validate_goal, assumptions, env)
 
-        // An exact validation assumption is the most general possible proof, so no other rule can
-        // contribute a distinct result.
+        // An exact validation assumption at the same or a stronger stage is the most general
+        // possible proof, so no other rule can contribute a distinct result.
         trivial(
-            assumptions.iter().any(|assumption| assumption == Wc::validate(&validate_goal))
+            assumptions.iter().any(|assumption| match assumption {
+                Wc::Validate(assumption_state, assumption_goal) => {
+                    assumption_state.can_prove(&validation_state)
+                        && assumption_goal.as_ref() == &validate_goal
+                }
+                _ => false,
+            })
             => Constraints::none(env)
         )
 
         (
             (let (env, subst) = env.universal_substitution(binder))
             (let validate_goal = binder.instantiate_with(subst).unwrap())
-            (prove_validate(decls, env, assumptions, validate_goal) => c)
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation_state,
+                validate_goal,
+            ) => c)
             --- ("forall")
             (prove_validate(
                 decls,
                 env,
                 assumptions,
+                validation_state,
                 WcData::ForAll(binder),
             ) => c.pop_subst(subst))
         )
 
         (
-            (let validated_conditions = conditions.validated())
+            (let validated_conditions = conditions.validated(validation_state))
             (prove_validate(
                 decls,
                 env,
                 (assumptions, validated_conditions),
+                validation_state,
                 consequence,
             ) => c)
             --- ("implies")
@@ -263,19 +297,21 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
+                validation_state,
                 WcData::Implies(conditions, consequence),
             ) => c)
         )
 
         (
             (wf_requirements(decls, parameter) => requirements)
-            (let requirements = requirements.validated())
+            (let requirements = requirements.validated(validation_state))
             (prove_after(decls, env, assumptions, requirements) => c)
             --- ("well formed")
             (prove_validate(
                 decls,
                 env,
                 assumptions,
+                validation_state,
                 WcData::Relation(Relation::WellFormed(parameter)),
             ) => c)
         )
@@ -287,10 +323,42 @@ judgment_fn! {
                 env,
                 assumptions,
                 a,
-                Wc::validate(validate_goal),
+                Wc::validate(validation_state, validate_goal),
             ) => c)!
             ----------------------------- ("assumption")
-            (prove_validate(decls, env, assumptions, validate_goal) => c)
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation_state,
+                validate_goal,
+            ) => c)
+        )
+
+        // A stage-B validation hypothesis may expose declaration-side supertraits. Keep the
+        // originating trait at stage B while walking the requirement chain, even when the target
+        // only needs stage A.
+        (
+            (trait_def in decls.traits())
+            (trait_requirement(trait_def) => requirements)
+            (requirement in requirements)
+            (let goal: Wc = Predicate::is_implemented(trait_ref).upcast())
+            (prove_validate_via_supertrait_requirement(
+                decls,
+                env,
+                assumptions,
+                trait_def,
+                requirement,
+                goal,
+            ) => c)!
+            ----------------------------- ("trait requirement")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation_state,
+                WcData::Predicate(Predicate::IsImplemented(trait_ref)),
+            ) => c)
         )
 
         (
@@ -300,6 +368,7 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
+                validation_state,
                 WcData::Predicate(validate_goal),
             ) => c)
         )
@@ -311,6 +380,7 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
+                validation_state,
                 WcData::Relation(validate_goal),
             ) => c)
         )

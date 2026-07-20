@@ -88,7 +88,7 @@ judgment_fn! {
 mod test {
     use std::sync::Arc;
 
-    use crate::grammar::{Parameter, Wc};
+    use crate::grammar::{Parameter, ValidationState, Wc};
     use crate::prove::prove::decls::Program;
     use crate::rust::term;
     use formality_macros::test;
@@ -121,7 +121,7 @@ mod test {
         let result = prove_sub(
             normalization_decls(),
             (),
-            Wc::validate(term::<Wc>("Marker(u32)")),
+            Wc::validate(ValidationState::A, term::<Wc>("Marker(u32)")),
             term::<Parameter>("<u32 as Family>::Output"),
             term::<Parameter>("bool"),
         );
@@ -134,7 +134,7 @@ mod test {
         let result = prove_sub(
             continuation_decls(),
             (),
-            Wc::validate(term::<Wc>("u32 = bool")),
+            Wc::validate(ValidationState::A, term::<Wc>("u32 = bool")),
             term::<Parameter>("<u32 as Family>::Output"),
             term::<Parameter>("bool"),
         );

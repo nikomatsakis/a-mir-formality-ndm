@@ -170,7 +170,7 @@ fn post_validation_cycle_cannot_invent_impl_for_ground_type() {
 
         crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:91:1: no applicable rules for prove_normalize_via { goal: Ground, via: Trait(Wrapper<Ground>), assumptions: {Trait(Wrapper<Ground>)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:48:1: no applicable rules for prove_via_impl { _requested_trait_ref: Trait(Ground), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> Trait for Wrapper<^ty0_0> where ^ty0_0 : Trait { } }, _assumptions: {Trait(Wrapper<Ground>)}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Trait(Ground), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> Trait for Wrapper<^ty0_0> where ^ty0_0 : Trait { } }, _assumptions: {Trait(Wrapper<Ground>)}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -249,7 +249,7 @@ fn impl_where_clause_cannot_justify_its_matching_supertrait() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via.rs:7:1: no applicable rules for prove_via { goal: Prerequisite(Ground), via: validate(Magic(Ground)), assumptions: {validate(Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Prerequisite(Ground), via: validate(a, Magic(Ground)), assumptions: {validate(a, Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
