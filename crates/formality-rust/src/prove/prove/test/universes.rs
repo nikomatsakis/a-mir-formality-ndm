@@ -12,6 +12,9 @@ use crate::prove::prove::test_util::test_prove;
 fn exists_u_for_t() {
     let decls = Program::empty();
     test_prove(decls, term("exists<U> {} => {for<T> T = U}")).assert_err(expect![[r#"
+        the rule "assumption - relation" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
         crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: !ty_1, assumptions: {}, env: Env { variables: [?ty_0, !ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
         the rule "existential-nonvar" at (prove_eq.rs) failed because

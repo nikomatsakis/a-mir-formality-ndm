@@ -22,6 +22,9 @@ fn decls() -> Program {
 #[test]
 fn direct_cycle() {
     test_prove(decls(), term("exists<A> {} => {A = Vec<A>}")).assert_err(expect![[r#"
+        the rule "assumption - relation" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
         failed at (proven_set.rs) because
           `?ty_0` occurs in `Vec<?ty_0>`
 
@@ -46,6 +49,9 @@ fn eq_rigid_to_variable() {
 #[test]
 fn indirect_cycle_1() {
     test_prove(decls(), term("exists<A, B> {} => {A = Vec<B>, B = A}")).assert_err(expect![[r#"
+        the rule "assumption - relation" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
         failed at (proven_set.rs) because
           `?ty_0` occurs in `Vec<?ty_0>`
 
@@ -58,6 +64,9 @@ fn indirect_cycle_1() {
 #[test]
 fn indirect_cycle_2() {
     test_prove(decls(), term("exists<A, B> {} => {B = A, A = Vec<B>}")).assert_err(expect![[r#"
+        the rule "assumption - relation" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
         failed at (proven_set.rs) because
           `?ty_0` occurs in `Vec<?ty_0>`
 

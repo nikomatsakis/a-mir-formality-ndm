@@ -30,6 +30,12 @@ fn mismatch() {
 
                 impl Foo<u32(42)> for u32 {}
             }]).err(expect_test::expect![[r#"
+                the rule "assumption - predicate" at (prove_wc.rs) failed because
+                  expression evaluated to an empty collection: `assumptions`
+
+                the rule "assumption - relation" at (prove_wc.rs) failed because
+                  expression evaluated to an empty collection: `assumptions`
+
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: bool, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])

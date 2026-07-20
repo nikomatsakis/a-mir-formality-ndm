@@ -161,6 +161,9 @@ fn post_validation_cycle_cannot_invent_impl_for_ground_type() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Wrapper<Ground> = Ground, via: Trait(Wrapper<Ground>), assumptions: {Trait(Wrapper<Ground>)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
         crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:91:1: no applicable rules for prove_normalize_via { goal: Wrapper<Ground>, via: Trait(Wrapper<Ground>), assumptions: {Trait(Wrapper<Ground>)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
@@ -200,7 +203,9 @@ fn candidate_cannot_validate_its_own_missing_supertrait() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Super(Ground), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]

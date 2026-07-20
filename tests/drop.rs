@@ -72,7 +72,12 @@ fn drop_impl_subset_where_clauses() {
         }
     ])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_wc.rs:24:1: no applicable rules for prove_wc { goal: Clone(!ty_0), assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"])
+    .err(expect_test::expect![[r#"
+        the rule "assumption - relation" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]])
 }
 
 // ===================================================================
@@ -94,6 +99,9 @@ fn drop_impl_extra_where_clause() {
         }
     ])
     .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Clone(!ty_0), via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
@@ -109,7 +117,9 @@ fn drop_impl_concrete_type_param() {
             impl Drop for MyStruct<u32> {}
         }
     ])
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_wc.rs:24:1: no applicable rules for prove_wc { goal: Drop(MyStruct<!ty_0>), assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"])
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]])
 }
 
 /// Drop impl for a non-ADT type (e.g., u32).

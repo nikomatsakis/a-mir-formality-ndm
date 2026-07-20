@@ -76,7 +76,9 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Ord(Bad), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]
@@ -118,7 +120,9 @@ fn conditional_associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Ord(Bad), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]
@@ -255,9 +259,14 @@ fn associated_type_value_must_be_well_formed() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Required(Ground), assumptions: {validate(Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Required(Ground), assumptions: {validate(Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: validate(Foo(())), assumptions: {validate(Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(Foo(())), assumptions: {validate(Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(Foo(())), assumptions: {validate(Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -311,7 +320,14 @@ fn associated_type_projection_requires_a_valid_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Required(Bad), assumptions: {validate(Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption - relation" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(Foo(X)), assumptions: {validate(Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -354,7 +370,13 @@ fn conditional_associated_bound_does_not_yet_elaborate_validation_assumption() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Super(!ty_1), assumptions: {validate(Family(u32)), validate(Sub(!ty_1))}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: true } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Super(!ty_1), via: validate(Family(u32)), assumptions: {validate(Family(u32)), validate(Sub(!ty_1))}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Super(!ty_1), via: validate(Sub(!ty_1)), assumptions: {validate(Family(u32)), validate(Sub(!ty_1))}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -426,7 +448,11 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_wc.rs:25:1: no applicable rules for prove_wc { goal: Required(Bad), assumptions: {validate(Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(Family(())), assumptions: {validate(Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -464,7 +490,11 @@ fn validation_antecedent_does_not_leak_to_impl_where_clause() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: Family(()), assumptions: {Family(())}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: Family(()), assumptions: {Family(())}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -534,7 +564,11 @@ fn post_validation_alias_normalization_still_checks_the_normalized_type() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:48:1: no applicable rules for prove_via_impl { _requested_trait_ref: Target(Bar, X), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:48:1: no applicable rules for prove_via_impl { _requested_trait_ref: Target(Bar, X), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]

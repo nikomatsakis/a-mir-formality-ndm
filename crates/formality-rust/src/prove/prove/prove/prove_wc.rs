@@ -72,16 +72,13 @@ judgment_fn! {
         )
 
         (
-            // `Validate(P)` cannot be eliminated in the ordinary phase.
             (a in assumptions)
-            (if !matches!(a, Wc::Validate(_)))!
             (prove_via_assumption(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("assumption - predicate")
             (prove_wc(decls, env, assumptions, WcData::Predicate(goal)) => c)
         )
         (
             (a in assumptions)
-            (if !matches!(a, Wc::Validate(_)))!
             (prove_via_assumption(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("assumption - relation")
             (prove_wc(decls, env, assumptions, WcData::Relation(goal)) => c)
