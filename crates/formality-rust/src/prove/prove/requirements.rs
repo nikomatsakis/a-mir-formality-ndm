@@ -452,6 +452,14 @@ judgment_fn! {
             (let trait_def = decls.trait_def(&trait_impl.trait_id))
             (trait_requirement(trait_def) => requirements)
             (for_all(requirement in requirements) with(c)
+                // Header matching and earlier requirements may have constrained the selected
+                // impl's existential parameters. Specialize all inputs with the current
+                // accumulator, then instantiate the requirement's outer trait binder.
+                (let (assumptions, (trait_impl, requirement)) =
+                    c.substitution().apply((assumptions, (trait_impl, requirement))))
+                (let trait_ref = trait_impl.trait_ref())
+                (let requirement =
+                    requirement.binder.instantiate_with(&trait_ref.parameters)?)
                 (validate_impl_against_requirement(
                     decls,
                     c,
@@ -466,25 +474,17 @@ judgment_fn! {
 }
 
 judgment_fn! {
-    /// Validate a selected impl against one structured trait requirement.
+    /// Validate a selected impl against one instantiated trait requirement.
     pub fn validate_impl_against_requirement(
         _decls: Program,
         constraints: Constraints,
         assumptions: Wcs,
         trait_impl: TraitImplBoundData,
-        requirement: TraitRequirement,
+        requirement: TraitRequirementBoundData,
     ) => Constraints {
         debug(constraints, assumptions, trait_impl, requirement)
 
         (
-            // Header matching may have constrained the selected impl's existential parameters.
-            // Specialize the requirement and its assumptions before constructing validation goals.
-            (let (assumptions, (trait_impl, requirement)) =
-                c.substitution().apply((assumptions, (trait_impl, requirement))))
-            (let trait_ref = trait_impl.trait_ref())
-            (let requirement =
-                requirement.binder.instantiate_with(&trait_ref.parameters)?)
-            (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
             (let goal = quantified_requirement(
                 supertrait,
                 trait_impl.where_clauses.to_wcs(),
@@ -498,17 +498,11 @@ judgment_fn! {
                 c,
                 assumptions,
                 trait_impl,
-                requirement,
+                TraitRequirementBoundData::Supertrait(supertrait),
             ) => c)
         )
 
         (
-            (let (assumptions, (trait_impl, requirement)) =
-                c.substitution().apply((assumptions, (trait_impl, requirement))))
-            (let trait_ref = trait_impl.trait_ref())
-            (let requirement =
-                requirement.binder.instantiate_with(&trait_ref.parameters)?)
-            (if let TraitRequirementBoundData::Outlives(outlives) = requirement)!
             (let goal = quantified_requirement(
                 outlives,
                 trait_impl.where_clauses.to_wcs(),
@@ -522,18 +516,11 @@ judgment_fn! {
                 c,
                 assumptions,
                 trait_impl,
-                requirement,
+                TraitRequirementBoundData::Outlives(outlives),
             ) => c)
         )
 
         (
-            (let (assumptions, (trait_impl, requirement)) =
-                c.substitution().apply((assumptions, (trait_impl, requirement))))
-            (let trait_ref = trait_impl.trait_ref())
-            (let requirement =
-                requirement.binder.instantiate_with(&trait_ref.parameters)?)
-            (if let TraitRequirementBoundData::AssociatedTyRequirement(associated) =
-                requirement)!
             (let goals =
                 associated_ty_validation_goals(decls, trait_impl, associated)?)
             (prove_after(decls, c, assumptions, goals) => c)
@@ -543,7 +530,7 @@ judgment_fn! {
                 c,
                 assumptions,
                 trait_impl,
-                requirement,
+                TraitRequirementBoundData::AssociatedTyRequirement(associated),
             ) => c)
         )
     }
