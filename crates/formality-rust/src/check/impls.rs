@@ -34,6 +34,7 @@ judgment_fn! {
             (for_all(impl_item in impl_items)
                 (check_trait_impl_item(program, env, where_clauses, trait_items, impl_item, crate_id) => ()))
 
+            (check_unique_impl_method_names(impl_items) => ())
             (check_all_required_items_present(trait_items, impl_items) => ())
 
             ---- ("check_trait_impl")
@@ -165,6 +166,10 @@ judgment_fn! {
                 .downcasted::<Fn>()
                 .find(|trait_f| trait_f.id == ii_fn.id))
 
+            // A safe trait call must not dispatch to an unsafe override (or
+            // vice versa); they are the same callable interface.
+            (if ii_fn.safety == ti_fn.safety)
+
             // Check the fn itself
             (super::fns::check_fn(program, env, impl_assumptions, ii_fn, crate_id) => ())
 
@@ -191,6 +196,25 @@ judgment_fn! {
             (check_fn_in_impl(program, env, impl_assumptions, trait_items, ii_fn, crate_id) => ())
         )
     }
+}
+
+fn check_unique_impl_method_names(impl_items: &[ImplItem]) -> Fallible<ProofTree> {
+    let methods: Vec<&Fn> = impl_items
+        .iter()
+        .filter_map(|item| match item {
+            ImplItem::Fn(method) => Some(method),
+            ImplItem::AssociatedTyValue(_) => None,
+        })
+        .collect();
+    for (index, method) in methods.iter().enumerate() {
+        if methods[..index]
+            .iter()
+            .any(|earlier| earlier.id == method.id)
+        {
+            bail!("multiple impl methods named `{:?}`", method.id);
+        }
+    }
+    Ok(ProofTree::leaf("check_unique_impl_method_names"))
 }
 
 judgment_fn! {

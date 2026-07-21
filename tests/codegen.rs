@@ -471,6 +471,64 @@ fn recursive_trait_method_reuses_preallocated_worklist_entry() {
 }
 
 #[test]
+fn trait_default_is_used_only_when_impl_has_no_override() {
+    FormalityTest::new(crates![crate test {
+        trait Answer {
+            fn answer() -> i32 {
+                return 1 _ i32;
+            }
+        }
+
+        struct UsesDefault {}
+        struct Overrides {}
+
+        impl Answer for UsesDefault {}
+
+        impl Answer for Overrides {
+            fn answer() -> i32 {
+                return 2 _ i32;
+            }
+        }
+
+        fn main() -> () {
+            println!(<UsesDefault as Answer>::answer());
+            println!(<Overrides as Answer>::answer());
+        }
+    }])
+    .rustc_ok()
+    .expect_output("1\n2\n")
+    .ok()
+}
+
+#[test]
+fn trait_default_body_is_normalized_after_method_substitution() {
+    FormalityTest::new(crates![crate test {
+        trait Family {
+            type Output : [];
+        }
+
+        impl Family for () {
+            type Output = i32;
+        }
+
+        trait Identity {
+            fn identity<T>(value: T) -> T {
+                return value;
+            }
+        }
+
+        impl Identity for () {}
+
+        fn main() -> () {
+            println!(<() as Identity>::identity::<<() as Family>::Output>(22 _ i32));
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
+    .ok()
+}
+
+#[test]
 fn if_statements() {
     FormalityTest::new(crates![crate test {
         fn main() -> () {

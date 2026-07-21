@@ -3,6 +3,22 @@
 use a_mir_formality::{crates, FormalityTest};
 
 #[test]
+fn trait_method_safety_mismatch() {
+    FormalityTest::new(crates![crate baguette {
+        trait Foo {
+            unsafe fn method() -> ();
+        }
+
+        impl Foo for u32 {
+            fn method() -> () {}
+        }
+    }])
+    .err(expect_test::expect![[r#"
+        the rule "check_fn_in_impl" at (impls.rs) failed because
+          condition evaluated to false: `ii_fn.safety == ti_fn.safety`"#]])
+}
+
+#[test]
 fn unsafe_trait() {
     FormalityTest::new(crates![crate baguette {
         unsafe trait Foo {}

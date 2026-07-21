@@ -123,28 +123,34 @@ pub(super) fn resolve_fn_body(
             method_args,
         } => {
             let selected = select_impl(&g.program, trait_ref);
+            let trait_decl = g.program.program().trait_named(&trait_ref.trait_id)?;
+            let trait_data = trait_decl.binder.instantiate_with(&trait_ref.parameters)?;
+            let trait_method = unique_trait_method(
+                &trait_data.trait_items,
+                method_id,
+                format_args!("trait {:?}", trait_ref.trait_id),
+            )?;
+
             let impl_data = selected
                 .trait_impl
                 .binder
                 .instantiate_with(&selected.impl_arguments)?;
-            let mut methods = impl_data.impl_items.iter().filter_map(|item| match item {
-                grammar::ImplItem::Fn(function) if function.id == *method_id => Some(function),
-                grammar::ImplItem::Fn(_) | grammar::ImplItem::AssociatedTyValue(_) => None,
-            });
-            let method = methods.next().ok_or_else(|| {
-                anyhow::anyhow!(
-                    "selected impl {:?} has no override for trait method `{method_id:?}`",
-                    selected.impl_id,
-                )
-            })?;
-            if methods.next().is_some() {
-                anyhow::bail!(
-                    "selected impl {:?} has multiple overrides for trait method `{method_id:?}`",
-                    selected.impl_id,
-                );
-            }
-
-            let fn_data = method.binder.instantiate_with(method_args)?;
+            let override_method = unique_impl_method(
+                &impl_data.impl_items,
+                method_id,
+                format_args!("selected impl {:?}", selected.impl_id),
+            )?;
+            let fn_data = if let Some(method) = override_method {
+                if method.safety != trait_method.safety {
+                    anyhow::bail!(
+                        "selected impl {:?} gives trait method `{method_id:?}` incompatible safety",
+                        selected.impl_id,
+                    );
+                }
+                method.binder.instantiate_with(method_args)?
+            } else {
+                trait_method.binder.instantiate_with(method_args)?
+            };
             let fn_data = normalize_fn_data(&g.program, &fn_data)?;
             let body = expression_body(
                 &fn_data,
@@ -153,6 +159,40 @@ pub(super) fn resolve_fn_body(
             Ok((fn_data, body))
         }
     }
+}
+
+fn unique_trait_method<'a>(
+    items: &'a [grammar::TraitItem],
+    method_id: &grammar::ValueId,
+    owner: impl std::fmt::Display,
+) -> Fallible<&'a grammar::Fn> {
+    let mut methods = items.iter().filter_map(|item| match item {
+        grammar::TraitItem::Fn(function) if function.id == *method_id => Some(function),
+        grammar::TraitItem::Fn(_) | grammar::TraitItem::AssociatedTy(_) => None,
+    });
+    let method = methods
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("{owner} has no method `{method_id:?}`"))?;
+    if methods.next().is_some() {
+        anyhow::bail!("{owner} has multiple methods named `{method_id:?}`");
+    }
+    Ok(method)
+}
+
+fn unique_impl_method<'a>(
+    items: &'a [grammar::ImplItem],
+    method_id: &grammar::ValueId,
+    owner: impl std::fmt::Display,
+) -> Fallible<Option<&'a grammar::Fn>> {
+    let mut methods = items.iter().filter_map(|item| match item {
+        grammar::ImplItem::Fn(function) if function.id == *method_id => Some(function),
+        grammar::ImplItem::Fn(_) | grammar::ImplItem::AssociatedTyValue(_) => None,
+    });
+    let method = methods.next();
+    if methods.next().is_some() {
+        anyhow::bail!("{owner} has multiple methods named `{method_id:?}`");
+    }
+    Ok(method)
 }
 
 fn expression_body(

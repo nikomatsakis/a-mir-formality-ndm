@@ -2,6 +2,23 @@
 use a_mir_formality::{crates, FormalityTest};
 
 #[test]
+fn impl_with_duplicate_fn_names_is_rejected() {
+    FormalityTest::new(crates![crate Foo {
+        trait Trait {
+            fn method() -> ();
+        }
+
+        impl Trait for () {
+            fn method() -> () {}
+            fn method() -> () {}
+        }
+    }])
+    .err(expect_test::expect![[r#"
+        the rule "check_trait_impl" at (impls.rs) failed because
+          multiple impl methods named `method`"#]])
+}
+
+#[test]
 fn parser() {
     FormalityTest::new(crates![crate Foo {
         trait Baz where  cake  {}
