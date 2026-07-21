@@ -6,7 +6,7 @@ use crate::check::borrow_check::nll::{
 };
 use crate::check::borrow_check::typed_place_expression::TypedPlaceExpr;
 use crate::grammar::{
-    expr::{Block, Expr, PlaceExpr, Stmt},
+    expr::{Block, Expr, FnName, PlaceExpr, Stmt},
     Crates, Fallible, RigidName, RigidTy, Ty,
 };
 use formality_core::judgment_fn;
@@ -316,7 +316,7 @@ judgment_fn! {
             // so we require that the callee has a zero-sized `FnDef` type that
             // uniquely identifies a callee.
             (type_expr(cfn, scope, callee) => callee_ty)
-            (resolve_rigid(cfn, scope, callee_ty) => RigidTy { name: RigidName::FnDef(fn_id), parameters })
+            (resolve_rigid(cfn, scope, callee_ty) => RigidTy { name: RigidName::FnDef(FnName::FreeId(fn_id)), parameters })
             (let (fn_name, global) = global.ensure_fn(MonoKey::new(fn_id, parameters)))
             // Evaluate callee for side effects (value is zero-sized for FnDef).
             (let (callee_temp, cfn) = cfn.alloc_temp(&callee_ty)?)

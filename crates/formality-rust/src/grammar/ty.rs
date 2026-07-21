@@ -7,8 +7,8 @@ mod term_impls;
 use formality_core::{DowncastTo, To, Upcast, UpcastFrom};
 
 use super::{
-    consts::Const, AdtId, AssociatedItemId, Binder, BoundVar, ExistentialVar, TraitId,
-    UniversalVar, ValueId, Variable,
+    consts::Const, expr::FnName, AdtId, AssociatedItemId, Binder, BoundVar, ExistentialVar,
+    TraitId, UniversalVar, Variable,
 };
 
 #[term]
@@ -140,7 +140,7 @@ pub enum RigidName {
 
     FnPtr(usize),
 
-    FnDef(ValueId),
+    FnDef(FnName),
 
     #[grammar(!)]
     Never,

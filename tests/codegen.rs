@@ -80,6 +80,80 @@ fn generic_function_calls() {
 }
 
 #[test]
+fn qualified_trait_call_typechecks() {
+    FormalityTest::new(crates![crate test {
+        trait Bar {
+            fn bar() -> u32;
+        }
+
+        struct Ground {}
+
+        impl Bar for Ground {
+            fn bar() -> u32 {
+                return 22 _ u32;
+            }
+        }
+
+        fn main() -> () {
+            println!(<Ground as Bar>::bar());
+        }
+    }])
+    .rustc_ok()
+    .skip_execute()
+    .ok()
+}
+
+#[test]
+fn qualified_trait_call_without_impl_is_rejected() {
+    FormalityTest::new(crates![crate test {
+        trait Bar {
+            fn bar() -> u32;
+        }
+
+        struct Ground {}
+
+        fn main() -> () {
+            println!(<Ground as Bar>::bar());
+        }
+    }])
+    .skip_execute()
+    .err(expect_test::expect![[r#"
+        the rule "trait implied bound" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+}
+
+#[test]
+fn qualified_trait_call_in_generic_body_typechecks() {
+    FormalityTest::new(crates![crate test {
+        trait Bar {
+            fn bar() -> u32;
+        }
+
+        struct Ground {}
+
+        impl Bar for Ground {
+            fn bar() -> u32 {
+                return 22 _ u32;
+            }
+        }
+
+        fn foo<T>() -> u32
+        where
+            T: Bar,
+        {
+            return <T as Bar>::bar();
+        }
+
+        fn main() -> () {
+            println!(foo::<Ground>());
+        }
+    }])
+    .rustc_ok()
+    .skip_execute()
+    .ok()
+}
+
+#[test]
 fn if_statements() {
     FormalityTest::new(crates![crate test {
         fn main() -> () {

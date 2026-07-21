@@ -399,8 +399,8 @@ fn test_call_generic_fn_wrong_arity() {
         }
     }])
     .err(expect_test::expect![[r#"
-            the rule "turbofish" at (nll.rs) failed because
-              condition evaluated to false: `fn_decl.binder.len() == args.len()`"#]])
+            the rule "free function arguments" at (nll.rs) failed because
+              condition evaluated to false: `fn_decl.binder.len() == substitution.len()`"#]])
 }
 
 /// Test what will happen if the declared and actual return type are not compatible.

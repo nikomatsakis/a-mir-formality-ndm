@@ -7,9 +7,9 @@ use crate::check::borrow_check::typed_place_expression::{
 
 use crate::grammar::expr::{Block, Expr, FnName, FnValue, Init, PlaceExpr, Stmt};
 use crate::grammar::{
-    AliasTy, AssociatedItemId, ExistentialVar, FieldName, Fn, Lt, Parameter, Predicate, RefKind,
-    Relation, RigidName, RigidTy, ScalarId, Struct, StructBoundData, TraitId, TraitRef, Ty, TyData,
-    Variable, Wcs, WhereClause,
+    AliasTy, AssociatedItemId, Crates, ExistentialVar, Fallible, FieldName, Lt, Parameter,
+    Predicate, RefKind, Relation, RigidName, RigidTy, ScalarId, Struct, StructBoundData,
+    TraitBoundData, TraitId, TraitItem, TraitRef, Ty, TyData, Variable, Wcs, WhereClause,
 };
 use crate::grammar::{FnBoundData, PredicateTy};
 use crate::prove::prove::Safety;
@@ -394,14 +394,13 @@ judgment_fn! {
             ) => (callee_ty, state))
 
             // We only support calling FnDef right now
-            (prove_ty_is_rigid(env, assumptions, state, callee_ty) => (RigidTy { name: RigidName::FnDef(fn_id), parameters }, state))
+            (prove_ty_is_rigid(env, assumptions, state, callee_ty) => (RigidTy { name: RigidName::FnDef(fn_name), parameters }, state))
 
             // Find the function declaration and instantiate it
-            (let Fn { id: _, safety, binder } = env.crates().fn_named(fn_id)?)
+            (let (safety, FnBoundData { input_args, output_ty, where_clauses, body: _ }, _) =
+                instantiate_fn_def(env.crates(), fn_name, parameters)?)
             // FIXME: add `unsafe` blocks and only allow calling unsafe functions from there.
             (ProvenSet::singleton((safety, ProofTree::leaf("safety"))) => Safety::Safe)
-            (let FnBoundData { input_args, output_ty, where_clauses, body: _ } =
-                binder.instantiate_with(parameters)?)
 
             // Check argument count matches
             (let input_tys: Vec<Ty> = input_args.iter().map(|a| a.ty.clone()).collect())
@@ -475,7 +474,7 @@ judgment_fn! {
             (if !state.has_local(id))!
             (let fn_decl = env.crates().fn_named(id)?)
             (if fn_decl.binder.len() == 0)
-            (let ty = Ty::rigid(RigidName::fn_def(id), ()))
+            (let ty = Ty::rigid(RigidName::fn_def(FnName::free_id(id)), ()))
             // FIXME: check where clauses from fn
             ------------------------------------------------------------ ("fn-name")
             (borrow_check_expr(env, _assumptions, state, Expr::Place(place), _places_live_on_exit) => (ty, state))
@@ -487,7 +486,7 @@ judgment_fn! {
             // declaration-based typing rule.
             (let fn_decl = env.crates().fn_named(id)?)
             (if fn_decl.binder.len() == substitution.len())
-            (let ty = Ty::rigid(RigidName::fn_def(id), substitution))
+            (let ty = Ty::rigid(RigidName::fn_def(FnName::free_id(id)), substitution))
             // FIXME: check where clauses from fn
             ------------------------------------------------------------ ("free function arguments")
             (borrow_check_expr(
@@ -495,6 +494,29 @@ judgment_fn! {
                 _assumptions,
                 state,
                 Expr::FnValue(FnValue { name: FnName::FreeId(id), substitution }),
+                _places_live_on_exit,
+            ) => (ty, state))
+        )
+
+        (
+            // A fully-qualified trait function. The declaration determines
+            // the signature, but ordinary trait proving establishes that a
+            // dictionary exists for this trait-ref.
+            (let fn_name = FnName::qualified_id(trait_id, id))
+            (let (_, _, trait_ref) =
+                instantiate_fn_def(env.crates(), &fn_name, substitution)?)
+            (if let Some(trait_ref) = trait_ref)!
+            (prove_is_implemented(env, assumptions, state, trait_ref) => state)
+            (let ty = Ty::rigid(RigidName::fn_def(&fn_name), substitution))
+            ------------------------------------------------------------ ("qualified function")
+            (borrow_check_expr(
+                env,
+                assumptions,
+                state,
+                Expr::FnValue(FnValue {
+                    name: FnName::QualifiedId { trait_id, id },
+                    substitution,
+                }),
                 _places_live_on_exit,
             ) => (ty, state))
         )
@@ -977,6 +999,59 @@ fn prove_sub_type(
     TypeckEnv::prove_goal(env, assumptions, state, Relation::sub(a, b))
 }
 
+fn instantiate_fn_def(
+    crates: &Crates,
+    fn_name: &FnName,
+    parameters: &[Parameter],
+) -> Fallible<(Safety, FnBoundData, Option<TraitRef>)> {
+    match fn_name {
+        FnName::FreeId(id) => {
+            let function = crates.fn_named(id)?;
+            let data = function.binder.instantiate_with(parameters)?;
+            Ok(((&function.safety).upcast(), data, None))
+        }
+
+        FnName::QualifiedId { trait_id, id } => {
+            let trait_decl = crates.trait_named(trait_id)?;
+            let trait_binder_len = trait_decl.binder.explicit_binder.len();
+            if parameters.len() < trait_binder_len || trait_binder_len == 0 {
+                anyhow::bail!(
+                    "qualified function has {} parameters, but trait `{trait_id:?}` requires {trait_binder_len}",
+                    parameters.len(),
+                );
+            }
+
+            let (trait_parameters, method_parameters) = parameters.split_at(trait_binder_len);
+            let TraitBoundData {
+                where_clauses: _,
+                trait_items,
+            } = trait_decl.binder.instantiate_with(trait_parameters)?;
+
+            let mut methods = trait_items.iter().filter_map(|item| match item {
+                TraitItem::Fn(function) if function.id == *id => Some(function),
+                TraitItem::Fn(_) | TraitItem::AssociatedTy(_) => None,
+            });
+            let function = methods
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("trait `{trait_id:?}` has no function `{id:?}`"))?;
+            if methods.next().is_some() {
+                anyhow::bail!("trait `{trait_id:?}` has multiple functions named `{id:?}`");
+            }
+
+            let data = function.binder.instantiate_with(method_parameters)?;
+            let (self_parameter, trait_arguments) = trait_parameters
+                .split_first()
+                .ok_or_else(|| anyhow::anyhow!("trait substitution has no `Self` parameter"))?;
+            let Parameter::Ty(self_ty) = self_parameter else {
+                anyhow::bail!("trait substitution's `Self` parameter is not a type");
+            };
+            let trait_ref = trait_id.with(&**self_ty, trait_arguments);
+
+            Ok(((&function.safety).upcast(), data, Some(trait_ref)))
+        }
+    }
+}
+
 fn prove_where_clauses(
     env: &TypeckEnv,
     assumptions: &Wcs,
@@ -1008,9 +1083,14 @@ fn prove_is_implemented(
     env: &TypeckEnv,
     assumptions: &Wcs,
     state: &FlowState,
-    trait_ref: TraitRef,
+    trait_ref: impl Upcast<TraitRef>,
 ) -> ProvenSet<FlowState> {
-    TypeckEnv::prove_goal(env, assumptions, state, Predicate::IsImplemented(trait_ref))
+    TypeckEnv::prove_goal(
+        env,
+        assumptions,
+        state,
+        Predicate::IsImplemented(trait_ref.upcast()),
+    )
 }
 
 // EXAMPLE
