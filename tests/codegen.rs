@@ -252,7 +252,7 @@ fn qualified_trait_call_instantiates_method_arguments_last() {
 }
 
 #[test]
-fn qualified_trait_call_through_associated_type_bound_typechecks() {
+fn qualified_trait_call_through_associated_type_bound_executes() {
     FormalityTest::new(crates![crate test {
         trait Baz {
             fn baz() -> u32;
@@ -288,7 +288,136 @@ fn qualified_trait_call_through_associated_type_bound_typechecks() {
         }
     }])
     .rustc_ok()
-    .skip_execute()
+    .expect_output("22\n")
+    .ok()
+}
+
+#[test]
+fn alias_in_trait_method_self_type_is_fully_normalized() {
+    FormalityTest::new(crates![crate test {
+        trait Family {
+            type Output : [];
+        }
+
+        impl Family for () {
+            type Output = i32;
+        }
+
+        trait Identity {
+            fn identity(value: Self) -> Self;
+        }
+
+        impl Identity for i32 {
+            fn identity(value: i32) -> i32 {
+                return value;
+            }
+        }
+
+        fn main() -> () {
+            let value: <() as Family>::Output = 22 _ i32;
+            println!(<<() as Family>::Output as Identity>::identity(value));
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
+    .ok()
+}
+
+#[test]
+fn alias_in_trait_argument_is_fully_normalized() {
+    FormalityTest::new(crates![crate test {
+        trait Family {
+            type Output : [];
+        }
+
+        impl Family for () {
+            type Output = i32;
+        }
+
+        trait Convert<T> {
+            fn convert(value: T) -> T;
+        }
+
+        impl Convert<i32> for () {
+            fn convert(value: i32) -> i32 {
+                return value;
+            }
+        }
+
+        fn main() -> () {
+            println!(<() as Convert<<() as Family>::Output>>::convert(22 _ i32));
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
+    .ok()
+}
+
+#[test]
+fn alias_in_method_argument_is_fully_normalized() {
+    FormalityTest::new(crates![crate test {
+        trait Family {
+            type Output : [];
+        }
+
+        impl Family for () {
+            type Output = i32;
+        }
+
+        trait Identity {
+            fn identity<T>(value: T) -> T;
+        }
+
+        impl Identity for () {
+            fn identity<T>(value: T) -> T {
+                return value;
+            }
+        }
+
+        fn main() -> () {
+            println!(<() as Identity>::identity::<<() as Family>::Output>(22 _ i32));
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
+    .ok()
+}
+
+#[test]
+fn nested_alias_in_trait_method_self_type_is_fully_normalized() {
+    FormalityTest::new(crates![crate test {
+        trait Family {
+            type Output : [];
+        }
+
+        impl Family for () {
+            type Output = i32;
+        }
+
+        struct Wrapper<T> {
+            value: T,
+        }
+
+        trait Identity {
+            fn identity(value: Self) -> Self;
+        }
+
+        impl<T> Identity for Wrapper<T> {
+            fn identity(value: Wrapper<T>) -> Wrapper<T> {
+                return value;
+            }
+        }
+
+        fn main() -> () {
+            let wrapper: Wrapper<<() as Family>::Output> =
+                Wrapper::<<() as Family>::Output> { value: 22 _ i32 };
+            let result: Wrapper<<() as Family>::Output> =
+                <Wrapper<<() as Family>::Output> as Identity>::identity(wrapper);
+            println!(result.value);
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
     .ok()
 }
 

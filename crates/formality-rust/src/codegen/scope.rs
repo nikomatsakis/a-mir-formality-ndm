@@ -489,4 +489,26 @@ mod tests {
         assert_ne!(i32_name, u32_name);
         assert_eq!(global.fn_map.len(), 2);
     }
+
+    #[test]
+    fn alias_and_rigid_trait_method_keys_share_one_worklist_entry() {
+        let global = CodegenGlobal::new(&normalization_program());
+        let (alias_name, global) = global
+            .ensure_monomorphized_fn(MonoKey::trait_method(
+                term::<TraitRef>("Identity(<() as Family>::Output)"),
+                term::<ValueId>("identity"),
+                (),
+            ))
+            .unwrap();
+        let (rigid_name, global) = global
+            .ensure_monomorphized_fn(MonoKey::trait_method(
+                term::<TraitRef>("Identity(i32)"),
+                term::<ValueId>("identity"),
+                (),
+            ))
+            .unwrap();
+
+        assert_eq!(alias_name, rigid_name);
+        assert_eq!(global.fn_map.len(), 1);
+    }
 }

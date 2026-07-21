@@ -210,6 +210,7 @@ judgment_fn! {
 
         (
             (let block = instantiate_erased(binder)?)
+            (let block = normalize::normalize_block(&global.program, block)?)
             (codegen_block(global, cfn, scope, block) => (code, global, cfn))
             ---- ("exists")
             (codegen_stmt(global, cfn, scope, Stmt::Exists { binder }) => (code, scope, global, cfn))
@@ -429,6 +430,7 @@ judgment_fn! {
                 LivePlaces::default(),
             ) => (ty, state))
             (let () = assert_no_constraints(state))
+            (let ty = normalize::normalize_ground_ty(&cfn.typeck_env.program, ty)?)
             ---- ("type_expr")
             (type_expr(cfn, scope, expr) => ty)
         )

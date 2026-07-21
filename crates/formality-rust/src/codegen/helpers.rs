@@ -19,6 +19,7 @@ use minirust_rs::mem::PtrType;
 
 use super::code_block::CodeBlock;
 use super::minirust::*;
+use super::normalize::{normalize_fn_data, normalize_ground_ty};
 use super::scope::{CodegenFn, CodegenGlobal, CodegenScope, MonoKey};
 use super::select::select_impl;
 
@@ -111,6 +112,7 @@ pub(super) fn resolve_fn_body(
         MonoKey::FreeFn { id, fn_args } => {
             let fn_def = g.program.program().fn_named(id)?;
             let fn_data = fn_def.binder.instantiate_with(fn_args)?;
+            let fn_data = normalize_fn_data(&g.program, &fn_data)?;
             let body = expression_body(&fn_data, format_args!("function {id:?}"))?;
             Ok((fn_data, body))
         }
@@ -143,6 +145,7 @@ pub(super) fn resolve_fn_body(
             }
 
             let fn_data = method.binder.instantiate_with(method_args)?;
+            let fn_data = normalize_fn_data(&g.program, &fn_data)?;
             let body = expression_body(
                 &fn_data,
                 format_args!("trait method {trait_ref:?}::{method_id:?}"),
@@ -211,17 +214,18 @@ pub(super) fn typed_place_to_minirust(
         }
         TypedPlaceExpressionData::Deref(prefix) => {
             let pp = typed_place_to_minirust(cfn, s, prefix)?;
-            let pointee_ty = &typed.ty;
+            let pointee_ty = normalize_ground_ty(&cfn.typeck_env.program, &typed.ty)?;
             Ok(lang::PlaceExpr::Deref {
                 operand: GcCow::new(lang::ValueExpr::Load {
                     source: GcCow::new(pp),
                 }),
-                ty: minirust_ty(&cfn.crates, pointee_ty)?,
+                ty: minirust_ty(&cfn.crates, &pointee_ty)?,
             })
         }
         TypedPlaceExpressionData::Field(prefix, field_name) => {
             let pp = typed_place_to_minirust(cfn, s, prefix)?;
-            let prefix_rigid = match &prefix.ty {
+            let prefix_ty = normalize_ground_ty(&cfn.typeck_env.program, &prefix.ty)?;
+            let prefix_rigid = match &prefix_ty {
                 Ty::RigidTy(r) => r,
                 _ => anyhow::bail!("field on non-rigid type"),
             };
@@ -283,7 +287,10 @@ pub(super) fn resolve_struct_fields(
     turbofish: &grammar::expr::Turbofish,
 ) -> Fallible<Vec<grammar::Field>> {
     let s = cfn.crates.struct_named(adt_id)?;
-    let bd = s.binder.instantiate_with(&turbofish.parameters)?;
+    let mut bd = s.binder.instantiate_with(&turbofish.parameters)?;
+    for field in &mut bd.fields {
+        field.ty = normalize_ground_ty(&cfn.typeck_env.program, &field.ty)?;
+    }
     Ok(bd.fields)
 }
 

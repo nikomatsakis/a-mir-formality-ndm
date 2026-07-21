@@ -193,7 +193,14 @@ pub(super) fn minirust_ty(crates: &Crates, ty: &Ty) -> Fallible<lang::Type> {
             RigidName::FnDef(_) => Ok(unit_ty()),
             RigidName::Raw(_) | RigidName::FnPtr(_) => unimplemented!(),
         },
-        TyData::AliasTy(_) | TyData::PredicateTy(_) => unimplemented!(),
+        TyData::AliasTy(alias) => anyhow::bail!(
+            "internal error: associated type reached MiniRust without full normalization: {alias:?}"
+        ),
+        TyData::PredicateTy(predicate) => {
+            anyhow::bail!(
+                "internal error: predicate type is not representable in MiniRust: {predicate:?}"
+            )
+        }
         TyData::Variable(v) => anyhow::bail!("unmonomorphized {v:?}"),
     }
 }
