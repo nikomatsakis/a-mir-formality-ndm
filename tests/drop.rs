@@ -119,7 +119,9 @@ fn drop_impl_concrete_type_param() {
     ])
     .err(expect_test::expect![[r#"
         the rule "assumption - predicate" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `assumptions`"#]])
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Drop(MyStruct<!ty_0>), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Drop for MyStruct<u32> { } }, _assumptions: {}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 /// Drop impl for a non-ADT type (e.g., u32).
