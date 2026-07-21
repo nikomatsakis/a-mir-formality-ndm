@@ -300,11 +300,11 @@ judgment_fn! {
         )
 
         (
-            // Turbofish always generates a zero-sized value.
+            // A function declaration always generates a zero-sized value.
             // The important bits (function name, arguments, etc) show up in the *type*.
             (let code = cfn.fresh_code_block())
-            ---- ("turbofish")
-            (codegen_expr_into(global, cfn, scope, target, Expr::Turbofish { .. }) => (
+            ---- ("function value")
+            (codegen_expr_into(global, cfn, scope, target, Expr::FnValue(_)) => (
                 code.assign(target, unit_value()),
                 global,
                 cfn,

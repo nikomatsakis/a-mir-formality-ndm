@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::{
     grammar::{
-        Binder, DebruijnIndex, ExistentialVar, Fallible, ParameterKind, TraitBinder, UniversalVar,
-        VarIndex, Variable,
+        Binder, Crates, DebruijnIndex, ExistentialVar, Fallible, ParameterKind, TraitBinder,
+        TraitId, UniversalVar, VarIndex, Variable,
     },
     rust::{Fold, Term},
 };
@@ -14,6 +14,7 @@ pub struct Context {
     bounded: Vec<Vec<String>>,
     free: HashMap<VarIndex, String>,
     nesting_level: usize,
+    crates: Option<Crates>,
 }
 
 impl Context {
@@ -29,11 +30,24 @@ impl Default for Context {
             bounded: Vec::new(),
             free: HashMap::new(),
             nesting_level: 0,
+            crates: None,
         }
     }
 }
 
 impl Context {
+    pub fn set_crates(&mut self, crates: &Crates) {
+        self.crates = Some(crates.clone());
+    }
+
+    pub fn trait_binder_len(&self, trait_id: &TraitId) -> Fallible<usize> {
+        let crates = self
+            .crates
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("no program available while lowering a trait path"))?;
+        Ok(crates.trait_named(trait_id)?.binder.explicit_binder.len())
+    }
+
     pub fn first(&self) -> Option<&Vec<String>> {
         self.bounded.first()
     }
@@ -289,6 +303,7 @@ mod tests {
                 bounded,
                 free: HashMap::new(),
                 nesting_level: 0,
+                crates: None,
             }
         }
     }
@@ -351,8 +366,8 @@ mod tests {
             ],
             expect_test::expect![[r#"
                 pub trait Foo<T01> {
-                    fn blub<T10, T11>(mut k: T10, mut v: T11) -> T01;
-                    fn bar<T10, T11>(mut k: T10, mut v: T11) -> T01;
+                    fn blub<T10, T11>(k: T10, v: T11) -> T01;
+                    fn bar<T10, T11>(k: T10, v: T11) -> T01;
                 }"#]]
         );
     }

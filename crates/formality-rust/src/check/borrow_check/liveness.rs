@@ -345,12 +345,8 @@ impl LiveBefore for Expr {
                 turbofish: _,
             } => field_exprs.live_before(env, scopes, places_live),
 
-            // Turbofish is just a variable reference with explicit type args —
-            // the variable itself is live.
-            Expr::Turbofish { id, args: _ } => {
-                let place_expr: PlaceExpr = id.upcast();
-                place_expr.live_before(env, scopes, places_live)
-            }
+            // Function declarations are not local places.
+            Expr::FnValue(_) => places_live,
         }
     }
 }

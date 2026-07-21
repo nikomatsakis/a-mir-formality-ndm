@@ -965,6 +965,13 @@ pub enum Expr {
         name: String,
         args: Vec<GenericArg>,
     },
+    QualifiedPath {
+        self_ty: Type,
+        trait_name: String,
+        trait_args: Vec<GenericArg>,
+        method_name: String,
+        method_args: Vec<GenericArg>,
+    },
     Struct {
         path: String,
         args: Vec<GenericArg>,
@@ -1000,6 +1007,18 @@ impl Display for Expr {
             Expr::Path { name, args } => {
                 f.write_str(name)?;
                 fmt_generic_args(f, args, true)
+            }
+            Expr::QualifiedPath {
+                self_ty,
+                trait_name,
+                trait_args,
+                method_name,
+                method_args,
+            } => {
+                write!(f, "<{self_ty} as {trait_name}")?;
+                fmt_generic_args(f, trait_args, false)?;
+                write!(f, ">::{method_name}")?;
+                fmt_generic_args(f, method_args, true)
             }
             Expr::Struct { path, args, fields } => {
                 f.write_str(path)?;

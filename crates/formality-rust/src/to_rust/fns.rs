@@ -20,10 +20,11 @@ pub fn lower_fn(
         },
         generics,
     ) = open_bounded!(ctx, function.binder.clone());
+    let mutable_parameters = !matches!(term.body, MaybeFnBody::NoFnBody);
     let params = term
         .input_args
         .iter()
-        .map(|arg| lower_fn_param(ctx, arg))
+        .map(|arg| lower_fn_param(ctx, arg, mutable_parameters))
         .collect::<Result<Vec<_>, _>>()?;
     let return_ty = tys::lower_ty(ctx, &term.output_ty)?;
     let body = lower_fn_body(ctx, &term.body)?;
@@ -39,10 +40,15 @@ pub fn lower_fn(
     })
 }
 
-pub fn lower_fn_param(ctx: &mut Context, arg: &InputArg) -> Fallible<syntax::FnParam> {
+pub fn lower_fn_param(
+    ctx: &mut Context,
+    arg: &InputArg,
+    mutable: bool,
+) -> Fallible<syntax::FnParam> {
     Ok(syntax::FnParam {
-        // TODO: Is there a way to know if a variable must be mutable?
-        mutable: true,
+        // Function bodies may assign their arguments. Rust forbids `mut`
+        // patterns on declarations that have no body.
+        mutable,
         name: arg.id.deref().clone(),
         ty: tys::lower_ty(ctx, &arg.ty)?,
     })

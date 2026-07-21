@@ -3,8 +3,8 @@
 use crate::rust::{term, try_term};
 use formality_macros::test;
 
-use crate::grammar::expr::{Expr, PlaceExpr};
-use crate::grammar::{Crates, Fallible, ScalarId};
+use crate::grammar::expr::{Expr, FnName, PlaceExpr};
+use crate::grammar::{Crates, Fallible, Parameter, ScalarId};
 
 #[test]
 fn test_parse_rust_like_trait_impl_syntax() {
@@ -288,4 +288,31 @@ fn test_parse_literals() {
 
     let expr_data: Expr = try_term("true").unwrap();
     assert!(matches!(expr_data, Expr::True));
+}
+
+#[test]
+fn test_parse_qualified_fn_with_method_arguments() {
+    let expr: Expr = term("<Wrapper<u32> as Convert<i32>>::convert::<bool>");
+    let Expr::FnValue(fn_value) = expr else {
+        panic!("expected a function value");
+    };
+
+    let expected_name: FnName = term("Convert::convert");
+    let expected_substitution: Vec<Parameter> =
+        vec![term("Wrapper<u32>"), term("i32"), term("bool")];
+    assert_eq!(fn_value.name, expected_name);
+    assert_eq!(fn_value.substitution, expected_substitution);
+}
+
+#[test]
+fn test_parse_qualified_fn_without_method_arguments() {
+    let expr: Expr = term("<Wrapper<u32> as Convert<i32>>::convert");
+    let Expr::FnValue(fn_value) = expr else {
+        panic!("expected a function value");
+    };
+
+    let expected_name: FnName = term("Convert::convert");
+    let expected_substitution: Vec<Parameter> = vec![term("Wrapper<u32>"), term("i32")];
+    assert_eq!(fn_value.name, expected_name);
+    assert_eq!(fn_value.substitution, expected_substitution);
 }

@@ -5,7 +5,7 @@ use crate::check::borrow_check::typed_place_expression::{
     TypedPlaceExpr, TypedPlaceExpressionData,
 };
 
-use crate::grammar::expr::{Block, Expr, Init, PlaceExpr, Stmt};
+use crate::grammar::expr::{Block, Expr, FnName, FnValue, Init, PlaceExpr, Stmt};
 use crate::grammar::{
     AliasTy, AssociatedItemId, ExistentialVar, FieldName, Fn, Lt, Parameter, Predicate, RefKind,
     Relation, RigidName, RigidTy, ScalarId, Struct, StructBoundData, TraitId, TraitRef, Ty, TyData,
@@ -482,13 +482,21 @@ judgment_fn! {
         )
 
         (
-            // A function name with explicit type arguments (e.g., `foo::<'a, T>(args)`).
+            // A free function name with explicit type arguments (e.g.,
+            // `foo::<'a, T>(args)`). Qualified trait functions are added by the
+            // declaration-based typing rule.
             (let fn_decl = env.crates().fn_named(id)?)
-            (if fn_decl.binder.len() == args.len())
-            (let ty = Ty::rigid(RigidName::fn_def(id), args))
+            (if fn_decl.binder.len() == substitution.len())
+            (let ty = Ty::rigid(RigidName::fn_def(id), substitution))
             // FIXME: check where clauses from fn
-            ------------------------------------------------------------ ("turbofish")
-            (borrow_check_expr(env, _assumptions, state, Expr::Turbofish { id, args }, _places_live_on_exit) => (ty, state))
+            ------------------------------------------------------------ ("free function arguments")
+            (borrow_check_expr(
+                env,
+                _assumptions,
+                state,
+                Expr::FnValue(FnValue { name: FnName::FreeId(id), substitution }),
+                _places_live_on_exit,
+            ) => (ty, state))
         )
 
         // fn foo<'a, T>() where T: 'a { }

@@ -6,6 +6,8 @@ use crate::to_rust::{
 use std::collections::HashMap;
 
 pub fn build_crates(ctx: &mut Context, crates: &Crates) -> Fallible<HashMap<String, String>> {
+    ctx.set_crates(crates);
+
     let contains_core = crates
         .crates
         .iter()

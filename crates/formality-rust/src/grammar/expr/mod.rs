@@ -6,6 +6,8 @@ use crate::grammar::{
     AdtId, Binder, FieldName, Lt, Parameter, RefKind, ScalarId, TraitId, Ty, ValueId,
 };
 
+mod parse_impls;
+
 id!(LabelId, regex = "'[a-zA-Z_][a-zA-Z0-9_]*");
 
 #[term($id :)]
@@ -150,8 +152,10 @@ pub enum Expr {
     #[cast]
     Place(PlaceExpr),
 
-    #[grammar($id::<$,args>)]
-    Turbofish { id: ValueId, args: Vec<Parameter> },
+    /// A named function with an explicit substitution. Free functions require
+    /// an explicit turbofish; qualified trait functions may omit an empty one.
+    #[cast]
+    FnValue(FnValue),
 
     /// `$adt_id { exprs }`
     ///
@@ -246,10 +250,16 @@ pub enum FnName {
     #[grammar($v0)]
     FreeId(ValueId),
 
-    #[grammar(<$ty as $trait_id>::$id)]
-    QualifiedId {
-        ty: Ty,
-        trait_id: TraitId,
-        id: ValueId,
-    },
+    #[grammar($trait_id :: $id)]
+    QualifiedId { trait_id: TraitId, id: ValueId },
+}
+
+/// A function declaration identity together with all arguments that
+/// specialize it. For a qualified trait method, `substitution` is ordered as
+/// `[Self, trait arguments..., method arguments...]`.
+#[term]
+#[customize(parse)]
+pub struct FnValue {
+    pub name: FnName,
+    pub substitution: Vec<Parameter>,
 }

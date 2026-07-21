@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::{
     grammar::{
-        expr::{Block, Expr, FieldExpr, Init, Label, PlaceExpr, Stmt},
+        expr::{Block, Expr, FieldExpr, FnName, Init, Label, PlaceExpr, Stmt},
         Binder, Fallible, FieldName, Lt, Parameter, RefKind, Ty, ValueId, Variable,
     },
     to_rust::context::Wrapped,
@@ -107,19 +107,35 @@ pub fn lower_expr(ctx: &mut Context, expr: &Expr) -> Fallible<syntax::Expr> {
             place: lower_place_expr(ctx, place)?,
         }),
         Expr::Place(place_expr) => Ok(syntax::Expr::Place(lower_place_expr(ctx, place_expr)?)),
-        Expr::Turbofish { id, args } => Ok(syntax::Expr::Path {
-            name: id.deref().clone(),
-            args: args
-                .iter()
-                .filter(|arg| match arg {
-                    Parameter::Ty(_) | Parameter::Const(_) => true,
-                    Parameter::Lt(lt) => {
-                        matches!(**lt, Lt::Static | Lt::Variable(Variable::BoundVar(_)))
-                    }
+        Expr::FnValue(fn_value) => match &fn_value.name {
+            FnName::FreeId(id) => Ok(syntax::Expr::Path {
+                name: id.deref().clone(),
+                args: lower_explicit_generic_args(ctx, &fn_value.substitution)?,
+            }),
+            FnName::QualifiedId { trait_id, id } => {
+                let trait_binder_len = ctx.trait_binder_len(trait_id)?;
+                if fn_value.substitution.len() < trait_binder_len || trait_binder_len == 0 {
+                    anyhow::bail!(
+                        "qualified function substitution has {} arguments, but trait `{trait_id:?}` requires {trait_binder_len}",
+                        fn_value.substitution.len(),
+                    );
+                }
+
+                let (trait_substitution, method_arguments) =
+                    fn_value.substitution.split_at(trait_binder_len);
+                let Parameter::Ty(self_ty) = &trait_substitution[0] else {
+                    anyhow::bail!("qualified function `Self` argument is not a type");
+                };
+
+                Ok(syntax::Expr::QualifiedPath {
+                    self_ty: tys::lower_ty(ctx, self_ty)?,
+                    trait_name: trait_id.deref().clone(),
+                    trait_args: lower_explicit_generic_args(ctx, &trait_substitution[1..])?,
+                    method_name: id.deref().clone(),
+                    method_args: lower_explicit_generic_args(ctx, method_arguments)?,
                 })
-                .map(|arg| tys::lower_generic_arg(ctx, arg))
-                .collect::<Result<Vec<_>, _>>()?,
-        }),
+            }
+        },
         Expr::Struct {
             field_exprs,
             adt_id,
@@ -161,6 +177,22 @@ pub fn lower_expr(ctx: &mut Context, expr: &Expr) -> Fallible<syntax::Expr> {
     }
 }
 
+fn lower_explicit_generic_args(
+    ctx: &mut Context,
+    arguments: &[Parameter],
+) -> Fallible<Vec<syntax::GenericArg>> {
+    arguments
+        .iter()
+        .filter(|argument| match argument {
+            Parameter::Ty(_) | Parameter::Const(_) => true,
+            Parameter::Lt(lt) => {
+                matches!(**lt, Lt::Static | Lt::Variable(Variable::BoundVar(_)))
+            }
+        })
+        .map(|argument| tys::lower_generic_arg(ctx, argument))
+        .collect()
+}
+
 pub fn lower_place_expr(ctx: &mut Context, place_expr: &PlaceExpr) -> Fallible<syntax::PlaceExpr> {
     match place_expr {
         PlaceExpr::Var(value_id) => Ok(syntax::PlaceExpr::Var(value_id.deref().clone())),
@@ -199,6 +231,31 @@ pub fn lower_named_field_expr(
 
 #[cfg(test)]
 mod test {
+    use crate::grammar::{expr::Expr, Crates};
+    use crate::rust::term;
+    use crate::to_rust::context::Context;
+
+    use super::lower_expr;
+
+    #[test]
+    fn qualified_function_path() {
+        let crates: Crates = term(
+            "[
+                crate Foo {
+                    struct Wrapper<T> {}
+                    trait Convert<T> {}
+                }
+            ]",
+        );
+        let expr: Expr = term("<Wrapper<u32> as Convert<i32>>::convert::<bool>");
+        let mut context = Context::default();
+        context.set_crates(&crates);
+
+        assert_eq!(
+            lower_expr(&mut context, &expr).unwrap().to_string(),
+            "<Wrapper<u32> as Convert<i32>>::convert::<bool>",
+        );
+    }
 
     #[test]
     fn simple_fn_body() {
