@@ -13,12 +13,13 @@ use crate::prove::prove::{
         prove_eq::prove_eq,
         prove_outlives::prove_outlives,
         prove_sub::prove_sub,
-        prove_via::prove_via,
+        prove_via_assumption::prove_via_assumption,
+        prove_via_impl::prove_via_impl,
         prove_wf::prove_wf,
     },
 };
 
-use super::constraints::Constraints;
+use super::constraints::{Constrained, Constraints};
 
 judgment_fn! {
     /// The "heart" of the trait system -- prove that a where-clause holds given a set of declarations, variable environment, and set of assumptions.
@@ -47,13 +48,13 @@ judgment_fn! {
 
         (
             (a in assumptions)!
-            (prove_via(decls, env, assumptions, a, goal) => c)
+            (prove_via_assumption(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("assumption - predicate")
             (prove_wc(decls, env, assumptions, WcData::Predicate(goal)) => c)
         )
         (
             (a in assumptions)!
-            (prove_via(decls, env, assumptions, a, goal) => c)
+            (prove_via_assumption(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("assumption - relation")
             (prove_wc(decls, env, assumptions, WcData::Relation(goal)) => c)
         )
@@ -61,33 +62,17 @@ judgment_fn! {
 
         // This rule is: prove `T: Foo<U>` holds on the basis of an `impl<A,B> Foo<B> for A where WC` impl somewhere.
         (
-            // Get the impl declaration.
-            (i in decls.impl_decls(&trait_ref.trait_id))!
-
-            // Instantiate impl generics with inference variables (in our example, `A => ?A, B => ?B`).
-            (let (env, subst) = env.existential_substitution(&i.binder))
-            (let i = i.binder.instantiate_with(&subst).unwrap())
-
-            // Instantiate trait where-clauses from `Foo<?B>`. If we had `trait Foo<X: Debug>`, for example,
-            // this would yield `?B: Debug`.
-            (let t = decls.trait_decl(&i.trait_ref.trait_id).binder.instantiate_with(&i.trait_ref.parameters).unwrap())
-
-            // Create a set of assumptions `co_assumptions` that include the predicate the impl itself
-            // is asserting (i.e., `A: Foo<B>`). When proving the impl's where-clauses, we are allowed
-            // to assume this is true (in a coinductive fashion).
-            //
-            // NB: This is actually not what Rust currently does, but it is what "we" (types team) want it to do.
-            (let co_assumptions = (assumptions, trait_ref))
-            (prove(decls, env, co_assumptions, Wcs::all_eq(&trait_ref.parameters, &i.trait_ref.parameters)) => c)
-            (prove_after(decls, c, co_assumptions, &i.where_clause) => c)
-
-            // Prove that the well-formedness requirements of the *trait* hold -- for this proof, we cannot
-            // assume that the trait is implemented, because that would allow specious implied bounds
-            // (i.e., we could assume that `B: Debug` based on the trait definition + the existence of an impl,
-            // but actually the impl is responsible for proving that `B: Debug`).
-            (prove_after(decls, c, assumptions, &t.where_clause) => c)
+            (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
+            (prove_via_impl(
+                decls,
+                env,
+                assumptions,
+                trait_ref,
+                candidate,
+            ) => Constrained(application, c))
+            (let c = application.proof_constraints(c))
             ----------------------------- ("positive impl")
-            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c.pop_subst(&subst))
+            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
         )
 
         (
@@ -117,7 +102,7 @@ judgment_fn! {
             (ti in decls.trait_invariants())
             (let (env, subst) = env.existential_substitution(&ti.binder))
             (let ti = ti.binder.instantiate_with(&subst).unwrap())
-            (prove_via(decls, env, assumptions, &ti.where_clause, trait_ref) => c)
+            (prove_via_assumption(decls, env, assumptions, &ti.where_clause, trait_ref) => c)
             (prove_after(decls, c, assumptions, &ti.trait_ref) => c)
             ----------------------------- ("trait implied bound")
             (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c.pop_subst(&subst))

@@ -51,6 +51,34 @@ impl Program {
         self.crates.items_from_all_crates().downcasted().collect()
     }
 
+    /// Enumerate the raw positive impl declarations for `trait_id`, preserving
+    /// their source identity and all impl items.
+    pub(crate) fn raw_trait_impls_for(&self, trait_id: &TraitId) -> Vec<ImplCandidate> {
+        self.crates
+            .crates
+            .iter()
+            .enumerate()
+            .flat_map(|(crate_index, krate)| {
+                krate
+                    .items
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(item_index, item)| match item {
+                        CrateItem::TraitImpl(trait_impl) if trait_impl.trait_id() == trait_id => {
+                            Some(ImplCandidate {
+                                id: ImplId {
+                                    crate_index,
+                                    item_index,
+                                },
+                                trait_impl: trait_impl.upcast(),
+                            })
+                        }
+                        _ => None,
+                    })
+            })
+            .collect()
+    }
+
     pub fn trait_impls_in_crate(&self, krate: &Crate) -> Vec<TraitImpl> {
         krate.items.iter().downcasted().collect()
     }
@@ -293,6 +321,22 @@ impl Program {
         }
     }
 }
+
+/// Stable source identity for an impl declaration.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub(crate) struct ImplId {
+    pub(crate) crate_index: usize,
+    pub(crate) item_index: usize,
+}
+
+/// One raw impl declaration selected for candidate-specific proof.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub(crate) struct ImplCandidate {
+    pub(crate) id: ImplId,
+    pub(crate) trait_impl: TraitImpl,
+}
+
+formality_core::cast_impl!(ImplCandidate);
 
 /// An "impl decl" indicates that a trait is implemented for a given set of types.
 /// One "impl decl" is created for each impl in the Rust source.
