@@ -154,6 +154,47 @@ fn qualified_trait_call_in_generic_body_typechecks() {
 }
 
 #[test]
+fn qualified_trait_call_through_associated_type_bound_typechecks() {
+    FormalityTest::new(crates![crate test {
+        trait Baz {
+            fn baz() -> u32;
+        }
+
+        struct Value {}
+
+        impl Baz for Value {
+            fn baz() -> u32 {
+                return 22 _ u32;
+            }
+        }
+
+        trait Bar {
+            type Ty: [Baz];
+        }
+
+        struct Ground {}
+
+        impl Bar for Ground {
+            type Ty = Value;
+        }
+
+        fn foo<T>() -> u32
+        where
+            T: Bar,
+        {
+            return <<T as Bar>::Ty as Baz>::baz();
+        }
+
+        fn main() -> () {
+            println!(foo::<Ground>());
+        }
+    }])
+    .rustc_ok()
+    .skip_execute()
+    .ok()
+}
+
+#[test]
 fn if_statements() {
     FormalityTest::new(crates![crate test {
         fn main() -> () {

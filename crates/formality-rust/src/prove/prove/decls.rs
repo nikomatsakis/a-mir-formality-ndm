@@ -1,8 +1,8 @@
 use crate::grammar::{
-    AdtId, AliasName, AliasTy, AssociatedTyValue, AssociatedTyValueBoundData, Binder, Crate,
-    CrateId, CrateItem, Crates, ImplItem, NegTraitImpl, NegTraitImplBoundData, Parameter,
-    Predicate, Relation, Trait, TraitBoundData, TraitId, TraitImpl, TraitImplBoundData, TraitRef,
-    Ty, Wc, Wcs,
+    AdtId, AliasName, AliasTy, AssociatedTy, AssociatedTyBoundData, AssociatedTyValue,
+    AssociatedTyValueBoundData, Binder, Crate, CrateId, CrateItem, Crates, ImplItem, NegTraitImpl,
+    NegTraitImplBoundData, Parameter, Predicate, Relation, Trait, TraitBoundData, TraitId,
+    TraitImpl, TraitImplBoundData, TraitItem, TraitRef, Ty, Wc, Wcs,
 };
 use crate::prove::ToWcs;
 use formality_core::{seq, Downcasted, Set, To, Upcast, Upcasted};
@@ -224,8 +224,56 @@ impl Program {
                 CrateItem::Trait(t) => Some(t),
                 _ => None,
             })
-            .flat_map(|t| Self::grammar_trait_to_decl(t).trait_invariants())
+            .flat_map(Self::grammar_trait_invariants)
             .collect()
+    }
+
+    fn grammar_trait_invariants(trait_def: &Trait) -> Set<TraitInvariant> {
+        let mut invariants = Self::grammar_trait_to_decl(trait_def).trait_invariants();
+        let (
+            trait_variables,
+            TraitBoundData {
+                where_clauses: _,
+                trait_items,
+            },
+        ) = trait_def.binder.open();
+        let source = TraitRef::new(&trait_def.id, &trait_variables);
+
+        for item in trait_items {
+            let TraitItem::AssociatedTy(AssociatedTy { id, binder }) = item else {
+                continue;
+            };
+            let (
+                associated_variables,
+                AssociatedTyBoundData {
+                    ensures,
+                    where_clauses,
+                },
+            ) = binder.open();
+            let alias_parameters: Vec<Parameter> = trait_variables
+                .iter()
+                .chain(&associated_variables)
+                .upcasted()
+                .collect();
+            let alias = AliasTy::associated_ty(
+                &trait_def.id,
+                &id,
+                associated_variables.len(),
+                alias_parameters,
+            );
+            let conditions = where_clauses.to_wcs();
+
+            invariants.extend(ensures.into_iter().map(|ensure| {
+                let required = Wc::implies(&conditions, ensure.to_wc(&alias));
+                let required = Wc::for_all(Binder::new(&associated_variables, required));
+                TraitInvariant::new(Binder::new(
+                    &trait_variables,
+                    TraitInvariantBoundData::new(&source, required),
+                ))
+            }));
+        }
+
+        invariants
     }
 
     /// Create a `Program` wrapping the given items in a single crate named "test".
