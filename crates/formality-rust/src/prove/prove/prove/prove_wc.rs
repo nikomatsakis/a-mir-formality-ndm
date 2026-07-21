@@ -18,6 +18,8 @@ use crate::prove::prove::{
         prove_wf::{prove_wf, wf_requirements},
     },
     requirements::{
+        has_unconditional_supertrait_assumption,
+        has_unconditional_validation_supertrait_assumption,
         prove_validate_via_supertrait_requirement, prove_via_trait_requirement, trait_requirement,
     },
 };
@@ -28,7 +30,7 @@ judgment_fn! {
     /// The "heart" of the trait system -- prove that a where-clause holds given a set of declarations, variable environment, and set of assumptions.
     /// If successful, returns the constraints under which the where-clause holds.
     pub fn prove_wc(
-        _decls: Program,
+        decls: Program,
         env: Env,
         assumptions: Wcs,
         goal: Wc,
@@ -50,6 +52,14 @@ judgment_fn! {
         // restrictive.
         trivial(
             assumptions.iter().any(|assumption| assumption == goal)
+            => Constraints::none(env)
+        )
+
+        // Following an exact supertrait chain from an assumption introduces no constraints. Its
+        // result therefore subsumes every impl- or associated-type-based alternative, so avoid
+        // exhaustively exploring those paths.
+        trivial(
+            has_unconditional_supertrait_assumption(&decls, &assumptions, &goal)
             => Constraints::none(env)
         )
 
@@ -214,7 +224,21 @@ judgment_fn! {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::grammar::Crates;
     use crate::rust::term;
+
+    fn supertrait_program() -> Program {
+        let crates: Crates = term(
+            "[
+                crate test {
+                    trait Super {}
+                    trait Mid where Self: Super {}
+                    trait Sub where Self: Mid {}
+                }
+            ]",
+        );
+        crates.to_prove_decls()
+    }
 
     #[test]
     fn exact_assumption_uses_trivial_proof() {
@@ -237,12 +261,37 @@ mod tests {
 
         assert_eq!(proof.total_nodes(), 2, "{proof}");
     }
+
+    #[test]
+    fn ordinary_supertrait_assumption_uses_trivial_proof() {
+        let (_, proof) = prove_wc(
+            supertrait_program(),
+            Env::default(),
+            term::<Wc>("Sub(u32)"),
+            term::<Wc>("Super(u32)"),
+        )
+        .into_singleton()
+        .unwrap();
+
+        assert_eq!(proof.total_nodes(), 1, "{proof}");
+    }
+
+    #[test]
+    fn stage_b_supertrait_assumption_uses_trivial_validation_proof() {
+        let assumption = Wc::validate(ValidationState::B, term::<Wc>("Sub(u32)"));
+        let goal = Wc::validate(ValidationState::A, term::<Wc>("Super(u32)"));
+        let (_, proof) = prove_wc(supertrait_program(), Env::default(), assumption, goal)
+            .into_singleton()
+            .unwrap();
+
+        assert_eq!(proof.total_nodes(), 2, "{proof}");
+    }
 }
 
 judgment_fn! {
     /// Prove that `validate_goal` holds as an impl-validation requirement.
     fn prove_validate(
-        _decls: Program,
+        decls: Program,
         env: Env,
         assumptions: Wcs,
         validation_state: ValidationState,
@@ -260,6 +309,18 @@ judgment_fn! {
                 }
                 _ => false,
             })
+            => Constraints::none(env)
+        )
+
+        // As above, an exact stage-preserving supertrait proof is already the most general
+        // possible result. In particular, stage-B caller evidence can expose a supertrait
+        // without also exploring the ordinary associated-type fallback.
+        trivial(
+            has_unconditional_validation_supertrait_assumption(
+                &decls,
+                &assumptions,
+                &validate_goal,
+            )
             => Constraints::none(env)
         )
 

@@ -6,7 +6,7 @@ use crate::grammar::{
     TraitBoundData, TraitImplBoundData, TraitItem, TraitRef, Ty, ValidationState, Wc, WcData, Wcs,
 };
 use crate::prove::ToWcs;
-use formality_core::{judgment_fn, set, Cons, Set, Upcast};
+use formality_core::{judgment_fn, set, Cons, Downcast, Set, Upcast};
 use formality_macros::term;
 
 use super::{
@@ -586,6 +586,107 @@ where
 {
     let (variables, value) = binder.open();
     Wc::for_all(Binder::new(&variables, to_wc(value)))
+}
+
+/// True if an ordinary assumption proves `goal` solely by following non-higher-ranked
+/// supertrait declarations.
+///
+/// Such a proof introduces no constraints and therefore subsumes every alternative proof of the
+/// same goal. Recognizing it before exhaustive impl and associated-type search is a sound cut.
+pub(crate) fn has_unconditional_supertrait_assumption(
+    decls: &Program,
+    assumptions: &Wcs,
+    goal: &Wc,
+) -> bool {
+    let Wc::Predicate(Predicate::IsImplemented(goal)) = goal else {
+        return false;
+    };
+
+    assumptions.iter().any(|assumption| {
+        let Wc::Predicate(Predicate::IsImplemented(source)) = assumption else {
+            return false;
+        };
+
+        trait_ref_implies_via_supertraits(decls, source, goal)
+    })
+}
+
+/// True if an assumption proves an atomic validation goal without introducing constraints.
+///
+/// Ordinary evidence can validate either stage. Stage-B evidence can additionally expose its
+/// supertraits, whereas provisional stage-A evidence cannot.
+pub(crate) fn has_unconditional_validation_supertrait_assumption(
+    decls: &Program,
+    assumptions: &Wcs,
+    goal: &Wc,
+) -> bool {
+    let Wc::Predicate(Predicate::IsImplemented(goal)) = goal else {
+        return false;
+    };
+
+    assumptions.iter().any(|assumption| match assumption {
+        Wc::Predicate(Predicate::IsImplemented(source)) => {
+            trait_ref_implies_via_supertraits(decls, source, goal)
+        }
+
+        Wc::Validate(ValidationState::B, source) => {
+            let source: Wc = source.upcast();
+            let Some(source) = source.downcast::<TraitRef>() else {
+                return false;
+            };
+
+            trait_ref_implies_via_supertraits(decls, source, goal)
+        }
+
+        _ => false,
+    })
+}
+
+fn trait_ref_implies_via_supertraits(decls: &Program, source: TraitRef, goal: &TraitRef) -> bool {
+    let mut pending = vec![source];
+    let mut visited: Set<TraitRef> = Set::new();
+
+    while let Some(source) = pending.pop() {
+        if &source == goal {
+            return true;
+        }
+
+        if visited.contains(&source) {
+            continue;
+        }
+
+        let Ok(trait_def) = decls.program().trait_named(&source.trait_id) else {
+            continue;
+        };
+        let trait_def: Trait = trait_def.upcast();
+        let Ok((requirements, _)) = trait_requirement(trait_def).into_singleton() else {
+            continue;
+        };
+
+        let implied = requirements
+            .iter()
+            .filter_map(|requirement| {
+                let requirement = requirement
+                    .binder
+                    .instantiate_with(&source.parameters)
+                    .ok()?;
+                let TraitRequirementBoundData::Supertrait(supertrait) = requirement else {
+                    return None;
+                };
+
+                // Opening a higher-ranked binder would introduce fresh variables and may
+                // constrain a caller goal. Leave those cases to the complete proof rules.
+                supertrait
+                    .is_empty()
+                    .then(|| supertrait.instantiate_with(()).ok())
+                    .flatten()
+            })
+            .collect::<Vec<_>>();
+        visited.insert(source);
+        pending.extend(implied);
+    }
+
+    false
 }
 
 fn associated_ty_validation_goals(

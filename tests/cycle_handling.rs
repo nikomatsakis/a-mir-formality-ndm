@@ -308,3 +308,57 @@ fn infinitely_recursive_associated_type_value_is_currently_accepted() {
     .skip_execute()
     .ok();
 }
+
+#[test]
+fn associated_type_ensures_cycle_cannot_invent_missing_supertrait_impl() {
+    // The `Ord for Bad` candidate has only stage-A validation evidence while checking its
+    // `PartialOrd` supertrait. Its associated-type where-clause must not turn that provisional
+    // evidence into the missing `PartialOrd(Bad)` dictionary.
+    FormalityTest::new(crates![crate test {
+        trait PartialOrd {
+            fn probe(value: Self) -> i32;
+        }
+
+        trait Ord
+        where
+            Self: PartialOrd,
+        {}
+
+        trait Family {
+            type Gat<T>: [PartialOrd]
+            where
+                T: Ord;
+        }
+
+        impl Family for u32 {
+            type Gat<T> = T
+            where
+                T: Ord;
+        }
+
+        struct Bad {}
+
+        impl Ord for Bad
+        where
+            <u32 as Family>::Gat<Bad>: PartialOrd,
+        {}
+
+        fn call_probe<T>(value: T) -> i32
+        where
+            T: Ord,
+        {
+            return <T as PartialOrd>::probe(value);
+        }
+
+        fn main() -> () {
+            let bad: Bad = Bad {};
+            println!(call_probe::<Bad>(bad));
+        }
+    }])
+    .skip_execute()
+    .err(expect_test::expect![[r#"
+        the rule "assumption - predicate" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: PartialOrd(Bad), via: validate(a, Ord(Bad)), assumptions: {validate(a, Ord(Bad))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+}
