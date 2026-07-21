@@ -2,7 +2,10 @@
 
 use crate::check::borrow_check::env::TypeckEnv;
 use crate::check::borrow_check::flow_state::FlowState;
-use crate::grammar::{expr::LabelId, Const, Crates, Fallible, Lt, Parameter, Ty, ValueId, Wcs};
+use crate::grammar::{
+    expr::{FnName, LabelId},
+    Const, Crates, Fallible, Lt, Parameter, TraitRef, Ty, ValueId, Wcs,
+};
 use crate::prove::prove::{Constrained, Env, Program};
 use formality_core::Upcast;
 use libspecr::prelude::Map;
@@ -14,16 +17,78 @@ use super::minirust::*;
 use super::normalize::normalize_mono_key;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) struct MonoKey {
-    pub(super) id: ValueId,
-    pub(super) args: Vec<Parameter>,
+pub(crate) enum MonoKey {
+    FreeFn {
+        id: ValueId,
+        fn_args: Vec<Parameter>,
+    },
+    TraitMethod {
+        trait_ref: TraitRef,
+        method_id: ValueId,
+        method_args: Vec<Parameter>,
+    },
 }
 
 impl MonoKey {
-    pub fn new(id: impl Upcast<ValueId>, args: impl Upcast<Vec<Parameter>>) -> Self {
-        Self {
+    pub fn free_fn(id: impl Upcast<ValueId>, fn_args: impl Upcast<Vec<Parameter>>) -> Self {
+        Self::FreeFn {
             id: id.upcast(),
-            args: args.upcast(),
+            fn_args: fn_args.upcast(),
+        }
+    }
+
+    pub fn trait_method(
+        trait_ref: impl Upcast<TraitRef>,
+        method_id: impl Upcast<ValueId>,
+        method_args: impl Upcast<Vec<Parameter>>,
+    ) -> Self {
+        Self::TraitMethod {
+            trait_ref: trait_ref.upcast(),
+            method_id: method_id.upcast(),
+            method_args: method_args.upcast(),
+        }
+    }
+
+    /// Recover the structured codegen identity from a callable's nominal name
+    /// and its ordered substitution.
+    pub(super) fn from_callable(
+        crates: &Crates,
+        name: &FnName,
+        substitution: &[Parameter],
+    ) -> Fallible<Self> {
+        match name {
+            FnName::FreeId(id) => Ok(Self::free_fn(id, substitution)),
+            FnName::QualifiedId { trait_id, id } => {
+                let trait_decl = crates.trait_named(trait_id)?;
+                let trait_arity = trait_decl.binder.explicit_binder.len();
+                if substitution.len() < trait_arity || trait_arity == 0 {
+                    anyhow::bail!(
+                        "qualified function has {} parameters, but trait `{trait_id:?}` requires {trait_arity}",
+                        substitution.len(),
+                    );
+                }
+
+                let (trait_parameters, method_args) = substitution.split_at(trait_arity);
+                Ok(Self::trait_method(
+                    TraitRef {
+                        trait_id: trait_id.upcast(),
+                        parameters: trait_parameters.upcast(),
+                    },
+                    id,
+                    method_args,
+                ))
+            }
+        }
+    }
+
+    fn parameters(&self) -> impl Iterator<Item = &Parameter> {
+        match self {
+            MonoKey::FreeFn { fn_args, .. } => fn_args.iter().chain([].iter()),
+            MonoKey::TraitMethod {
+                trait_ref,
+                method_args,
+                ..
+            } => trait_ref.parameters.iter().chain(method_args),
         }
     }
 }
@@ -35,7 +100,7 @@ struct NormalizedMonoKey(MonoKey);
 
 impl NormalizedMonoKey {
     fn new(key: MonoKey) -> Fallible<Self> {
-        if key.args.iter().all(is_normalized_parameter) {
+        if key.parameters().all(is_normalized_parameter) {
             Ok(Self(key))
         } else {
             anyhow::bail!("monomorphization key is not ground and recursively alias-free: {key:?}")
@@ -149,7 +214,11 @@ impl CodegenGlobal {
     }
 
     /// Normalize and classify a proposed key before it can enter the worklist.
-    pub(super) fn ensure_monomorphized_fn(&self, key: MonoKey) -> Fallible<(lang::FnName, Self)> {
+    pub(super) fn ensure_monomorphized_fn(
+        &self,
+        key: impl Upcast<MonoKey>,
+    ) -> Fallible<(lang::FnName, Self)> {
+        let key = key.upcast();
         let initial_env = Env::default();
         let results = normalize_mono_key(&self.program, &initial_env, Wcs::t(), key)
             .into_map()
@@ -184,7 +253,7 @@ impl CodegenGlobal {
     }
 }
 
-fn is_normalized_parameter(parameter: &Parameter) -> bool {
+pub(super) fn is_normalized_parameter(parameter: &Parameter) -> bool {
     match parameter {
         Parameter::Ty(ty) => match ty.as_ref() {
             Ty::RigidTy(rigid) => rigid.parameters.iter().all(is_normalized_parameter),
@@ -337,7 +406,7 @@ impl CodegenScope {
 #[cfg(test)]
 mod tests {
     use super::{CodegenGlobal, MonoKey, NormalizedMonoKey};
-    use crate::grammar::{Crates, Ty, ValueId};
+    use crate::grammar::{Crates, Parameter, TraitRef, Ty, ValueId};
     use crate::rust::term;
 
     fn normalization_program() -> Crates {
@@ -353,7 +422,7 @@ mod tests {
     }
 
     fn identity_key(ty: Ty) -> MonoKey {
-        MonoKey::new(term::<ValueId>("identity"), vec![ty])
+        MonoKey::free_fn(term::<ValueId>("identity"), vec![ty])
     }
 
     #[test]
@@ -374,5 +443,50 @@ mod tests {
 
         assert_eq!(alias_name, rigid_name);
         assert_eq!(global.fn_map.len(), 1);
+    }
+
+    #[test]
+    fn trait_arguments_are_part_of_trait_method_identity() {
+        let global = CodegenGlobal::new(&normalization_program());
+        let (i32_name, global) = global
+            .ensure_monomorphized_fn(MonoKey::trait_method(
+                term::<TraitRef>("Convert((), i32)"),
+                term::<ValueId>("convert"),
+                (),
+            ))
+            .unwrap();
+        let (u32_name, global) = global
+            .ensure_monomorphized_fn(MonoKey::trait_method(
+                term::<TraitRef>("Convert((), u32)"),
+                term::<ValueId>("convert"),
+                (),
+            ))
+            .unwrap();
+
+        assert_ne!(i32_name, u32_name);
+        assert_eq!(global.fn_map.len(), 2);
+    }
+
+    #[test]
+    fn method_arguments_are_part_of_trait_method_identity() {
+        let global = CodegenGlobal::new(&normalization_program());
+        let trait_ref: TraitRef = term("Identity(())");
+        let (i32_name, global) = global
+            .ensure_monomorphized_fn(MonoKey::trait_method(
+                &trait_ref,
+                term::<ValueId>("identity"),
+                vec![term::<Parameter>("i32")],
+            ))
+            .unwrap();
+        let (u32_name, global) = global
+            .ensure_monomorphized_fn(MonoKey::trait_method(
+                trait_ref,
+                term::<ValueId>("identity"),
+                vec![term::<Parameter>("u32")],
+            ))
+            .unwrap();
+
+        assert_ne!(i32_name, u32_name);
+        assert_eq!(global.fn_map.len(), 2);
     }
 }

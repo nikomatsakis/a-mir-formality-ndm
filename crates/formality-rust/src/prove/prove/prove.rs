@@ -28,6 +28,7 @@ use crate::prove::prove::decls::Program;
 
 pub use self::env::{Bias, Env, MaxUniverse, Universe};
 pub(crate) use self::prove_fully_normalize::prove_fully_normalize_parameter;
+pub(crate) use self::prove_via_impl::{prove_via_impl, ImplApplication};
 use self::prove_wc_list::prove_wc_list;
 pub use negation::{is_definitely_not_proveable, may_not_be_provable, negation_via_failure};
 

@@ -20,6 +20,7 @@ use minirust_rs::mem::PtrType;
 use super::code_block::CodeBlock;
 use super::minirust::*;
 use super::scope::{CodegenFn, CodegenGlobal, CodegenScope, MonoKey};
+use super::select::select_impl;
 
 // ===========================================================================
 // Function setup and build
@@ -106,13 +107,59 @@ pub(super) fn resolve_fn_body(
     g: &CodegenGlobal,
     key: &MonoKey,
 ) -> Fallible<(grammar::FnBoundData, Block)> {
-    let fn_def = g.program.program().fn_named(&key.id)?;
-    let fn_data = fn_def.binder.instantiate_with(&key.args)?;
-    let body = match &fn_data.body {
-        grammar::MaybeFnBody::FnBody(grammar::FnBody::Expr(b)) => b.clone(),
-        _ => anyhow::bail!("function {:?} must have expression body", key.id),
-    };
-    Ok((fn_data, body))
+    match key {
+        MonoKey::FreeFn { id, fn_args } => {
+            let fn_def = g.program.program().fn_named(id)?;
+            let fn_data = fn_def.binder.instantiate_with(fn_args)?;
+            let body = expression_body(&fn_data, format_args!("function {id:?}"))?;
+            Ok((fn_data, body))
+        }
+
+        MonoKey::TraitMethod {
+            trait_ref,
+            method_id,
+            method_args,
+        } => {
+            let selected = select_impl(&g.program, trait_ref);
+            let impl_data = selected
+                .trait_impl
+                .binder
+                .instantiate_with(&selected.impl_arguments)?;
+            let mut methods = impl_data.impl_items.iter().filter_map(|item| match item {
+                grammar::ImplItem::Fn(function) if function.id == *method_id => Some(function),
+                grammar::ImplItem::Fn(_) | grammar::ImplItem::AssociatedTyValue(_) => None,
+            });
+            let method = methods.next().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "selected impl {:?} has no override for trait method `{method_id:?}`",
+                    selected.impl_id,
+                )
+            })?;
+            if methods.next().is_some() {
+                anyhow::bail!(
+                    "selected impl {:?} has multiple overrides for trait method `{method_id:?}`",
+                    selected.impl_id,
+                );
+            }
+
+            let fn_data = method.binder.instantiate_with(method_args)?;
+            let body = expression_body(
+                &fn_data,
+                format_args!("trait method {trait_ref:?}::{method_id:?}"),
+            )?;
+            Ok((fn_data, body))
+        }
+    }
+}
+
+fn expression_body(
+    fn_data: &grammar::FnBoundData,
+    description: impl std::fmt::Display,
+) -> Fallible<Block> {
+    match &fn_data.body {
+        grammar::MaybeFnBody::FnBody(grammar::FnBody::Expr(body)) => Ok(body.upcast()),
+        _ => anyhow::bail!("{description} must have expression body"),
+    }
 }
 
 /// Extract the single result from a ProvenSet, or error.

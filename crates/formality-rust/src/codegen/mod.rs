@@ -6,7 +6,7 @@ use crate::check::borrow_check::nll::{
 };
 use crate::check::borrow_check::typed_place_expression::TypedPlaceExpr;
 use crate::grammar::{
-    expr::{Block, Expr, FnName, PlaceExpr, Stmt},
+    expr::{Block, Expr, PlaceExpr, Stmt},
     Crates, Fallible, RigidName, RigidTy, Ty,
 };
 use formality_core::judgment_fn;
@@ -18,6 +18,7 @@ mod helpers;
 mod minirust;
 mod normalize;
 mod scope;
+mod select;
 
 use code_block::CodeBlock;
 use helpers::*;
@@ -33,10 +34,7 @@ formality_core::cast_impl!(CodeBlock);
 pub fn codegen_program(crates: &Crates) -> Fallible<lang::Program> {
     let crates = crate::check::with_core_crate(crates);
     let mut g = CodegenGlobal::new(&crates);
-    let main_key = MonoKey {
-        id: crate::rust::term("main"),
-        args: vec![],
-    };
+    let main_key = MonoKey::free_fn(crate::rust::term::<crate::grammar::ValueId>("main"), ());
     let (main_fn_name, g2) = g.ensure_monomorphized_fn(main_key)?;
     g = g2;
     let mut functions: Map<lang::FnName, lang::Function> = Map::new();
@@ -317,8 +315,9 @@ judgment_fn! {
             // so we require that the callee has a zero-sized `FnDef` type that
             // uniquely identifies a callee.
             (type_expr(cfn, scope, callee) => callee_ty)
-            (resolve_rigid(cfn, scope, callee_ty) => RigidTy { name: RigidName::FnDef(FnName::FreeId(fn_id)), parameters })
-            (let (fn_name, global) = global.ensure_monomorphized_fn(MonoKey::new(fn_id, parameters))?)
+            (resolve_rigid(cfn, scope, callee_ty) => RigidTy { name: RigidName::FnDef(fn_name), parameters })
+            (let mono_key = MonoKey::from_callable(&cfn.crates, fn_name, parameters)?)
+            (let (fn_name, global) = global.ensure_monomorphized_fn(mono_key)?)
             // Evaluate callee for side effects (value is zero-sized for FnDef).
             (let (callee_temp, cfn) = cfn.alloc_temp(&callee_ty)?)
             (codegen_expr_into(global, cfn, scope, callee_temp, callee) => (code, global, cfn))

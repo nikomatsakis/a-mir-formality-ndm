@@ -107,7 +107,7 @@ fn aliases_in_free_function_keys_are_fully_normalized() {
 }
 
 #[test]
-fn qualified_trait_call_typechecks() {
+fn qualified_trait_call_executes_impl_method() {
     FormalityTest::new(crates![crate test {
         trait Bar {
             fn bar() -> u32;
@@ -126,7 +126,7 @@ fn qualified_trait_call_typechecks() {
         }
     }])
     .rustc_ok()
-    .skip_execute()
+    .expect_output("22\n")
     .ok()
 }
 
@@ -150,7 +150,7 @@ fn qualified_trait_call_without_impl_is_rejected() {
 }
 
 #[test]
-fn qualified_trait_call_in_generic_body_typechecks() {
+fn qualified_trait_call_in_generic_body_executes_after_monomorphization() {
     FormalityTest::new(crates![crate test {
         trait Bar {
             fn bar() -> u32;
@@ -176,7 +176,78 @@ fn qualified_trait_call_in_generic_body_typechecks() {
         }
     }])
     .rustc_ok()
-    .skip_execute()
+    .expect_output("22\n")
+    .ok()
+}
+
+#[test]
+fn qualified_trait_call_preserves_trait_arguments() {
+    FormalityTest::new(crates![crate test {
+        trait Convert<T> {
+            fn convert(value: T) -> T;
+        }
+
+        impl Convert<i32> for () {
+            fn convert(value: i32) -> i32 {
+                return value;
+            }
+        }
+
+        fn main() -> () {
+            println!(<() as Convert<i32>>::convert(22 _ i32));
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
+    .ok()
+}
+
+#[test]
+fn qualified_trait_call_infers_generic_impl_arguments() {
+    FormalityTest::new(crates![crate test {
+        struct Wrapper<T> {
+            value: T,
+        }
+
+        trait Get<T> {
+            fn get(value: Self) -> T;
+        }
+
+        impl<T> Get<T> for Wrapper<T> {
+            fn get(value: Wrapper<T>) -> T {
+                return value.value;
+            }
+        }
+
+        fn main() -> () {
+            let wrapper: Wrapper<i32> = Wrapper::<i32> { value: 22 _ i32 };
+            println!(<Wrapper<i32> as Get<i32>>::get(wrapper));
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
+    .ok()
+}
+
+#[test]
+fn qualified_trait_call_instantiates_method_arguments_last() {
+    FormalityTest::new(crates![crate test {
+        trait Identity {
+            fn identity<T>(value: T) -> T;
+        }
+
+        impl Identity for () {
+            fn identity<T>(value: T) -> T {
+                return value;
+            }
+        }
+
+        fn main() -> () {
+            println!(<() as Identity>::identity::<i32>(22 _ i32));
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
     .ok()
 }
 
@@ -218,6 +289,55 @@ fn qualified_trait_call_through_associated_type_bound_typechecks() {
     }])
     .rustc_ok()
     .skip_execute()
+    .ok()
+}
+
+#[test]
+fn repeated_trait_method_calls_share_monomorphization_work() {
+    FormalityTest::new(crates![crate test {
+        trait Answer {
+            fn answer() -> i32;
+        }
+
+        impl Answer for () {
+            fn answer() -> i32 {
+                return 22 _ i32;
+            }
+        }
+
+        fn main() -> () {
+            println!(<() as Answer>::answer());
+            println!(<() as Answer>::answer());
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n22\n")
+    .ok()
+}
+
+#[test]
+fn recursive_trait_method_reuses_preallocated_worklist_entry() {
+    FormalityTest::new(crates![crate test {
+        trait Answer {
+            fn answer() -> i32;
+        }
+
+        impl Answer for () {
+            fn answer() -> i32 {
+                if false {
+                    return <() as Answer>::answer();
+                } else {
+                    return 22 _ i32;
+                }
+            }
+        }
+
+        fn main() -> () {
+            println!(<() as Answer>::answer());
+        }
+    }])
+    .rustc_ok()
+    .expect_output("22\n")
     .ok()
 }
 
