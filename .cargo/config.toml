@@ -1,0 +1,2 @@
+[alias]
+formality-fuzz = "run --bin formality-fuzz --"
