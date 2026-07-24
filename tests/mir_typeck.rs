@@ -145,14 +145,14 @@ fn if_else_different_return_types() {
                     }
                 }
             }]).err(expect_test::expect![[r#"
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: bool, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: bool, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
@@ -270,10 +270,10 @@ fn test_let_with_ill_formed_type() {
         }
     }])
     .err(expect_test::expect![[r#"
-        the rule "assumption - relation" at (prove_wc.rs) failed because
+        the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        the rule "assumption - predicate" at (prove_wc.rs) failed because
+        the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`"#]])
 }
 
@@ -307,14 +307,14 @@ fn test_pass_non_subtype_arg() {
                     return v0;
                 }
             }]).err(expect_test::expect![[r#"
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: (), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: (), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
@@ -373,14 +373,14 @@ fn test_call_generic_fn_wrong_type_with_turbofish() {
                     return v0;
                 }
             }]).err(expect_test::expect![[r#"
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: bool, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
@@ -440,14 +440,14 @@ fn test_incompatible_return_type() {
                     return v1;
                 }
             }]).err(expect_test::expect![[r#"
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: (), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: u32, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: (), assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
@@ -655,7 +655,7 @@ fn test_struct_wrong_type_in_initialisation() {
                     return v1;
                 }
             }]).err(expect_test::expect![[r#"
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: bool, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }

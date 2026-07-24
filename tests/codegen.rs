@@ -145,7 +145,7 @@ fn qualified_trait_call_without_impl_is_rejected() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        the rule "assumption - predicate" at (prove_wc.rs) failed because
+        the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`"#]])
 }
 

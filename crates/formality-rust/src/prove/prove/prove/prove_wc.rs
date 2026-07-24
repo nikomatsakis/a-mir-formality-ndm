@@ -1,4 +1,5 @@
 use crate::grammar::{Predicate, Relation, TraitRef, ValidationState, Wc, WcData, Wcs};
+use crate::prove::prove::prove;
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Downcast, Upcast};
 
@@ -25,6 +26,50 @@ use crate::prove::prove::{
 
 use super::constraints::{Constrained, Constraints};
 
+fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, goal: &Wc) -> bool {
+    if assumptions
+        .iter()
+        .any(|assumption| match (&assumption, goal) {
+            (Wc::Validate(assumption_state, assumption_goal), Wc::Validate(goal_state, goal)) => {
+                assumption_state.can_prove(goal_state) && assumption_goal == goal
+            }
+
+            _ => &assumption == goal,
+        })
+    {
+        return true;
+    }
+
+    let Wc::Validate(_, goal) = goal else {
+        return false;
+    };
+
+    has_unconditional_validation_supertrait_assumption(decls, assumptions, goal)
+}
+
+fn positive_impl_trait_ref(goal: &Wc) -> Option<TraitRef> {
+    match goal {
+        // Stage A records provisional evidence for a concrete impl under construction, so it can
+        // be established by selecting that impl. Stage B represents caller evidence and cannot
+        // be manufactured by impl selection.
+        Wc::Validate(ValidationState::A, goal) => goal.as_ref().downcast(),
+        Wc::Validate(ValidationState::B, _) => None,
+        goal => goal.downcast(),
+    }
+}
+
+fn is_ordinary_assumption_goal(goal: &Wc) -> bool {
+    matches!(goal, Wc::Predicate(_) | Wc::Relation(_))
+}
+
+fn is_validation_assumption_goal(goal: &Wc) -> bool {
+    matches!(
+        goal,
+        Wc::Validate(_, goal)
+            if matches!(goal.as_ref(), Wc::Predicate(_) | Wc::Relation(_))
+    )
+}
+
 judgment_fn! {
     /// The "heart" of the trait system -- prove that a where-clause holds given a set of declarations, variable environment, and set of assumptions.
     /// If successful, returns the constraints under which the where-clause holds.
@@ -36,8 +81,9 @@ judgment_fn! {
     ) => Constraints {
         debug(goal, assumptions, env)
 
-        // Prefer an exactly equal assumption before exploring derived proofs. This cut is
-        // important when validating associated type requirements of the form
+        // Prefer an assumption that proves the goal directly before exploring derived proofs.
+        // Validation evidence can directly prove an identical goal at the same or a weaker
+        // validation stage. This cut is important when validating requirements of the form
         // `forall<T> conditions => goal`: opening the binder creates a fresh universal and adds
         // the conditions to the assumptions. Even when one of those assumptions proves the goal,
         // exhaustive search would otherwise also explore the impl rule, which can recursively
@@ -45,12 +91,12 @@ judgment_fn! {
         // so the assumptions grow with distinct universals (`!T_1`, `!T_2`, ...); the fixed-point
         // machinery therefore sees distinct calls instead of recognizing a cycle.
         //
-        // `trivial` acts as a logical cut here. The exact assumption proves the goal without
+        // `trivial` acts as a logical cut here. The direct assumption proves the goal without
         // introducing constraints, which is the most general possible result, so no alternative
         // derivation can improve it. This cut would not be valid if the result were more
         // restrictive.
         trivial(
-            assumptions.iter().any(|assumption| assumption == goal)
+            has_unconditional_proof_from_assumptions(&decls, &assumptions, &goal)
             => Constraints::none(env)
         )
 
@@ -80,21 +126,25 @@ judgment_fn! {
         )
 
         (
+            (if is_ordinary_assumption_goal(&goal))!
             (a in assumptions)
             (prove_via_assumption(decls, env, assumptions, a, goal) => c)
-            ----------------------------- ("assumption - predicate")
-            (prove_wc(decls, env, assumptions, WcData::Predicate(goal)) => c)
+            ----------------------------- ("assumption")
+            (prove_wc(decls, env, assumptions, goal) => c)
         )
 
         (
+            (if is_validation_assumption_goal(&goal))
             (a in assumptions)
-            (prove_via_assumption(decls, env, assumptions, a, goal) => c)
-            ----------------------------- ("assumption - relation")
-            (prove_wc(decls, env, assumptions, WcData::Relation(goal)) => c)
+            (prove_via_assumption(decls, env, assumptions, a, goal) => c)!
+            ----------------------------- ("validation assumption")
+            (prove_wc(decls, env, assumptions, goal) => c)
         )
 
-        // This rule is: prove `T: Foo<U>` holds on the basis of an `impl<A,B> Foo<B> for A where WC` impl somewhere.
+        // Prove an ordinary trait goal, or a stage-A validation goal, with a concrete impl.
+        // `positive_impl_trait_ref` deliberately leaves stage B ineligible.
         (
+            (if let Some(trait_ref) = positive_impl_trait_ref(goal))
             (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
             (prove_via_impl(
                 decls,
@@ -105,7 +155,7 @@ judgment_fn! {
             ) => Constrained(application, c))
             (let c = application.proof_constraints(c))
             ----------------------------- ("positive impl")
-            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
+            (prove_wc(decls, env, assumptions, goal) => c)
         )
 
         (
@@ -241,15 +291,15 @@ mod tests {
     }
 
     #[test]
-    fn stronger_validation_assumption_uses_trivial_validation_proof() {
-        let inner: Wc = term("Exact(u32)");
+    fn stronger_validation_assumption_uses_trivial_proof() {
+        let inner: Wc = term("u32 = bool");
         let assumption = Wc::validate(ValidationState::B, &inner);
         let goal = Wc::validate(ValidationState::A, inner);
         let (_, proof) = prove_wc(Program::empty(), Env::default(), assumption, goal)
             .into_singleton()
             .unwrap();
 
-        assert_eq!(proof.total_nodes(), 2, "{proof}");
+        assert_eq!(proof.total_nodes(), 1, "{proof}");
     }
 
     #[test]
@@ -265,14 +315,14 @@ mod tests {
     }
 
     #[test]
-    fn stage_b_supertrait_assumption_uses_trivial_validation_proof() {
+    fn stage_b_supertrait_assumption_uses_trivial_proof() {
         let assumption = Wc::validate(ValidationState::B, term::<Wc>("Sub(u32)"));
         let goal = Wc::validate(ValidationState::A, term::<Wc>("Super(u32)"));
         let (_, proof) = prove_wc(supertrait_program(), Env::default(), assumption, goal)
             .into_singleton()
             .unwrap();
 
-        assert_eq!(proof.total_nodes(), 2, "{proof}");
+        assert_eq!(proof.total_nodes(), 1, "{proof}");
     }
 }
 
@@ -287,40 +337,15 @@ judgment_fn! {
     ) => Constraints {
         debug(validation_state, validate_goal, assumptions, env)
 
-        // An exact validation assumption at the same or a stronger stage is the most general
-        // possible proof, so no other rule can contribute a distinct result.
-        trivial(
-            assumptions.iter().any(|assumption| match assumption {
-                Wc::Validate(assumption_state, assumption_goal) => {
-                    assumption_state.can_prove(&validation_state)
-                        && assumption_goal.as_ref() == &validate_goal
-                }
-                _ => false,
-            })
-            => Constraints::none(env)
-        )
-
-        // As above, an exact stage-preserving supertrait proof is already the most general
-        // possible result. In particular, stage-B caller evidence can expose a supertrait
-        // without also exploring the ordinary associated-type fallback.
-        trivial(
-            has_unconditional_validation_supertrait_assumption(
-                &decls,
-                &assumptions,
-                &validate_goal,
-            )
-            => Constraints::none(env)
-        )
-
         (
-            (let (env, subst) = env.universal_substitution(binder))
-            (let validate_goal = binder.instantiate_with(subst).unwrap())
-            (prove_validate(
+            (let goal = Wc::for_all(binder.map(
+                |goal| Wc::validate(validation_state, goal),
+            )))
+            (prove(
                 decls,
                 env,
                 assumptions,
-                validation_state,
-                validate_goal,
+                goal,
             ) => c)
             --- ("forall")
             (prove_validate(
@@ -329,17 +354,20 @@ judgment_fn! {
                 assumptions,
                 validation_state,
                 WcData::ForAll(binder),
-            ) => c.pop_subst(subst))
+            ) => c)
         )
 
         (
             (let validated_conditions = conditions.validated(validation_state))
-            (prove_validate(
+            (let goal = Wc::implies(
+                validated_conditions,
+                Wc::validate(validation_state, consequence),
+            ))
+            (prove(
                 decls,
                 env,
-                (assumptions, validated_conditions),
-                validation_state,
-                consequence,
+                assumptions,
+                goal,
             ) => c)
             --- ("implies")
             (prove_validate(
@@ -365,25 +393,6 @@ judgment_fn! {
             ) => c)
         )
 
-        (
-            (a in assumptions)
-            (prove_via_assumption(
-                decls,
-                env,
-                assumptions,
-                a,
-                Wc::validate(validation_state, validate_goal),
-            ) => c)!
-            ----------------------------- ("assumption")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                validate_goal,
-            ) => c)
-        )
-
         // A stage-B validation hypothesis may expose declaration-side supertraits. Keep the
         // originating trait at stage B while walking the requirement chain, even when the target
         // only needs stage A.
@@ -401,53 +410,6 @@ judgment_fn! {
                 goal,
             ) => c)!
             ----------------------------- ("trait requirement")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                WcData::Predicate(Predicate::IsImplemented(trait_ref)),
-            ) => c)
-        )
-
-        // Ordinary caller evidence may validate the same trait-ref (including quantified or
-        // conditional evidence), but this deliberately performs assumption matching only. It
-        // must not invoke ordinary trait-requirement backchaining while validating a dictionary.
-        (
-            (a in assumptions)
-            (prove_via_assumption(
-                decls,
-                env,
-                assumptions,
-                a,
-                Predicate::is_implemented(trait_ref),
-            ) => c)!
-            ----------------------------- ("ordinary assumption")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                WcData::Predicate(Predicate::IsImplemented(trait_ref)),
-            ) => c)
-        )
-
-        // A trait requirement under validation must come from ordinary or stage-B caller
-        // evidence, or (at stage A only) a concrete impl. Falling back to the ordinary trait
-        // solver would permit requirement backchaining through dictionaries still under
-        // construction, manufacturing a providerless evidence cycle.
-        (
-            (if *validation_state == ValidationState::A)
-            (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
-            (prove_via_impl(
-                decls,
-                env,
-                assumptions,
-                trait_ref,
-                candidate,
-            ) => Constrained(application, c))
-            (let c = application.proof_constraints(c))
-            ----------------------------- ("positive impl")
             (prove_validate(
                 decls,
                 env,

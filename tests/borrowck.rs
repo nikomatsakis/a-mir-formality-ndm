@@ -988,22 +988,22 @@ fn undeclared_universal_region_relationship_no_return() {
                     }
                 }
             }]).err(expect_test::expect![[r#"
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_0, b: !lt_1, assumptions: {}, env: Env { variables: [!lt_0, !lt_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_0, b: !lt_1, assumptions: {}, env: Env { variables: [!lt_0, !lt_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_0, b: !lt_1, assumptions: {}, env: Env { variables: [!lt_0, !lt_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_0, b: !lt_1, assumptions: {}, env: Env { variables: [!lt_0, !lt_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
@@ -1689,12 +1689,12 @@ fn call_generic_fn_with_turbofish_missing_relation_upcast() {
                     return r;
                 }
             }]).err(expect_test::expect![[r#"
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_0, b: !lt_1, assumptions: {}, env: Env { variables: [!lt_0, !lt_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                the rule "assumption - relation" at (prove_wc.rs) failed because
+                the rule "assumption" at (prove_wc.rs) failed because
                   expression evaluated to an empty collection: `assumptions`
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_0, b: !lt_1, assumptions: {}, env: Env { variables: [!lt_0, !lt_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])

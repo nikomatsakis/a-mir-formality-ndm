@@ -41,6 +41,31 @@ judgment_fn! {
             ) => c)
         )
 
+        // Ordinary evidence is strong enough to validate an atomic goal at either stage.
+        (
+            (if !matches!(via, WcData::Validate(_, _)))
+            (if matches!(
+                validate_goal.as_ref(),
+                WcData::Predicate(_) | WcData::Relation(_),
+            ))!
+            (let goal = validate_goal.as_ref().clone())
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                via,
+                goal,
+            ) => c)
+            ----------------------------- ("ordinary evidence validates")
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                via,
+                WcData::Validate(_goal_state, validate_goal),
+            ) => c)
+        )
+
         (
             // `c` = "clause", the name for something that we are assuming is true.
             (let (skel_c, parameters_c) = pred_1.debone())
