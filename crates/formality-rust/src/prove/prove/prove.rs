@@ -12,6 +12,7 @@ mod prove_fully_normalize;
 pub mod prove_normalize;
 mod prove_outlives;
 mod prove_sub;
+mod prove_validate;
 mod prove_via_assumption;
 mod prove_via_impl;
 mod prove_wc;

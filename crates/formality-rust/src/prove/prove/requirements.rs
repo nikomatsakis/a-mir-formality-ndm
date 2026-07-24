@@ -155,53 +155,6 @@ judgment_fn! {
 }
 
 judgment_fn! {
-    /// Use a supertrait requirement while preserving staged validation.
-    ///
-    /// For a declaration `trait Sub: Super`, this derives `Validate(S, Super(T))` from
-    /// `Validate(B, Sub(T))`, where `S` may be A or B.
-    ///
-    /// The target can be validated at either stage, but the originating trait must be available
-    /// at stage B. This permits caller-supplied associated-type conditions to expose their
-    /// supertraits without allowing stage-A evidence for a dictionary under construction to
-    /// validate its own requirements.
-    pub fn prove_validate_via_supertrait_requirement(
-        _decls: Program,
-        env: Env,
-        assumptions: Wcs,
-        trait_def: Trait,
-        requirement: TraitRequirement,
-        goal: Wc,
-    ) => Constraints {
-        debug(assumptions, trait_def, requirement, goal, env)
-
-        (
-            (let (env, trait_subst) =
-                env.existential_substitution(&requirement.binder))
-            (let requirement =
-                requirement.binder.instantiate_with(trait_subst)?)
-            (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
-            (let required = quantified_goal(
-                supertrait,
-                |trait_ref| Predicate::is_implemented(trait_ref).upcast(),
-            ))
-            (prove_via_assumption(decls, env, assumptions, required, goal) => c)
-            (let source: Wc = TraitRef::new(&trait_def.id, trait_subst).upcast())
-            (let source = Wc::validate(ValidationState::B, source))
-            (prove_after(decls, c, assumptions, source) => c)
-            ----------------------------- ("supertrait")
-            (prove_validate_via_supertrait_requirement(
-                decls,
-                env,
-                assumptions,
-                trait_def,
-                requirement,
-                goal,
-            ) => c.pop_subst(trait_subst))
-        )
-    }
-}
-
-judgment_fn! {
     /// Generate all structured requirements from a trait declaration.
     ///
     /// Returning one set makes a trait with no requirements a successful empty result while
@@ -580,7 +533,7 @@ judgment_fn! {
     }
 }
 
-fn quantified_goal<T>(binder: &Binder<T>, to_wc: impl FnOnce(T) -> Wc) -> Wc
+pub(super) fn quantified_goal<T>(binder: &Binder<T>, to_wc: impl FnOnce(T) -> Wc) -> Wc
 where
     T: crate::rust::Term,
 {

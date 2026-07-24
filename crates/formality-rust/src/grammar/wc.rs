@@ -218,6 +218,9 @@ pub type WcData = Wc;
 // ---
 
 cast_impl!((TraitRef) <: (Predicate) <: (Wc));
+cast_impl!((Relation) <: (Wc) <: (Arc<Wc>));
+cast_impl!((Predicate) <: (Wc) <: (Arc<Wc>));
+cast_impl!((TraitRef) <: (Wc) <: (Arc<Wc>));
 
 impl UpcastFrom<Wc> for Wcs {
     fn upcast_from(term: Wc) -> Self {

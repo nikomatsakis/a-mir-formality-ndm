@@ -1,7 +1,6 @@
 use crate::grammar::{Predicate, Relation, TraitRef, ValidationState, Wc, WcData, Wcs};
-use crate::prove::prove::prove;
 use crate::prove::ToWcs;
-use formality_core::{judgment_fn, Downcast, Upcast};
+use formality_core::{judgment_fn, Downcast};
 
 use crate::prove::prove::{
     decls::Program,
@@ -14,13 +13,14 @@ use crate::prove::prove::{
         prove_eq::prove_eq,
         prove_outlives::prove_outlives,
         prove_sub::prove_sub,
+        prove_validate::prove_validate,
         prove_via_assumption::prove_via_assumption,
         prove_via_impl::prove_via_impl,
-        prove_wf::{prove_wf, wf_requirements},
+        prove_wf::prove_wf,
     },
     requirements::{
-        has_unconditional_validation_supertrait_assumption,
-        prove_validate_via_supertrait_requirement, prove_via_trait_requirement, trait_requirement,
+        has_unconditional_validation_supertrait_assumption, prove_via_trait_requirement,
+        trait_requirement,
     },
 };
 
@@ -323,125 +323,5 @@ mod tests {
             .unwrap();
 
         assert_eq!(proof.total_nodes(), 1, "{proof}");
-    }
-}
-
-judgment_fn! {
-    /// Prove that `validate_goal` holds as an impl-validation requirement.
-    fn prove_validate(
-        decls: Program,
-        env: Env,
-        assumptions: Wcs,
-        validation_state: ValidationState,
-        validate_goal: Wc,
-    ) => Constraints {
-        debug(validation_state, validate_goal, assumptions, env)
-
-        (
-            (let goal = Wc::for_all(binder.map(
-                |goal| Wc::validate(validation_state, goal),
-            )))
-            (prove(
-                decls,
-                env,
-                assumptions,
-                goal,
-            ) => c)
-            --- ("forall")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                WcData::ForAll(binder),
-            ) => c)
-        )
-
-        (
-            (let validated_conditions = conditions.validated(validation_state))
-            (let goal = Wc::implies(
-                validated_conditions,
-                Wc::validate(validation_state, consequence),
-            ))
-            (prove(
-                decls,
-                env,
-                assumptions,
-                goal,
-            ) => c)
-            --- ("implies")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                WcData::Implies(conditions, consequence),
-            ) => c)
-        )
-
-        (
-            (wf_requirements(decls, parameter) => requirements)
-            (let requirements = requirements.validated(validation_state))
-            (prove_after(decls, env, assumptions, requirements) => c)
-            --- ("well formed")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                WcData::Relation(Relation::WellFormed(parameter)),
-            ) => c)
-        )
-
-        // A stage-B validation hypothesis may expose declaration-side supertraits. Keep the
-        // originating trait at stage B while walking the requirement chain, even when the target
-        // only needs stage A.
-        (
-            (trait_def in decls.traits())
-            (trait_requirement(trait_def) => requirements)
-            (requirement in requirements)
-            (let goal: Wc = Predicate::is_implemented(trait_ref).upcast())
-            (prove_validate_via_supertrait_requirement(
-                decls,
-                env,
-                assumptions,
-                trait_def,
-                requirement,
-                goal,
-            ) => c)!
-            ----------------------------- ("trait requirement")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                WcData::Predicate(Predicate::IsImplemented(trait_ref)),
-            ) => c)
-        )
-
-        (
-            (if let None = validate_goal.downcast::<TraitRef>())!
-            (prove_wc(decls, env, assumptions, WcData::predicate(validate_goal)) => c)
-            --- ("atomic predicate")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                WcData::Predicate(validate_goal),
-            ) => c)
-        )
-
-        (
-            (prove_wc(decls, env, assumptions, WcData::relation(validate_goal)) => c)
-            --- ("atomic relation")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation_state,
-                WcData::Relation(validate_goal),
-            ) => c)
-        )
     }
 }
