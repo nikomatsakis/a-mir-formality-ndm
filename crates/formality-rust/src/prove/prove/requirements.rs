@@ -76,10 +76,7 @@ judgment_fn! {
             (let requirement =
                 requirement.binder.instantiate_with(trait_subst)?)
             (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
-            (let required = quantified_goal(
-                supertrait,
-                Predicate::is_implemented,
-            ))
+            (let required = Wc::for_all(supertrait))
             (prove_via_assumption(decls, env, assumptions, required, goal) => c)
             (let source = TraitRef::new(&trait_def.id, trait_subst))
             (prove_after(decls, c, assumptions, source) => c)
@@ -484,10 +481,7 @@ judgment_fn! {
         debug(constraints, assumptions, trait_impl, requirement)
 
         (
-            (let goal = quantified_goal(
-                supertrait,
-                Predicate::is_implemented,
-            ))
+            (let goal = Wc::for_all(supertrait))
             (let goal = Wc::validate(ValidationState::A, goal))
             (prove_after(decls, c, assumptions, goal) => c)
             ----------------------------- ("supertrait")
@@ -501,10 +495,7 @@ judgment_fn! {
         )
 
         (
-            (let goal = quantified_goal(
-                outlives,
-                |relation| relation,
-            ))
+            (let goal = Wc::for_all(outlives))
             (let goal = Wc::validate(ValidationState::A, goal))
             (prove_after(decls, c, assumptions, goal) => c)
             ----------------------------- ("outlives")
@@ -531,15 +522,6 @@ judgment_fn! {
             ) => c)
         )
     }
-}
-
-pub(super) fn quantified_goal<T, U>(binder: &Binder<T>, to_wc: impl FnOnce(T) -> U) -> Wc
-where
-    T: crate::rust::Term,
-    U: Upcast<Wc>,
-{
-    let (variables, value) = binder.open();
-    Wc::for_all(Binder::new(&variables, to_wc(value).upcast()))
 }
 
 /// True if an assumption proves an atomic validation goal without introducing constraints.
