@@ -249,7 +249,7 @@ fn impl_where_clause_cannot_justify_its_matching_supertrait() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:291:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Prerequisite(Ground), assumptions: {validate(a, Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:279:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Prerequisite(Ground), assumptions: {validate(a, Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -361,7 +361,7 @@ fn associated_type_ensures_cycle_cannot_invent_missing_supertrait_impl() {
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: PartialOrd(<u32 as Family>::Gat<Bad>), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:291:1: no applicable rules for prove_validate { validation_state: a, validate_goal: PartialOrd(Bad), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>), validate(a, Ord(Bad))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:279:1: no applicable rules for prove_validate { validation_state: a, validate_goal: PartialOrd(Bad), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>), validate(a, Ord(Bad))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]

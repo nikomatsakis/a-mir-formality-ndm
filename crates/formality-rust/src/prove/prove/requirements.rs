@@ -588,29 +588,6 @@ where
     Wc::for_all(Binder::new(&variables, to_wc(value)))
 }
 
-/// True if an ordinary assumption proves `goal` solely by following non-higher-ranked
-/// supertrait declarations.
-///
-/// Such a proof introduces no constraints and therefore subsumes every alternative proof of the
-/// same goal. Recognizing it before exhaustive impl and associated-type search is a sound cut.
-pub(crate) fn has_unconditional_supertrait_assumption(
-    decls: &Program,
-    assumptions: &Wcs,
-    goal: &Wc,
-) -> bool {
-    let Wc::Predicate(Predicate::IsImplemented(goal)) = goal else {
-        return false;
-    };
-
-    assumptions.iter().any(|assumption| {
-        let Wc::Predicate(Predicate::IsImplemented(source)) = assumption else {
-            return false;
-        };
-
-        trait_ref_implies_via_supertraits(decls, source, goal)
-    })
-}
-
 /// True if an assumption proves an atomic validation goal without introducing constraints.
 ///
 /// Ordinary evidence can validate either stage. Stage-B evidence can additionally expose its

@@ -18,7 +18,6 @@ use crate::prove::prove::{
         prove_wf::{prove_wf, wf_requirements},
     },
     requirements::{
-        has_unconditional_supertrait_assumption,
         has_unconditional_validation_supertrait_assumption,
         prove_validate_via_supertrait_requirement, prove_via_trait_requirement, trait_requirement,
     },
@@ -55,14 +54,6 @@ judgment_fn! {
             => Constraints::none(env)
         )
 
-        // Following an exact supertrait chain from an assumption introduces no constraints. Its
-        // result therefore subsumes every impl- or associated-type-based alternative, so avoid
-        // exhaustively exploring those paths.
-        trivial(
-            has_unconditional_supertrait_assumption(&decls, &assumptions, &goal)
-            => Constraints::none(env)
-        )
-
         (
             (let (env, subst) = env.universal_substitution(binder))
             (let p1 = binder.instantiate_with(subst).unwrap())
@@ -94,13 +85,13 @@ judgment_fn! {
             ----------------------------- ("assumption - predicate")
             (prove_wc(decls, env, assumptions, WcData::Predicate(goal)) => c)
         )
+
         (
             (a in assumptions)
             (prove_via_assumption(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("assumption - relation")
             (prove_wc(decls, env, assumptions, WcData::Relation(goal)) => c)
         )
-
 
         // This rule is: prove `T: Foo<U>` holds on the basis of an `impl<A,B> Foo<B> for A where WC` impl somewhere.
         (
@@ -152,14 +143,13 @@ judgment_fn! {
             (trait_def in decls.traits())
             (trait_requirement(trait_def) => requirements)
             (requirement in requirements)
-            (let goal: Wc = Predicate::is_implemented(trait_ref).upcast())
             (prove_via_trait_requirement(
                 decls,
                 env,
                 assumptions,
                 trait_def,
                 requirement,
-                goal,
+                Predicate::is_implemented(trait_ref),
             ) => c)!
             ----------------------------- ("trait requirement")
             (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
@@ -263,17 +253,15 @@ mod tests {
     }
 
     #[test]
-    fn ordinary_supertrait_assumption_uses_trivial_proof() {
-        let (_, proof) = prove_wc(
+    fn ordinary_supertrait_assumption_is_proven() {
+        let result = prove_wc(
             supertrait_program(),
             Env::default(),
             term::<Wc>("Sub(u32)"),
             term::<Wc>("Super(u32)"),
-        )
-        .into_singleton()
-        .unwrap();
+        );
 
-        assert_eq!(proof.total_nodes(), 1, "{proof}");
+        assert!(result.is_proven(), "{result}");
     }
 
     #[test]
