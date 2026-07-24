@@ -10,11 +10,13 @@ use std::any::Any;
 use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::time::Duration;
 
 use a_mir_formality::test_program_ok;
 use clap::Parser;
 use formality_rust::grammar::Crates;
 use formality_rust::rust::try_term;
+use indicatif::{ProgressBar, ProgressStyle};
 
 #[derive(Debug, Parser)]
 #[command(about = "Run structured mutation fuzzing against a-mir-formality")]
@@ -364,17 +366,29 @@ fn run_bounded_trait_cycle_mutations(max_mutations: usize) {
     let cases = generated_cases(max_mutations);
     let mut rejected = 0;
     let mut passed_codegen = 0;
-
-    eprintln!(
-        "running {} trait-cycle worlds (maximum mutation depth: {max_mutations})",
-        cases.len()
+    let progress = ProgressBar::new(cases.len() as u64);
+    progress.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] \
+             {pos:>3}/{len:3} ({percent:>3}%) {msg}",
+        )
+        .expect("valid progress-bar template")
+        .progress_chars("=>-"),
     );
+    progress.enable_steady_tick(Duration::from_millis(100));
 
     for case in &cases {
+        progress.set_message(format!(
+            "{rejected} rejected, {passed_codegen} codegen-ok; checking {:?}",
+            case.mutations
+        ));
+
         match exercise_case(case) {
             PipelineOutcome::Rejected => rejected += 1,
             PipelineOutcome::PassedCodegen => passed_codegen += 1,
         }
+
+        progress.inc(1);
     }
 
     assert!(rejected > 0, "mutation engine did not exercise rejection");
@@ -383,8 +397,8 @@ fn run_bounded_trait_cycle_mutations(max_mutations: usize) {
         "mutation engine did not exercise successful codegen"
     );
 
-    eprintln!(
-        "completed {} worlds: {rejected} rejected, {passed_codegen} passed codegen",
-        cases.len()
-    );
+    progress.finish_with_message(format!(
+        "{rejected} rejected, {passed_codegen} passed codegen \
+         (maximum mutation depth: {max_mutations})"
+    ));
 }
