@@ -266,7 +266,7 @@ fn associated_type_value_must_be_well_formed() {
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(a, Foo(())), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(a, Foo(())), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:291:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Ground), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -327,7 +327,7 @@ fn associated_type_projection_requires_a_valid_impl() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(a, Foo(X)), assumptions: {validate(a, Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:291:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Bad), assumptions: {validate(a, Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -443,7 +443,7 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(a, Family(())), assumptions: {validate(a, Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:291:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Bad), assumptions: {validate(a, Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -517,6 +517,72 @@ fn impl_header_alias_normalization_enters_post_validation() {
 
         test {
             Bar: Target<X>
+        }
+    }])
+    .skip_execute()
+    .ok();
+}
+
+#[test]
+fn impl_header_rigid_type_matches_normalized_goal_projection() {
+    // Matching the self type determines `T = X`, but the trait argument still compares the rigid
+    // type `Set<X>` from the impl header with an associated-type projection from the goal. The
+    // projection has to normalize to expose the matching `Set` constructor.
+    FormalityTest::new(crates![crate test {
+        trait Iterator {
+            type Item : [];
+        }
+
+        trait Foo<T> {}
+
+        struct Set<T> {}
+        struct IntoIter<T> {}
+        struct X {}
+
+        impl<T> Iterator for IntoIter<T> {
+            type Item = T;
+        }
+
+        impl<T> Foo<Set<T>> for IntoIter<Set<T>> {}
+
+        test {
+            IntoIter<Set<X>>: Foo<<IntoIter<Set<X>> as Iterator>::Item>
+        }
+    }])
+    .skip_execute()
+    .ok();
+}
+
+#[test]
+fn impl_header_normalization_may_infer_binder_from_candidate_cycle() {
+    // Here the `Foo` impl's `T` cannot be inferred from its self type. It is learned only after
+    // normalizing `Iterator::Item` to `Set<X>`. Normalization in turn requires the exact `Foo`
+    // goal whose candidate header is being matched, so the inferred binder value escapes from a
+    // guarded evidence cycle.
+    FormalityTest::new(crates![crate test {
+        trait Iterator {
+            type Item : [];
+        }
+
+        trait Foo<T> {}
+
+        struct Set<T> {}
+        struct IntoIter<T> {}
+        struct X {}
+
+        struct Ground {}
+
+        impl<T> Iterator for IntoIter<Set<T>>
+        where
+            Ground: Foo<<IntoIter<Set<T>> as Iterator>::Item>,
+        {
+            type Item = Set<T>;
+        }
+
+        impl<T> Foo<Set<T>> for Ground {}
+
+        test {
+            Ground: Foo<<IntoIter<Set<X>> as Iterator>::Item>
         }
     }])
     .skip_execute()

@@ -137,6 +137,25 @@ fn normalizing_alias_enters_post_validation_context() {
 }
 
 #[test]
+fn equality_with_alias_stays_in_current_validation_context() {
+    let alias = term::<Parameter>("<u32 as Family>::Output")
+        .downcast::<AliasTy>()
+        .unwrap();
+    let alias_eq: Wc = Predicate::AliasEq(alias, term::<Ty>("bool")).upcast();
+    let result = prove_after(
+        Program::empty(),
+        Constraints::none(()),
+        validated(alias_eq),
+        Relation::equals(
+            term::<Parameter>("<u32 as Family>::Output"),
+            term::<Parameter>("bool"),
+        ),
+    );
+
+    assert!(!result.is_proven());
+}
+
+#[test]
 fn normalizing_non_alias_does_not_enter_post_validation_context() {
     let result = prove_normalize_after_validation(
         Program::empty(),
@@ -186,6 +205,33 @@ fn stage_a_validation_evidence_cannot_discharge_stage_b_goal() {
     );
 
     assert!(!result.is_proven());
+}
+
+#[test]
+fn stage_b_validation_cannot_be_constructed_from_an_impl() {
+    let program = Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Marker where {}"),
+            term("impl Marker for u32 {}"),
+        ])),
+        ..Program::empty()
+    };
+
+    let stage_a = prove_after(
+        &program,
+        Constraints::none(()),
+        (),
+        validated(term::<Wc>("Marker(u32)")),
+    );
+    assert!(stage_a.is_proven());
+
+    let stage_b = prove_after(
+        program,
+        Constraints::none(()),
+        (),
+        validated_b(term::<Wc>("Marker(u32)")),
+    );
+    assert!(!stage_b.is_proven());
 }
 
 #[test]

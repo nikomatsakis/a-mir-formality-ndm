@@ -1,4 +1,4 @@
-use a_mir_formality::{crates, FormalityTest};
+use a_mir_formality::{crates, test_program_ok, FormalityTest};
 
 #[test]
 fn method_where_clause_is_not_a_trait_requirement() {
@@ -249,7 +249,7 @@ fn impl_where_clause_cannot_justify_its_matching_supertrait() {
         the rule "assumption - predicate" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Prerequisite(Ground), via: validate(a, Magic(Ground)), assumptions: {validate(a, Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:291:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Prerequisite(Ground), assumptions: {validate(a, Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -276,7 +276,7 @@ fn gat_value_may_delegate_to_ground_trait_impl() {
         }
 
         test {
-            <u32 as Trait>::Assoc<i32> => ()
+            prove(<u32 as Trait>::Assoc<i32> => ())
         }
     }])
     .skip_execute()
@@ -357,8 +357,66 @@ fn associated_type_ensures_cycle_cannot_invent_missing_supertrait_impl() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        the rule "assumption - predicate" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `assumptions`
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: @ WellFormedTraitRef(PartialOrd(<u32 as Family>::Gat<Bad>)), via: PartialOrd(<u32 as Family>::Gat<Bad>), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: PartialOrd(Bad), via: validate(a, Ord(Bad)), assumptions: {validate(a, Ord(Bad))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: PartialOrd(<u32 as Family>::Gat<Bad>), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_wc.rs:291:1: no applicable rules for prove_validate { validation_state: a, validate_goal: PartialOrd(Bad), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>), validate(a, Ord(Bad))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+}
+
+#[test]
+fn associated_type_cycle_cannot_construct_stage_b_through_supertrait_chain() {
+    let result = test_program_ok(crates![crate test {
+        trait Target {}
+
+        trait Bridge
+        where
+            Self: Target,
+        {}
+
+        trait Entry
+        where
+            Self: Bridge,
+        {}
+
+        trait Family {
+            type Item<T>: [Target]
+            where
+                T: Entry;
+        }
+
+        impl Family for () {
+            type Item<T> = T
+            where
+                T: Entry;
+        }
+
+        struct Ground {}
+
+        impl Entry for Ground
+        where
+            <() as Family>::Item<Ground>: Target,
+        {}
+
+        impl Bridge for Ground
+        where
+            Ground: Target,
+        {}
+
+        fn require_entry<T>() -> ()
+        where
+            T: Entry,
+        {
+            trusted
+        }
+
+        fn main() -> () {
+            require_entry::<Ground>();
+        }
+    }]);
+
+    assert!(
+        result.is_err(),
+        "validation constructed stage-B Entry evidence from its cyclic impl"
+    );
 }

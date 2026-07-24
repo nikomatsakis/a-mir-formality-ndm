@@ -2,16 +2,19 @@
 
 use std::fmt::Debug;
 
-use crate::prove::prove::{is_definitely_not_proveable, Constraints, Env, Program};
+use crate::prove::prove::{
+    is_definitely_not_proveable, prove_via_impl, Constrained, Constraints, Env, Program,
+};
 use crate::rust::Visit;
 use crate::{
     grammar::{
-        Crate, CrateId, CrateItem, Crates, Fallible, FeatureGateName, Test, TestBoundData, Wcs,
+        Crate, CrateId, CrateItem, Crates, Fallible, FeatureGateName, Test, TestBoundData,
+        TestGoal, TraitRef, Wcs,
     },
     prove::ToWcs,
 };
 use anyhow::{anyhow, bail};
-use formality_core::{judgment::ProofTree, judgment_fn, ProvenSet, Set};
+use formality_core::{judgment::ProofTree, judgment_fn, ProvenSet, Set, Upcast};
 
 use adts::check_adt;
 use coherence::check_coherence;
@@ -215,7 +218,63 @@ judgment_fn! {
 fn check_test(program: &Program, test: &Test) -> Fallible<ProofTree> {
     let (env, TestBoundData { assumptions, goals }) =
         Env::default().instantiate_universally(&test.binder);
-    prove_goal(program, &env, assumptions, goals)
+    let assumptions = assumptions.to_wcs();
+    let proof_goals: Wcs = goals
+        .iter()
+        .flat_map(|goal| match goal {
+            TestGoal::TraitRef(self_ty, trait_id, trait_parameters) => {
+                trait_id.with(self_ty, trait_parameters).upcast()
+            }
+            TestGoal::Prove(where_clause) => where_clause.to_wcs(),
+        })
+        .collect();
+
+    let proof_tree = prove_goal(program, &env, &assumptions, proof_goals)?;
+
+    for trait_ref in goals.iter().filter_map(TestGoal::as_trait_ref) {
+        assert_test_trait_ref_has_impl(program, &env, &assumptions, &trait_ref);
+    }
+
+    Ok(proof_tree)
+}
+
+/// Assert the type-checker/codegen invariant that a proven test trait-ref is supplied by an impl.
+///
+/// This is intentionally an internal-error panic instead of an ordinary check failure. Reaching
+/// this point means the ordinary solver proved the trait-ref, so failing to reconstruct any
+/// explicit impl application exposes a bug in the proof rules.
+fn assert_test_trait_ref_has_impl(
+    program: &Program,
+    env: &Env,
+    assumptions: &Wcs,
+    trait_ref: &TraitRef,
+) {
+    let has_impl = program
+        .raw_trait_impls_for(&trait_ref.trait_id)
+        .into_iter()
+        .any(|candidate| {
+            let Ok(paths) =
+                prove_via_impl(program, env, assumptions, trait_ref, candidate).into_map()
+            else {
+                return false;
+            };
+
+            paths
+                .into_iter()
+                .any(|(Constrained(application, constraints), _)| {
+                    let impl_arguments = application.inferred_impl_arguments(&constraints);
+                    let proof_constraints = application.proof_constraints(&constraints);
+
+                    env.encloses(&impl_arguments)
+                        && proof_constraints.env() == env
+                        && proof_constraints.unconditionally_true()
+                })
+        });
+
+    assert!(
+        has_impl,
+        "internal error: test proved `{trait_ref:?}`, but no impl provides that trait-ref"
+    );
 }
 
 fn prove_goal(

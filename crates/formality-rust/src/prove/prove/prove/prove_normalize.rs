@@ -54,9 +54,9 @@ judgment_fn! {
     }
 }
 
-// Normalization can generate nested proof goals, so they enter through `prove_after`.
+// Phase-preserving normalization: nested goals use `prove_after` without promoting assumptions.
 judgment_fn! {
-    fn prove_normalize_now(
+    pub(crate) fn prove_normalize_now(
         _decls: Program,
         env: Env,
         assumptions: Wcs,

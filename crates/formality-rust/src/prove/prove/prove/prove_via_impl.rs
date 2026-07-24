@@ -3,14 +3,14 @@ use crate::grammar::{
 };
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::{
-    prove::{prove_after::prove_after, prove_after_validation::prove_after_validation},
-    requirements::validate_impl,
+    prove::prove_after_validation::prove_after_validation, requirements::validate_impl,
     Constrained, Constraints, Env,
 };
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
 
 /// A successful application of one particular impl declaration.
+/// It retains the source impl identity and its inferred binder variables.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct ImplApplication {
     pub(crate) impl_id: ImplId,
@@ -78,8 +78,14 @@ judgment_fn! {
             (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
 
             // Header matching is itself part of validation. Record this
-            // candidate before matching so normalization within equality can
-            // enter the post-validation phase and use the promised impl.
+            // candidate before matching, then deliberately prove the header
+            // equality after validation so normalization can use the promised
+            // impl. This is a subtle boundary: it permits normalization through
+            // a cycle to infer impl-binder arguments. It appears sound because
+            // this branch records a concrete impl id and succeeds only after
+            // all of that impl's header equalities and obligations hold, but
+            // fuzzing should continue to check that every accepted application
+            // can recover all impl arguments and monomorphize successfully.
             (let current_impl: Wc =
                 Predicate::is_implemented(requested_trait_ref).upcast())
             (let validation_assumption =
@@ -89,7 +95,7 @@ judgment_fn! {
                 &requested_trait_ref.parameters,
                 &impl_trait_ref.parameters,
             ).validated(ValidationState::A))
-            (prove_after(
+            (prove_after_validation(
                 decls,
                 env,
                 assumptions,

@@ -1,6 +1,6 @@
-use crate::grammar::{Predicate, Relation, ValidationState, Wc, WcData, Wcs};
+use crate::grammar::{Predicate, Relation, TraitRef, ValidationState, Wc, WcData, Wcs};
 use crate::prove::ToWcs;
-use formality_core::{judgment_fn, Upcast};
+use formality_core::{judgment_fn, Downcast, Upcast};
 
 use crate::prove::prove::{
     decls::Program,
@@ -422,7 +422,55 @@ judgment_fn! {
             ) => c)
         )
 
+        // Ordinary caller evidence may validate the same trait-ref (including quantified or
+        // conditional evidence), but this deliberately performs assumption matching only. It
+        // must not invoke ordinary trait-requirement backchaining while validating a dictionary.
         (
+            (a in assumptions)
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                a,
+                Predicate::is_implemented(trait_ref),
+            ) => c)!
+            ----------------------------- ("ordinary assumption")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation_state,
+                WcData::Predicate(Predicate::IsImplemented(trait_ref)),
+            ) => c)
+        )
+
+        // A trait requirement under validation must come from ordinary or stage-B caller
+        // evidence, or (at stage A only) a concrete impl. Falling back to the ordinary trait
+        // solver would permit requirement backchaining through dictionaries still under
+        // construction, manufacturing a providerless evidence cycle.
+        (
+            (if *validation_state == ValidationState::A)
+            (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
+            (prove_via_impl(
+                decls,
+                env,
+                assumptions,
+                trait_ref,
+                candidate,
+            ) => Constrained(application, c))
+            (let c = application.proof_constraints(c))
+            ----------------------------- ("positive impl")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation_state,
+                WcData::Predicate(Predicate::IsImplemented(trait_ref)),
+            ) => c)
+        )
+
+        (
+            (if let None = validate_goal.downcast::<TraitRef>())!
             (prove_wc(decls, env, assumptions, WcData::predicate(validate_goal)) => c)
             --- ("atomic predicate")
             (prove_validate(

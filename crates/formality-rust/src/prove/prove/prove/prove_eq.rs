@@ -11,9 +11,7 @@ use formality_core::{judgment_fn, Downcast, ProvenSet, Upcast};
 use crate::prove::prove::{
     decls::Program,
     prove::{
-        constraints::occurs_in, prove_after::prove_after,
-        prove_after_validation::prove_after_validation,
-        prove_normalize::prove_normalize_after_validation,
+        constraints::occurs_in, prove_after::prove_after, prove_normalize::prove_normalize_now,
     },
 };
 
@@ -68,30 +66,27 @@ judgment_fn! {
             (prove_eq(decls, env, assumptions, Variable::ExistentialVar(v), r) => c)
         )
 
-        // Equality itself is an ordinary proof, but observing an associated type enters the
-        // post-validation phase. Keep the subsequent comparison in that same promoted context.
-        // Reflexivity, existential-variable binding, and structural congruence above remain in
-        // the current phase.
+        // Equality is phase-preserving, including when it has to normalize an alias. Callers that
+        // intentionally want equality after validation must make that transition explicitly.
         (
-            (prove_normalize_after_validation(
+            (prove_normalize_now(
                 decls,
                 env,
                 assumptions,
                 alias,
             ) => Constrained(normalized, c))
-            (prove_after_validation(decls, c, assumptions, eq(normalized, z)) => c)
-            ----------------------------- ("normalize alias after validation")
+            (prove_after(decls, c, assumptions, eq(normalized, z)) => c)
+            ----------------------------- ("normalize alias")
             (prove_eq(decls, env, assumptions, TyData::AliasTy(alias), z) => c)
         )
 
-        // Non-alias parameters can still be rewritten "now". In particular, this is how an
-        // equality assumption such as `T = u32` rewrites a rigid universal variable `T` while
-        // proving another equality. Only observing an associated type changes phase.
+        // In particular, this is how an equality assumption such as `T = u32` rewrites a rigid
+        // universal variable `T` while proving another equality.
         (
             (if let None = x.downcast::<AliasTy>())!
-            (prove_normalize_after_validation(decls, env, assumptions, x) => Constrained(y, c))
+            (prove_normalize_now(decls, env, assumptions, x) => Constrained(y, c))
             (prove_after(decls, c, assumptions, eq(y, z)) => c)
-            ----------------------------- ("normalize non-alias now")
+            ----------------------------- ("normalize non-alias")
             (prove_eq(decls, env, assumptions, x, z) => c)
         )
     }
