@@ -1,2 +1,2 @@
 [alias]
-formality-fuzz = "run --bin formality-fuzz --"
+formality-fuzz = "run --release --bin formality-fuzz --"

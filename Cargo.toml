@@ -25,6 +25,7 @@ formality-core = { version = "0.1.0", path = "crates/formality-core" }
 minirust-rs = { version = "0.1.0", path = "crates/minirust-rs" }
 libspecr = "=0.1.40"
 expect-test = "1.4.0"
+indicatif = { version = "0.18.6", default-features = false, features = ["unicode-width"] }
 
 [workspace]
 members = [
