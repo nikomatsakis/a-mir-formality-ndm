@@ -266,7 +266,7 @@ fn associated_type_value_must_be_well_formed() {
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(a, Foo(())), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:16:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Ground), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Ground), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -327,7 +327,7 @@ fn associated_type_projection_requires_a_valid_impl() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:16:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Bad), assumptions: {validate(a, Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Bad), assumptions: {validate(a, Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -443,7 +443,7 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:16:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Bad), assumptions: {validate(a, Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Bad), assumptions: {validate(a, Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]

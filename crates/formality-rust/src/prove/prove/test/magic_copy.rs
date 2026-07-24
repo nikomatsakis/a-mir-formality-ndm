@@ -29,7 +29,7 @@ fn all_t_is_not_magic_without_copy_for_all_t() {
 
         crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Copy(!ty_0), _candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 3 }, trait_impl: impl Copy for u32 { } }, _assumptions: {validate(a, Magic(!ty_0))}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:16:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Copy(!ty_0), assumptions: {validate(a, Magic(!ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Copy(!ty_0), assumptions: {validate(a, Magic(!ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]

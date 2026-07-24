@@ -78,7 +78,7 @@ judgment_fn! {
             (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
             (let required = quantified_goal(
                 supertrait,
-                |trait_ref| Predicate::is_implemented(trait_ref).upcast(),
+                Predicate::is_implemented,
             ))
             (prove_via_assumption(decls, env, assumptions, required, goal) => c)
             (let source = TraitRef::new(&trait_def.id, trait_subst))
@@ -245,9 +245,9 @@ judgment_fn! {
             (let value_bounds: Wcs =
                 ensures.iter().map(|ensure| ensure.to_wc(value_ty)).collect())
             (let value_binder: Binder<Wcs> =
-                Binder::new(vec![value_variable], value_bounds.upcast()))
+                Binder::new(vec![value_variable], value_bounds))
             (let associated_binder: Binder<Binder<Wcs>> =
-                Binder::new(associated_variables, value_binder.upcast()))
+                Binder::new(associated_variables, value_binder))
             (let associated_requirement =
                 AssociatedTyRequirement::new(id, associated_binder))
             (let requirement = TraitRequirement::new(Binder::new(
@@ -486,7 +486,7 @@ judgment_fn! {
         (
             (let goal = quantified_goal(
                 supertrait,
-                |trait_ref| Predicate::is_implemented(trait_ref).upcast(),
+                Predicate::is_implemented,
             ))
             (let goal = Wc::validate(ValidationState::A, goal))
             (prove_after(decls, c, assumptions, goal) => c)
@@ -503,7 +503,7 @@ judgment_fn! {
         (
             (let goal = quantified_goal(
                 outlives,
-                |relation| relation.upcast(),
+                |relation| relation,
             ))
             (let goal = Wc::validate(ValidationState::A, goal))
             (prove_after(decls, c, assumptions, goal) => c)
@@ -533,12 +533,13 @@ judgment_fn! {
     }
 }
 
-pub(super) fn quantified_goal<T>(binder: &Binder<T>, to_wc: impl FnOnce(T) -> Wc) -> Wc
+pub(super) fn quantified_goal<T, U>(binder: &Binder<T>, to_wc: impl FnOnce(T) -> U) -> Wc
 where
     T: crate::rust::Term,
+    U: Upcast<Wc>,
 {
     let (variables, value) = binder.open();
-    Wc::for_all(Binder::new(&variables, to_wc(value)))
+    Wc::for_all(Binder::new(&variables, to_wc(value).upcast()))
 }
 
 /// True if an assumption proves an atomic validation goal without introducing constraints.

@@ -2,11 +2,9 @@ use crate::grammar::{Predicate, Relation, Trait, TraitRef, ValidationState, Wc, 
 use crate::prove::prove::{
     decls::Program,
     prove,
-    requirements::{
-        quantified_goal, trait_requirement, TraitRequirement, TraitRequirementBoundData,
-    },
+    requirements::{trait_requirement, TraitRequirement, TraitRequirementBoundData},
 };
-use formality_core::{judgment_fn, Downcast, Upcast};
+use formality_core::{judgment_fn, Downcast};
 
 use super::{
     constraints::Constraints, env::Env, prove_after::prove_after,
@@ -153,16 +151,26 @@ judgment_fn! {
         debug(assumptions, trait_def, requirement, goal, env)
 
         (
+            // Running example: suppose we are validating `PartialOrd(u32)` and considering the
+            // declaration `trait Ord: PartialOrd`. Here `trait_def` is `Ord`, `requirement` is
+            // `for<Self> Self: PartialOrd`, and `goal` is `PartialOrd(u32)`.
+            //
+            // Instantiate the requirement's `Self` with a fresh existential `?T`. The selected
+            // supertrait requirement is therefore `PartialOrd(?T)`.
             (let (env, trait_subst) =
                 env.existential_substitution(&requirement.binder))
             (let requirement =
                 requirement.binder.instantiate_with(trait_subst)?)
             (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
-            (let required = quantified_goal(
-                supertrait,
-                |trait_ref| Predicate::is_implemented(trait_ref).upcast(),
-            ))
-            (prove_via_assumption(decls, env, assumptions, required, goal) => c)
+
+            // Check the conclusion (`PartialOrd(T)`) can be used to prove our goal.
+            //
+            // Note that the `Validate` from the goal and the validate from the conclusion
+            // have both been stripped here.
+            (prove_via_assumption(decls, env, assumptions, Wc::for_all(supertrait), goal) => c)
+
+            // In that case, we have to prove that the condition `Validate(B, Ord(T))`
+            // fulfills our goal. This rule always requires stage B evidence.
             (prove_after(
                 decls,
                 c,
