@@ -58,6 +58,13 @@ judgment_fn! {
         debug(trait_impl, requirement, env, program)
 
         (
+            // Treat the impl's where-clauses as provisional while validating a
+            // supertrait requirement. An exact `T: Super` clause can establish
+            // `T: Super`, but a clause such as `T: Stronger` cannot expose
+            // `Stronger`'s supertraits here. This local restriction prevents
+            // mutually recursive impl premises from manufacturing supertrait
+            // evidence, at the cost of requiring otherwise redundant explicit
+            // supertrait clauses. The tests below document that tradeoff.
             (let assumptions = trait_impl.where_clauses.to_wcs().validated(ValidationState::A))
             (let goal = Wc::validate(ValidationState::A, Wc::for_all(supertrait)))
             (prove(program, env, assumptions, goal) => c)
@@ -114,12 +121,12 @@ judgment_fn! {
             (let AssociatedTyValueBoundData {
                 where_clauses: _,
                 ty: impl_ty,
-            } = assoc_ty_value.binder.instantiate_with(&gat_subst)?)
+            } = assoc_ty_value.binder.instantiate_with(gat_subst)?)
 
             // Instantiate the GAt requirement first with `A = !A` and then
             // with `I = Vec<(!A, !B)>` to get `Vec<(!A, !B)>: Debug`.
             (let gat_goals = associated.binder
-                .instantiate_with(&gat_subst)?
+                .instantiate_with(gat_subst)?
                 .instantiate_with(vec![impl_ty.clone()])?)
 
             // The declaration-side GAT where-clauses determine when callers
@@ -145,7 +152,7 @@ judgment_fn! {
             (let AssociatedTyBoundData {
                 ensures: _,
                 where_clauses: trait_gat_wc,
-            } = trait_associated_ty.binder.instantiate_with(&gat_subst)?)
+            } = trait_associated_ty.binder.instantiate_with(gat_subst)?)
 
             // Each associated value must itself be well formed and must
             // satisfy every bound promised by the trait. The impl and GAT
@@ -160,7 +167,7 @@ judgment_fn! {
                 .chain(gat_goals.iter())
                 .map(|goal| {
                     Wc::implies(
-                        &validation_conditions,
+                        validation_conditions,
                         Wc::validate(ValidationState::A, goal),
                     )
                 })
@@ -272,4 +279,71 @@ mod tests {
         assert!(!impl_wf(&program, "Bar"));
     }
 
+    #[test]
+    fn local_validation_rejects_mutually_recursive_supertrait_sources() {
+        let program = program(
+            "[
+                crate test {
+                    trait Base {}
+                    trait A where Self: Base {}
+                    trait B where Self: Base {}
+
+                    impl<T> A for T where T: B {}
+                    impl<T> B for T where T: A {}
+                }
+            ]",
+        );
+
+        // If either impl could project `Base` from its sibling premise,
+        // both declarations would validate while their eventual `Base`
+        // evidence merely points at one another.
+        assert!(!impl_wf(&program, "A"));
+        assert!(!impl_wf(&program, "B"));
+    }
+
+    #[test]
+    fn local_validation_also_rejects_a_globally_grounded_supertrait_source() {
+        let program = program(
+            "[
+                crate test {
+                    trait Base {}
+                    trait Debug {}
+                    trait A where Self: Base {}
+                    trait B where Self: Base {}
+
+                    impl<T> A for T where T: B {}
+                    impl<T> B for T where T: Debug {}
+                    impl<T> Base for T where T: Debug {}
+                }
+            ]",
+        );
+
+        // The `B` and `Base` impls show that every `B` application can
+        // ultimately obtain concrete `Base` evidence from `Debug`. That fact
+        // is not visible while checking `impl A where B` in isolation, so the
+        // same local rule that rejects the cyclic example rejects this impl.
+        assert!(!impl_wf(&program, "A"));
+        assert!(impl_wf(&program, "B"));
+        assert!(impl_wf(&program, "Base"));
+    }
+
+    #[test]
+    fn explicit_redundant_supertrait_clause_restores_local_validation() {
+        let program = program(
+            "[
+                crate test {
+                    trait Base {}
+                    trait Debug {}
+                    trait A where Self: Base {}
+                    trait B where Self: Base {}
+
+                    impl<T> A for T where T: B, T: Base {}
+                    impl<T> B for T where T: Debug {}
+                    impl<T> Base for T where T: Debug {}
+                }
+            ]",
+        );
+
+        assert!(impl_wf(&program, "A"));
+    }
 }
