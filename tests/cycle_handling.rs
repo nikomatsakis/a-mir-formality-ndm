@@ -1,4 +1,40 @@
 use a_mir_formality::{crates, test_program_ok, FormalityTest};
+use formality_rust::{codegen::codegen_program, grammar::Crates, rust::try_term};
+
+fn assert_monomorphizes_if_accepted(input: &str) {
+    let crates: Crates = try_term(input).expect("test program should parse");
+
+    if test_program_ok(input).is_ok() {
+        codegen_program(&crates)
+            .expect("type checking accepted evidence that codegen could not monomorphize");
+    }
+}
+
+#[test]
+fn coinductive_impl_evidence_monomorphizes() {
+    FormalityTest::new(crates![crate test {
+        trait Value {
+            fn value() -> i32;
+        }
+
+        struct Ground {}
+
+        impl<T> Value for T
+        where
+            T: Value,
+        {
+            fn value() -> i32 {
+                return 22 _ i32;
+            }
+        }
+
+        fn main() -> () {
+            println!(<Ground as Value>::value());
+        }
+    }])
+    .expect_output("22\n")
+    .ok();
+}
 
 #[test]
 fn method_where_clause_is_not_a_trait_requirement() {
@@ -310,11 +346,12 @@ fn infinitely_recursive_associated_type_value_is_currently_accepted() {
 }
 
 #[test]
-fn associated_type_ensures_cycle_cannot_invent_missing_supertrait_impl() {
+fn associated_type_ensures_cycle_never_produces_unmonomorphizable_evidence() {
     // The `Ord for Bad` candidate has only stage-A validation evidence while checking its
     // `PartialOrd` supertrait. Its associated-type where-clause must not turn that provisional
-    // evidence into the missing `PartialOrd(Bad)` dictionary.
-    FormalityTest::new(crates![crate test {
+    // evidence into the missing `PartialOrd(Bad)` dictionary. Rejecting this program is fine;
+    // if proof search accepts it, codegen must be able to select concrete evidence for the call.
+    assert_monomorphizes_if_accepted(crates![crate test {
         trait PartialOrd {
             fn probe(value: Self) -> i32;
         }
@@ -354,20 +391,15 @@ fn associated_type_ensures_cycle_cannot_invent_missing_supertrait_impl() {
             let bad: Bad = Bad {};
             println!(call_probe::<Bad>(bad));
         }
-    }])
-    .skip_execute()
-    .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: @ WellFormedTraitRef(PartialOrd(<u32 as Family>::Gat<Bad>)), via: PartialOrd(<u32 as Family>::Gat<Bad>), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: PartialOrd(<u32 as Family>::Gat<Bad>), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: PartialOrd(Bad), assumptions: {PartialOrd(<u32 as Family>::Gat<Bad>), validate(a, Ord(Bad))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+    }]);
 }
 
 #[test]
-fn associated_type_cycle_cannot_construct_stage_b_through_supertrait_chain() {
-    let result = test_program_ok(crates![crate test {
-        trait Target {}
+fn associated_type_supertrait_cycle_never_produces_unmonomorphizable_evidence() {
+    assert_monomorphizes_if_accepted(crates![crate test {
+        trait Target {
+            fn probe() -> ();
+        }
 
         trait Bridge
         where
@@ -407,16 +439,11 @@ fn associated_type_cycle_cannot_construct_stage_b_through_supertrait_chain() {
         where
             T: Entry,
         {
-            trusted
+            return <T as Target>::probe();
         }
 
         fn main() -> () {
             require_entry::<Ground>();
         }
     }]);
-
-    assert!(
-        result.is_err(),
-        "validation constructed stage-B Entry evidence from its cyclic impl"
-    );
 }

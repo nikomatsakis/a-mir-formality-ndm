@@ -208,11 +208,13 @@ fn stage_a_validation_evidence_cannot_discharge_stage_b_goal() {
 }
 
 #[test]
-fn stage_b_validation_cannot_be_constructed_from_an_impl() {
+fn completed_impl_can_construct_stage_b_validation_evidence() {
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
+            term("trait Prerequisite where {}"),
             term("trait Marker where {}"),
-            term("impl Marker for u32 {}"),
+            term("impl Prerequisite for u32 {}"),
+            term("impl<T> Marker for T where T: Prerequisite {}"),
         ])),
         ..Program::empty()
     };
@@ -226,12 +228,56 @@ fn stage_b_validation_cannot_be_constructed_from_an_impl() {
     assert!(stage_a.is_proven());
 
     let stage_b = prove_after(
-        program,
+        &program,
         Constraints::none(()),
         (),
         validated_b(term::<Wc>("Marker(u32)")),
     );
-    assert!(!stage_b.is_proven());
+    assert!(stage_b.is_proven());
+
+    let unsatisfied = prove_after(
+        program,
+        Constraints::none(()),
+        (),
+        validated_b(term::<Wc>("Marker(bool)")),
+    );
+    assert!(!unsatisfied.is_proven());
+}
+
+#[test]
+fn stage_b_impl_inherits_only_completed_evidence() {
+    let program = Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Prerequisite where {}"),
+            term("trait Marker where {}"),
+            term("impl<T> Marker for T where T: Prerequisite {}"),
+        ])),
+        ..Program::empty()
+    };
+
+    let from_ordinary = prove_after(
+        &program,
+        Constraints::none(()),
+        term::<Wc>("Prerequisite(u32)"),
+        validated_b(term::<Wc>("Marker(u32)")),
+    );
+    assert!(from_ordinary.is_proven());
+
+    let from_stage_b = prove_after(
+        &program,
+        Constraints::none(()),
+        validated_b(term::<Wc>("Prerequisite(u32)")),
+        validated_b(term::<Wc>("Marker(u32)")),
+    );
+    assert!(from_stage_b.is_proven());
+
+    let from_stage_a = prove_after(
+        program,
+        Constraints::none(()),
+        validated(term::<Wc>("Prerequisite(u32)")),
+        validated_b(term::<Wc>("Marker(u32)")),
+    );
+    assert!(!from_stage_a.is_proven());
 }
 
 #[test]

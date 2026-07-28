@@ -49,12 +49,25 @@ fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, 
 
 fn positive_impl_trait_ref(goal: &Wc) -> Option<TraitRef> {
     match goal {
-        // Stage A records provisional evidence for a concrete impl under construction, so it can
-        // be established by selecting that impl. Stage B represents caller evidence and cannot
-        // be manufactured by impl selection.
-        Wc::Validate(ValidationState::A, goal) => goal.as_ref().downcast(),
-        Wc::Validate(ValidationState::B, _) => None,
+        Wc::Validate(_, goal) => goal.as_ref().downcast(),
         goal => goal.downcast(),
+    }
+}
+
+fn positive_impl_assumptions(assumptions: &Wcs, goal: &Wc) -> Wcs {
+    if matches!(goal, Wc::Validate(ValidationState::B, _)) {
+        // A stage-B impl may rely only on completed evidence from its caller: ordinary evidence
+        // or other stage-B evidence. Inheriting any provisional stage-A evidence could let the
+        // candidate use requirements of an enclosing impl whose validation has not completed.
+        //
+        // `prove_via_impl` will still add this candidate's own stage-A assumption and promote it
+        // after validation, preserving coinductive impl application for residual where-clauses.
+        assumptions
+            .iter()
+            .filter(|assumption| !matches!(assumption, Wc::Validate(ValidationState::A, _)))
+            .collect()
+    } else {
+        assumptions.clone()
     }
 }
 
@@ -141,15 +154,15 @@ judgment_fn! {
             (prove_wc(decls, env, assumptions, goal) => c)
         )
 
-        // Prove an ordinary trait goal, or a stage-A validation goal, with a concrete impl.
-        // `positive_impl_trait_ref` deliberately leaves stage B ineligible.
+        // Prove an ordinary trait goal, or a validation goal, with a concrete impl.
         (
             (if let Some(trait_ref) = positive_impl_trait_ref(goal))
+            (let impl_assumptions = positive_impl_assumptions(assumptions, goal))
             (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
             (prove_via_impl(
                 decls,
                 env,
-                assumptions,
+                impl_assumptions,
                 trait_ref,
                 candidate,
             ) => Constrained(application, c))
