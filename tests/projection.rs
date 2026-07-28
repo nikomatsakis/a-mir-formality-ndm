@@ -53,7 +53,7 @@ fn normalize_basic() {
         NORMALIZE_BASIC,
         "forall<T> exists<U> { Iterator(T) } => { <T as Iterator>::Item = <U as Iterator>::Item }",
     ).assert_ok(
-    expect_test::expect!["{Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => !ty_1} }}"]);
+    expect_test::expect!["{Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => !ty_1} }, Constraints { env: Env { variables: [!ty_1, ?ty_3, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => Vec<<!ty_1 as Iterator>::Item>, ?ty_3 => <!ty_1 as Iterator>::Item} }}"]);
 }
 
 const NORMALIZE_INTO_ITERATOR: &str = "[

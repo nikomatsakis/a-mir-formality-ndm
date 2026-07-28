@@ -3,7 +3,7 @@ use crate::grammar::{
 };
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::{
-    prove::prove_after_validation::prove_after_validation, requirements::validate_impl,
+    prove::{prove_after_validation::prove_after_validation, prove_impl_wf::prove_impl_wf},
     Constrained, Constraints, Env,
 };
 use crate::prove::ToWcs;
@@ -64,6 +64,11 @@ judgment_fn! {
             // is a mismatch, not an invitation to search another declaration.
             (if candidate.trait_impl.trait_id() == &requested_trait_ref.trait_id)
 
+            // Impl well-formedness is a closed, inductive premise. Establish it
+            // before opening the impl binder or adding the candidate's own
+            // coinductive condition to the assumptions.
+            (prove_impl_wf(decls, &candidate.trait_impl) => ())
+
             // Retain these fresh variables in the result. Codegen needs them
             // to recover the inferred impl-binder arguments before popping the
             // candidate's local proof scope.
@@ -77,20 +82,18 @@ judgment_fn! {
             (let impl_trait_ref = trait_impl.trait_ref())
             (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
 
-            // Header matching is itself part of validation. Record this
-            // candidate before matching, then deliberately prove the header
-            // equality after validation so normalization can use the promised
-            // impl. This is a subtle boundary: it permits normalization through
-            // a cycle to infer impl-binder arguments. It appears sound because
-            // this branch records a concrete impl id and succeeds only after
-            // all of that impl's header equalities and obligations hold, but
-            // fuzzing should continue to check that every accepted application
-            // can recover all impl arguments and monomorphize successfully.
+            // Once the closed WF premise succeeds, record this candidate before
+            // matching, then deliberately prove the header equality after
+            // validation so normalization can use the promised impl. This is a
+            // subtle boundary: it permits normalization through a cycle to
+            // infer impl-binder arguments. It appears sound because this branch
+            // records a concrete impl id and succeeds only after all of that
+            // impl's header equalities and obligations hold, but fuzzing should
+            // continue to check that every accepted application can recover all
+            // impl arguments and monomorphize successfully.
             (let current_impl: Wc =
                 Predicate::is_implemented(requested_trait_ref).upcast())
-            (let validation_assumption =
-                Wc::validate(ValidationState::A, current_impl))
-            (let assumptions = (assumptions, validation_assumption))
+            (let assumptions = (assumptions, current_impl))
             (let header_goals = Wcs::all_eq(
                 &requested_trait_ref.parameters,
                 &impl_trait_ref.parameters,
@@ -102,12 +105,9 @@ judgment_fn! {
                 header_goals,
             ) => c)!
 
-            // Validate every structured trait requirement, instantiating
-            // associated-type requirements with this impl's concrete values.
-            (validate_impl(decls, c, assumptions, trait_impl) => c)
-
             // The candidate's where-clauses are caller obligations. Prove
-            // them after validation, when `Validate(I)` becomes ordinary `I`.
+            // them after validation, with the now-WF candidate available
+            // coinductively.
             (prove_after_validation(
                 decls,
                 c,

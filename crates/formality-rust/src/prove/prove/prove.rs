@@ -9,6 +9,7 @@ mod prove_after_validation;
 mod prove_const_has_type;
 mod prove_eq;
 mod prove_fully_normalize;
+mod prove_impl_wf;
 pub mod prove_normalize;
 mod prove_outlives;
 mod prove_sub;

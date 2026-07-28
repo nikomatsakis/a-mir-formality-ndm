@@ -10,6 +10,7 @@ use crate::prove::prove::{
     decls::{AliasEqDeclBoundData, Program},
     prove::{
         combinators::zip, env::Env, prove_after::prove_after, prove_eq::prove_existential_var_eq,
+        prove_impl_wf::prove_impl_wf,
     },
 };
 
@@ -72,7 +73,9 @@ judgment_fn! {
         )
 
         (
-            (decl in decls.alias_eq_decls(&a.name))
+            (candidate in decls.alias_eq_candidates(&a.name))
+            (prove_impl_wf(decls, &candidate.source_impl.trait_impl) => ())
+            (let decl = candidate.decl.clone())
             (let (env, subst) = env.existential_substitution(&decl.binder))
             (let decl = decl.binder.instantiate_with(&subst).unwrap())
             (let AliasEqDeclBoundData { alias: AliasTy { name, parameters }, ty, where_clause } = decl)

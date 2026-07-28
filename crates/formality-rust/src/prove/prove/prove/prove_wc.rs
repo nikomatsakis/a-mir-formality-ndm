@@ -60,8 +60,9 @@ fn positive_impl_assumptions(assumptions: &Wcs, goal: &Wc) -> Wcs {
         // or other stage-B evidence. Inheriting any provisional stage-A evidence could let the
         // candidate use requirements of an enclosing impl whose validation has not completed.
         //
-        // `prove_via_impl` will still add this candidate's own stage-A assumption and promote it
-        // after validation, preserving coinductive impl application for residual where-clauses.
+        // Once the candidate's closed WF premise succeeds, `prove_via_impl`
+        // still adds that candidate's own ordinary condition, preserving
+        // coinductive impl application for residual where-clauses.
         assumptions
             .iter()
             .filter(|assumption| !matches!(assumption, Wc::Validate(ValidationState::A, _)))

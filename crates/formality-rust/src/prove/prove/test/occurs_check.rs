@@ -28,9 +28,9 @@ fn direct_cycle() {
         failed at (proven_set.rs) because
           `?ty_0` occurs in `Vec<?ty_0>`
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:59:1: no applicable rules for prove_normalize_now { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:59:1: no applicable rules for prove_normalize_now { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 /// Test that `X = Vec<Y>` can be solved
@@ -55,9 +55,9 @@ fn indirect_cycle_1() {
         failed at (proven_set.rs) because
           `?ty_0` occurs in `Vec<?ty_0>`
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:59:1: no applicable rules for prove_normalize_now { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:59:1: no applicable rules for prove_normalize_now { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 /// Test that `X = Vec<X>` cannot be solved (when constructed over several steps)
@@ -70,7 +70,7 @@ fn indirect_cycle_2() {
         failed at (proven_set.rs) because
           `?ty_0` occurs in `Vec<?ty_0>`
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:59:1: no applicable rules for prove_normalize_now { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:59:1: no applicable rules for prove_normalize_now { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }

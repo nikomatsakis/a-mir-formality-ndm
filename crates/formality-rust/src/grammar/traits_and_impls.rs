@@ -82,6 +82,16 @@ impl TraitImplBoundData {
     pub fn trait_ref(&self) -> TraitRef {
         self.trait_id.with(&self.self_ty, &self.trait_parameters)
     }
+
+    pub fn assoc_ty_value(&self, id: &AssociatedItemId) -> Option<&AssociatedTyValue> {
+        self.impl_items
+            .iter()
+            .filter_map(|item| match item {
+                ImplItem::AssociatedTyValue(v) if v.id == *id => Some(v),
+                _ => None,
+            })
+            .next()
+    }
 }
 
 #[term($?safety impl $binder)]

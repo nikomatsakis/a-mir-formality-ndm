@@ -126,7 +126,10 @@ fn conditional_associated_type_bound_cannot_validate_its_own_impl() {
 }
 
 #[test]
-fn recursive_associated_type_bound_is_valid() {
+fn impl_cannot_use_itself_to_verify_associated_type_bound() {
+    // `ImplWF` is an inductive, closed judgment. The `Foo for u32` impl
+    // therefore cannot use the very same impl to establish its `Bar: Foo`
+    // verification condition.
     FormalityTest::new(crates![crate test {
         trait Foo {
             type Bar : [Foo];
@@ -141,11 +144,18 @@ fn recursive_associated_type_bound_is_valid() {
         }
     }])
     .skip_execute()
-    .ok();
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Foo(u32), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Foo for u32 { type Bar = u32 ; } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
-fn mutually_recursive_impl_requirements_are_valid() {
+fn mutual_impl_wf_cycle_is_rejected() {
+    // Ordinary impl evidence is coinductive, but the closed `ImplWF`
+    // prerequisite is not: these two declarations have no independent WF
+    // derivation that bottoms out.
     FormalityTest::new(crates![crate test {
         trait Foo {}
 
@@ -167,13 +177,18 @@ fn mutually_recursive_impl_requirements_are_valid() {
         }
     }])
     .skip_execute()
-    .ok();
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Bar(u32), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl Bar for u32 { type Baz = u32 ; } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
-fn impl_header_substitution_is_applied_before_requirement_validation() {
-    // Header matching fixes the impl's `T` to `u32`. Associated-type validation must apply that
-    // constraint before checking that the concrete `NeedsRequired<T>` value is well formed.
+fn impl_wf_is_checked_for_every_header_substitution() {
+    // Closed impl WF universally quantifies the impl binder. Even though this
+    // particular application fixes `T = u32`, the declaration is not WF for
+    // every `T` because it omitted `T: Required`.
     FormalityTest::new(crates![crate test {
         trait Required {}
         impl Required for u32 {}
@@ -196,11 +211,18 @@ fn impl_header_substitution_is_applied_before_requirement_validation() {
         }
     }])
     .skip_execute()
-    .ok();
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Family((), u32), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl <ty> Family <^ty0_0> for () { type Output = NeedsRequired<^ty1_0> ; } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
-fn associated_type_value_wf_may_use_validation_assumption_after_validation() {
+fn impl_condition_cannot_verify_associated_type_value_wf() {
+    // The impl condition is introduced only after closed `ImplWF` succeeds,
+    // so it cannot establish the `Foo(u32)` requirement embedded in the
+    // concrete associated type value.
     FormalityTest::new(crates![crate test {
         trait Foo {
             type Bar : [];
@@ -220,7 +242,11 @@ fn associated_type_value_wf_may_use_validation_assumption_after_validation() {
         }
     }])
     .skip_execute()
-    .ok();
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Foo(u32), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 2 }, trait_impl: impl Foo for u32 { type Bar = NeedsFoo<u32> ; } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -262,11 +288,7 @@ fn associated_type_value_must_be_well_formed() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: validate(a, Foo(())), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(a, Foo(())), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Ground), assumptions: {validate(a, Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Foo(()), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl Foo for () { type Bar = NeedsRequired<Ground> ; } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -327,7 +349,7 @@ fn associated_type_projection_requires_a_valid_impl() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Bad), assumptions: {validate(a, Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Foo(X), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl Foo for X { type Bar = Bad ; } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -443,7 +465,7 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Required(Bad), assumptions: {validate(a, Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Family(()), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl Family for () { type AIntroduce = () ; type ZConsume = Bad ; } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]

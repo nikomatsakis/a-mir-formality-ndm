@@ -449,9 +449,10 @@ fn validation_does_not_yet_elaborate_supertrait_through_implication() {
 
 #[test]
 fn validation_implication_introduces_only_validation_antecedents() {
-    // Associated-type requirements deliberately have no validation-preserving elaboration rule.
-    // If this implication introduced `Family(u32)` ordinarily, that ordinary evidence would
-    // incorrectly validate its projected `Super` bound.
+    // Associated-type requirements can be elaborated from completed stage-B
+    // evidence. If this implication introduced `Family(u32)` ordinarily (or
+    // at stage B), that evidence would incorrectly validate its projected
+    // `Super` bound. Its stage-A antecedent must remain provisional.
     let implication: Wc = term("if { Family(u32) } Super(<u32 as Family>::Item)");
     let result = prove_after(
         implication_validation_decls(),

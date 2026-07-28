@@ -50,9 +50,9 @@ impl Program {
         self.crates.items_from_all_crates().downcasted().collect()
     }
 
-    /// Enumerate the raw positive impl declarations for `trait_id`, preserving
-    /// their source identity and all impl items.
-    pub(crate) fn raw_trait_impls_for(&self, trait_id: &TraitId) -> Vec<ImplCandidate> {
+    /// Enumerate all raw positive impl declarations, preserving their source
+    /// identity and all impl items.
+    fn raw_trait_impls(&self) -> Vec<ImplCandidate> {
         self.crates
             .crates
             .iter()
@@ -63,18 +63,25 @@ impl Program {
                     .iter()
                     .enumerate()
                     .filter_map(move |(item_index, item)| match item {
-                        CrateItem::TraitImpl(trait_impl) if trait_impl.trait_id() == trait_id => {
-                            Some(ImplCandidate {
-                                id: ImplId {
-                                    crate_index,
-                                    item_index,
-                                },
-                                trait_impl: trait_impl.upcast(),
-                            })
-                        }
+                        CrateItem::TraitImpl(trait_impl) => Some(ImplCandidate {
+                            id: ImplId {
+                                crate_index,
+                                item_index,
+                            },
+                            trait_impl: trait_impl.upcast(),
+                        }),
                         _ => None,
                     })
             })
+            .collect()
+    }
+
+    /// Enumerate the raw positive impl declarations for `trait_id`, preserving
+    /// their source identity and all impl items.
+    pub(crate) fn raw_trait_impls_for(&self, trait_id: &TraitId) -> Vec<ImplCandidate> {
+        self.raw_trait_impls()
+            .into_iter()
+            .filter(|candidate| candidate.trait_impl.trait_id() == trait_id)
             .collect()
     }
 
@@ -123,13 +130,18 @@ impl Program {
     }
 
     pub fn alias_eq_decls(&self, name: &AliasName) -> Vec<AliasEqDecl> {
-        self.crates
-            .items_from_all_crates()
-            .filter_map(|item| match item {
-                CrateItem::TraitImpl(ti) => Some(ti),
-                _ => None,
-            })
-            .flat_map(|ti| {
+        self.alias_eq_candidates(name)
+            .into_iter()
+            .map(|candidate| candidate.decl)
+            .collect()
+    }
+
+    /// Enumerate projection equations together with the impl declaration that
+    /// supplies each equation.
+    pub(crate) fn alias_eq_candidates(&self, name: &AliasName) -> Vec<AliasEqCandidate> {
+        self.raw_trait_impls()
+            .into_iter()
+            .flat_map(|source_impl| {
                 let (
                     impl_vars,
                     TraitImplBoundData {
@@ -139,7 +151,7 @@ impl Program {
                         where_clauses: _,
                         impl_items,
                     },
-                ) = ti.binder.open();
+                ) = source_impl.trait_impl.binder.open();
 
                 impl_items
                     .iter()
@@ -168,25 +180,28 @@ impl Program {
                             );
                             let (trait_ref, associated_ty_conditions) =
                                 self.associated_ty_requirements(&alias).ok()?;
-                            Some(AliasEqDecl {
-                                binder: Binder::new(
-                                    (&impl_vars, &assoc_vars),
-                                    AliasEqDeclBoundData {
-                                        alias,
-                                        ty,
-                                        where_clause: (
-                                            Predicate::is_implemented(trait_ref),
-                                            associated_ty_conditions,
-                                        )
-                                            .to_wcs(),
-                                    },
-                                ),
+                            Some(AliasEqCandidate {
+                                source_impl: source_impl.clone(),
+                                decl: AliasEqDecl {
+                                    binder: Binder::new(
+                                        (&impl_vars, &assoc_vars),
+                                        AliasEqDeclBoundData {
+                                            alias,
+                                            ty,
+                                            where_clause: (
+                                                Predicate::is_implemented(trait_ref),
+                                                associated_ty_conditions,
+                                            )
+                                                .to_wcs(),
+                                        },
+                                    ),
+                                },
                             })
                         }
                     })
                     .collect::<Vec<_>>()
             })
-            .filter(|a| a.alias_name() == *name)
+            .filter(|candidate| candidate.decl.alias_name() == *name)
             .collect()
     }
 
@@ -264,6 +279,14 @@ pub(crate) struct ImplCandidate {
 }
 
 formality_core::cast_impl!(ImplCandidate);
+
+/// One impl-provided projection equation and the impl that supplies it.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub(crate) struct AliasEqCandidate {
+    pub(crate) source_impl: ImplCandidate,
+    pub(crate) decl: AliasEqDecl,
+}
+
 /// Mark a trait or trait impl as `unsafe`.
 #[term]
 #[derive(Default)]

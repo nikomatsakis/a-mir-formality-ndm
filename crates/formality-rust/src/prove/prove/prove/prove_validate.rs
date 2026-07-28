@@ -1,4 +1,6 @@
-use crate::grammar::{Predicate, Relation, Trait, TraitRef, ValidationState, Wc, WcData, Wcs};
+use crate::grammar::{
+    AliasTy, Predicate, Relation, Trait, TraitRef, ValidationState, Wc, WcData, Wcs,
+};
 use crate::prove::prove::{
     decls::Program,
     prove,
@@ -80,7 +82,7 @@ judgment_fn! {
             (trait_def in decls.traits())
             (trait_requirement(trait_def) => requirements)
             (requirement in requirements)
-            (prove_validate_via_supertrait_requirement(
+            (prove_validate_via_trait_requirement(
                 decls,
                 env,
                 assumptions,
@@ -126,7 +128,7 @@ judgment_fn! {
 }
 
 judgment_fn! {
-    /// Use a declared supertrait requirement while preserving validation stages.
+    /// Use a declared trait requirement while preserving validation stages.
     ///
     /// For example, given `trait Ord: PartialOrd`, ordinary requirement backchaining proves
     /// `PartialOrd(T)` by proving `Ord(T)`. During impl validation, this rule lifts that same
@@ -140,7 +142,7 @@ judgment_fn! {
     /// caller-supplied evidence for a completed dictionary. Accepting stage-A `Ord(T)` here would
     /// let an `Ord` dictionary under construction expose `PartialOrd(T)` and use that provisional
     /// evidence to validate its own requirements.
-    fn prove_validate_via_supertrait_requirement(
+    fn prove_validate_via_trait_requirement(
         _decls: Program,
         env: Env,
         assumptions: Wcs,
@@ -178,7 +180,7 @@ judgment_fn! {
                 Wc::validate(ValidationState::B, TraitRef::new(&trait_def.id, trait_subst))
             ) => c)
             ----------------------------- ("supertrait")
-            (prove_validate_via_supertrait_requirement(
+            (prove_validate_via_trait_requirement(
                 decls,
                 env,
                 assumptions,
@@ -186,6 +188,59 @@ judgment_fn! {
                 requirement,
                 goal,
             ) => c.pop_subst(trait_subst))
+        )
+
+        (
+            // Instantiate the declaration's trait parameters and associated
+            // type parameters, then match one declared value bound against the
+            // validation goal.
+            (let (env, trait_subst) =
+                env.existential_substitution(&requirement.binder))
+            (let requirement =
+                requirement.binder.instantiate_with(trait_subst)?)
+            (if let TraitRequirementBoundData::AssociatedTyRequirement(associated) =
+                requirement)
+            (let (env, associated_subst) =
+                env.existential_substitution(&associated.binder))
+            (let value_template =
+                associated.binder.instantiate_with(&associated_subst)?)
+            (let alias = AliasTy::associated_ty(
+                &trait_def.id,
+                &associated.id,
+                associated_subst.len(),
+                (trait_subst, associated_subst),
+            ))
+            (let value_bounds =
+                value_template.instantiate_with(std::slice::from_ref(&alias))?)
+            (required in value_bounds)!
+            (prove_via_assumption(decls, env, assumptions, required, goal) => c)
+
+            // A completed source dictionary and completed GAT conditions may
+            // expose the associated type's declaration-side bounds during
+            // verification. Provisional stage-A evidence may not.
+            (let (source, conditions) =
+                decls.associated_ty_requirements(&alias)?)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                conditions.validated(ValidationState::B),
+            ) => c)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                Wc::validate(ValidationState::B, source),
+            ) => c)
+            ----------------------------- ("associated type")
+            (prove_validate_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                trait_def,
+                requirement,
+                goal,
+            ) => c.pop_subst(associated_subst).pop_subst(trait_subst))
         )
     }
 }
