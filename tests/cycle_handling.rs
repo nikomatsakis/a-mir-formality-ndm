@@ -288,6 +288,76 @@ fn impl_where_clause_cannot_justify_its_matching_supertrait() {
         crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Prerequisite(Ground), assumptions: {validate(a, Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
+macro_rules! grounded_supertrait_chain_program {
+    ($ty:ident) => {
+        crates![crate test {
+            trait Base {}
+            trait Debug {}
+
+            trait A
+            where
+                Self: Base,
+            {}
+
+            trait B
+            where
+                Self: Base,
+            {}
+
+            impl<T> A for T
+            where
+                T: B,
+            {}
+
+            impl<T> B for T
+            where
+                T: Debug,
+            {}
+
+            impl<T> Base for T
+            where
+                T: Debug,
+            {}
+
+            struct Foo {}
+            struct Bar {}
+
+            impl Debug for Foo {}
+
+            test {
+                $ty: A
+            }
+        }]
+    };
+}
+
+#[test]
+fn grounded_supertrait_chain_accepts_type_with_debug_impl() {
+    // `A` does not repeat the seemingly redundant `T: Base` condition. For `Foo`, the `B` and
+    // `Base` evidence is ultimately grounded by its `Debug` impl.
+    FormalityTest::new(grounded_supertrait_chain_program!(Foo))
+        .skip_execute()
+        .ok();
+}
+
+#[test]
+fn grounded_supertrait_chain_rejects_type_without_debug_impl() {
+    // `Bar` has no `Debug` impl, so neither `B` nor `A` can be constructed for it.
+    FormalityTest::new(grounded_supertrait_chain_program!(Bar))
+        .skip_execute()
+        .err(expect_test::expect![[r#"
+            the rule "assumption" at (prove_wc.rs) failed because
+              expression evaluated to an empty collection: `assumptions`
+
+            crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Debug(Bar), via: A(Bar), assumptions: {A(Bar), Base(Bar)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+            crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Debug(Bar), via: Base(Bar), assumptions: {A(Bar), Base(Bar)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Debug(Bar), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, _assumptions: {A(Bar), Base(Bar)}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+            crates/formality-rust/src/prove/prove/prove/prove_validate.rs:14:1: no applicable rules for prove_validate { validation_state: a, validate_goal: Base(Bar), assumptions: {validate(a, A(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+}
+
 #[test]
 fn gat_value_may_delegate_to_ground_trait_impl() {
     // The `u32` GAT delegates to the GAT of its argument. For the ground argument `i32`, that
