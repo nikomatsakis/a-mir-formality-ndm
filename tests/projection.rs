@@ -49,11 +49,13 @@ fn normalize_basic() {
     )
     .assert_ok(expect_test::expect!["{Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {} }}"]);
 
+    // Besides `U = T`, selecting `Iterator for Vec<X>` yields the valid solution
+    // `U = Vec<<T as Iterator>::Item>`.
     test_where_clause(
         NORMALIZE_BASIC,
         "forall<T> exists<U> { Iterator(T) } => { <T as Iterator>::Item = <U as Iterator>::Item }",
     ).assert_ok(
-    expect_test::expect!["{Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => !ty_1} }}"]);
+    expect_test::expect!["{Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => !ty_1} }, Constraints { env: Env { variables: [!ty_1, ?ty_3, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => Vec<<!ty_1 as Iterator>::Item>, ?ty_3 => <!ty_1 as Iterator>::Item} }}"]);
 }
 
 const NORMALIZE_INTO_ITERATOR: &str = "[

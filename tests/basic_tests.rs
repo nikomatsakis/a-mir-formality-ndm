@@ -19,6 +19,23 @@ fn impl_with_duplicate_fn_names_is_rejected() {
 }
 
 #[test]
+fn impl_with_duplicate_associated_type_names_is_rejected() {
+    FormalityTest::new(crates![crate Foo {
+        trait Trait {
+            type Assoc : [];
+        }
+
+        impl Trait for () {
+            type Assoc = ();
+            type Assoc = u32;
+        }
+    }])
+    .err(expect_test::expect![[r#"
+        the rule "check_trait_impl" at (impls.rs) failed because
+          multiple impl associated types named `Assoc`"#]])
+}
+
+#[test]
 fn parser() {
     FormalityTest::new(crates![crate Foo {
         trait Baz where  cake  {}

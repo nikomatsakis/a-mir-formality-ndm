@@ -6,7 +6,7 @@ use formality_core::{
 
 use crate::{grammar::WhereClause, prove::ToWcs};
 
-use super::{Binder, Parameter, Predicate, Relation, TraitRef};
+use super::{Binder, Parameter, Predicate, Relation, TraitId, TraitRef};
 
 #[term($set)]
 #[derive(Default)]
@@ -55,10 +55,12 @@ impl Wcs {
         self.into_iter()
     }
 
-    /// Wrap each clause in `Validate` at the given validation stage.
-    pub fn validated(&self, state: impl Upcast<ValidationState>) -> Self {
-        let state: ValidationState = state.upcast();
-        self.iter().map(|wc| Wc::validate(&state, wc)).collect()
+    /// Wrap each clause in `Validate` for the given impl-validation context.
+    pub fn validated(&self, validation: impl Upcast<ValidationContext>) -> Self {
+        let validation: ValidationContext = validation.upcast();
+        self.iter()
+            .map(|wc| Wc::validate(&validation, wc))
+            .collect()
     }
 }
 
@@ -153,18 +155,35 @@ impl DowncastTo<()> for Wcs {
 
 /// The strength of evidence available while validating an impl.
 ///
-/// Stage A is provisional evidence for a dictionary currently being constructed. Stage B is
-/// caller-supplied evidence that may expose declaration-side requirements such as supertraits.
+/// Stage A marks provisional conclusions about a dictionary being checked. Stage B marks
+/// completed inputs supplied to that check. Stage B can discharge an otherwise identical stage-A
+/// goal, but not conversely. Eligibility to expose an implied trait requirement is independent of
+/// this state and is governed by the trait order carried in [`ValidationContext`].
 #[term]
 pub enum ValidationState {
     A,
     B,
 }
 
-impl ValidationState {
+/// The context in which provisional evidence is being used to validate an impl.
+///
+/// The implemented trait is part of the evidence: rules that elaborate provisional trait
+/// evidence can compare their dependencies with this trait without promoting the evidence into
+/// the ordinary solver.
+#[term]
+pub struct ValidationContext {
+    pub state: ValidationState,
+    pub impl_trait_id: TraitId,
+}
+
+impl ValidationContext {
     /// True if evidence at `self` is strong enough to establish `goal`.
     pub(crate) fn can_prove(&self, goal: &Self) -> bool {
-        match (self, goal) {
+        if self.impl_trait_id != goal.impl_trait_id {
+            return false;
+        }
+
+        match (&self.state, &goal.state) {
             (ValidationState::A, ValidationState::A)
             | (ValidationState::B, ValidationState::A)
             | (ValidationState::B, ValidationState::B) => true,
@@ -195,7 +214,7 @@ pub enum Wc {
     ///
     /// This wrapper is internal to the solver. It is deliberately not part of Rust's surface
     /// where-clause grammar and cannot be eliminated during an ordinary proof.
-    Validate(ValidationState, Arc<Wc>),
+    Validate(ValidationContext, Arc<Wc>),
 }
 
 /// Temporary alias for migration -- allows `WcData::Variant` to still compile.

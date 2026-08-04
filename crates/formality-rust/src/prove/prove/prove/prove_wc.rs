@@ -18,21 +18,19 @@ use crate::prove::prove::{
         prove_via_impl::prove_via_impl,
         prove_wf::prove_wf,
     },
-    requirements::{
-        has_unconditional_validation_supertrait_assumption, prove_via_trait_requirement,
-        trait_requirement,
-    },
+    requirements::{prove_via_trait_requirement, trait_requirement},
 };
 
 use super::constraints::{Constrained, Constraints};
 
-fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, goal: &Wc) -> bool {
+fn has_unconditional_proof_from_assumptions(assumptions: &Wcs, goal: &Wc) -> bool {
     if assumptions
         .iter()
         .any(|assumption| match (&assumption, goal) {
-            (Wc::Validate(assumption_state, assumption_goal), Wc::Validate(goal_state, goal)) => {
-                assumption_state.can_prove(goal_state) && assumption_goal == goal
-            }
+            (
+                Wc::Validate(assumption_validation, assumption_goal),
+                Wc::Validate(goal_validation, goal),
+            ) => assumption_validation.can_prove(goal_validation) && assumption_goal == goal,
 
             _ => &assumption == goal,
         })
@@ -40,11 +38,7 @@ fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, 
         return true;
     }
 
-    let Wc::Validate(_, goal) = goal else {
-        return false;
-    };
-
-    has_unconditional_validation_supertrait_assumption(decls, assumptions, goal)
+    false
 }
 
 fn is_ordinary_assumption_goal(goal: &Wc) -> bool {
@@ -85,7 +79,7 @@ judgment_fn! {
         // derivation can improve it. This cut would not be valid if the result were more
         // restrictive.
         trivial(
-            has_unconditional_proof_from_assumptions(&decls, &assumptions, &goal)
+            has_unconditional_proof_from_assumptions(&assumptions, &goal)
             => Constraints::none(env)
         )
 
@@ -104,13 +98,13 @@ judgment_fn! {
         )
 
         (
-            (prove_validate(decls, env, assumptions, validation_state, validate_goal) => c)
+            (prove_validate(decls, env, assumptions, validation, validate_goal) => c)
             --- ("validate")
             (prove_wc(
                 decls,
                 env,
                 assumptions,
-                WcData::Validate(validation_state, validate_goal),
+                WcData::Validate(validation, validate_goal),
             ) => c)
         )
 
@@ -252,7 +246,7 @@ judgment_fn! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grammar::{Crates, ValidationState};
+    use crate::grammar::{Crates, TraitId, ValidationContext, ValidationState};
     use crate::rust::term;
 
     fn supertrait_program() -> Program {
@@ -262,6 +256,7 @@ mod tests {
                     trait Super {}
                     trait Mid where Self: Super {}
                     trait Sub where Self: Mid {}
+                    trait ValidationRoot where Self: Sub {}
                 }
             ]",
         );
@@ -281,8 +276,14 @@ mod tests {
     #[test]
     fn stronger_validation_assumption_uses_trivial_proof() {
         let inner: Wc = term("u32 = bool");
-        let assumption = Wc::validate(ValidationState::B, &inner);
-        let goal = Wc::validate(ValidationState::A, inner);
+        let assumption = Wc::validate(
+            ValidationContext::new(ValidationState::B, TraitId::new("ValidationRoot")),
+            &inner,
+        );
+        let goal = Wc::validate(
+            ValidationContext::new(ValidationState::A, TraitId::new("ValidationRoot")),
+            inner,
+        );
         let (_, proof) = prove_wc(Program::empty(), Env::default(), assumption, goal)
             .into_singleton()
             .unwrap();
@@ -303,13 +304,16 @@ mod tests {
     }
 
     #[test]
-    fn stage_b_supertrait_assumption_uses_trivial_proof() {
-        let assumption = Wc::validate(ValidationState::B, term::<Wc>("Sub(u32)"));
-        let goal = Wc::validate(ValidationState::A, term::<Wc>("Super(u32)"));
-        let (_, proof) = prove_wc(supertrait_program(), Env::default(), assumption, goal)
-            .into_singleton()
-            .unwrap();
-
-        assert_eq!(proof.total_nodes(), 1, "{proof}");
+    fn ranked_stage_b_supertrait_assumption_elaborates() {
+        let assumption = Wc::validate(
+            ValidationContext::new(ValidationState::B, TraitId::new("ValidationRoot")),
+            term::<Wc>("Sub(u32)"),
+        );
+        let goal = Wc::validate(
+            ValidationContext::new(ValidationState::A, TraitId::new("ValidationRoot")),
+            term::<Wc>("Super(u32)"),
+        );
+        let result = prove_wc(supertrait_program(), Env::default(), assumption, goal);
+        assert!(result.is_proven(), "{result}");
     }
 }

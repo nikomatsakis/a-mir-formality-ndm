@@ -1,4 +1,4 @@
-use crate::grammar::{ValidationState, WcData, Wcs};
+use crate::grammar::{ValidationContext, WcData, Wcs};
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
@@ -21,13 +21,13 @@ judgment_fn! {
         debug(goal, via, assumptions, env)
 
         (
-            (if via_state.can_prove(goal_state))
+            (if via_validation.can_prove(goal_validation))
             (prove_via_validate(
                 decls,
                 env,
                 assumptions,
-                via_state,
-                goal_state,
+                via_validation,
+                goal_validation,
                 via,
                 goal,
             ) => c)
@@ -36,8 +36,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                WcData::Validate(via_state, via),
-                WcData::Validate(goal_state, goal),
+                WcData::Validate(via_validation, via),
+                WcData::Validate(goal_validation, goal),
             ) => c)
         )
 
@@ -62,7 +62,7 @@ judgment_fn! {
                 env,
                 assumptions,
                 via,
-                WcData::Validate(_goal_state, validate_goal),
+                WcData::Validate(_goal_validation, validate_goal),
             ) => c)
         )
 
@@ -114,12 +114,12 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
-        via_state: ValidationState,
-        goal_state: ValidationState,
+        via_validation: ValidationContext,
+        goal_validation: ValidationContext,
         via: WcData,
         goal: WcData,
     ) => Constraints {
-        debug(goal_state, goal, via_state, via, assumptions, env)
+        debug(goal_validation, goal, via_validation, via, assumptions, env)
 
         (
             (prove_via_assumption(
@@ -134,8 +134,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                via_state,
-                goal_state,
+                via_validation,
+                goal_validation,
                 WcData::Predicate(via),
                 WcData::Predicate(goal),
             ) => c)
@@ -154,8 +154,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                via_state,
-                goal_state,
+                via_validation,
+                goal_validation,
                 WcData::Relation(via),
                 WcData::Relation(goal),
             ) => c)
@@ -168,8 +168,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                via_state,
-                goal_state,
+                via_validation,
+                goal_validation,
                 via,
                 goal,
             ) => c)
@@ -178,8 +178,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                via_state,
-                goal_state,
+                via_validation,
+                goal_validation,
                 WcData::ForAll(binder),
                 goal,
             ) => c.pop_subst(subst))
@@ -190,20 +190,20 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                via_state,
-                goal_state,
+                via_validation,
+                goal_validation,
                 consequence,
                 goal,
             ) => c)
-            (let validated_conditions = conditions.validated(via_state))
+            (let validated_conditions = conditions.validated(via_validation))
             (prove_after(decls, c, assumptions, validated_conditions) => c)
             ----------------------------- ("implies")
             (prove_via_validate(
                 decls,
                 env,
                 assumptions,
-                via_state,
-                goal_state,
+                via_validation,
+                goal_validation,
                 WcData::Implies(conditions, consequence),
                 goal,
             ) => c)

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::grammar::{
-    AliasTy, Const, Parameter, Predicate, Relation, Ty, ValidationState, Wc, Wcs,
+    AliasTy, Const, Parameter, Predicate, Relation, TraitId, Ty, ValidationContext,
+    ValidationState, Wc, Wcs,
 };
 use crate::prove::prove::{
     decls::Program,
@@ -18,6 +19,7 @@ fn decls() -> Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Super where {}"),
             term("trait Sub where Self : Super {}"),
+            term("trait ValidationRoot where Self : Sub {}"),
             term("struct NeedsSub<T> where T : Sub {}"),
         ])),
         ..Program::empty()
@@ -30,7 +32,10 @@ fn sub() -> Wc {
 
 fn validated_at(state: ValidationState, wc: impl Upcast<Wc>) -> Wc {
     let wc: Wc = wc.upcast();
-    Wc::validate(state, wc)
+    Wc::validate(
+        ValidationContext::new(state, TraitId::new("ValidationRoot")),
+        wc,
+    )
 }
 
 fn validated(wc: impl Upcast<Wc>) -> Wc {
@@ -56,7 +61,18 @@ fn outlives_decls() -> Program {
     Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Lives<'a> where Self : 'a {}"),
+            term("trait ValidationRoot where {}"),
             term("impl<'a, T> Lives<'a> for T where T : 'a {}"),
+        ])),
+        ..Program::empty()
+    }
+}
+
+fn ranked_outlives_decls() -> Program {
+    Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Lives<'a> where Self : 'a {}"),
+            term("trait ValidationRoot where for<'a> Self : Lives<'a> {}"),
         ])),
         ..Program::empty()
     }
@@ -67,6 +83,7 @@ fn higher_ranked_supertrait_decls() -> Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Super<'a> where {}"),
             term("trait Sub where for<'a> Self : Super<'a> {}"),
+            term("trait ValidationRoot where Self : Sub {}"),
             term("impl<T> Sub for T where for<'a> T : Super<'a> {}"),
         ])),
         ..Program::empty()
@@ -79,6 +96,7 @@ fn transitive_supertrait_decls() -> Program {
             term("trait Super where {}"),
             term("trait Mid where Self : Super {}"),
             term("trait Sub where Self : Mid {}"),
+            term("trait ValidationRoot where Self : Sub {}"),
         ])),
         ..Program::empty()
     }
@@ -89,6 +107,7 @@ fn implication_validation_decls() -> Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Super where {}"),
             term("trait Family where { type Item : [Super]; }"),
+            term("trait ValidationRoot where {}"),
         ])),
         ..Program::empty()
     }
@@ -169,6 +188,22 @@ fn validation_evidence_is_not_ordinary_evidence() {
 
     let ordinary_result = prove_after(decls(), Constraints::none(()), validated_sub, sub());
     assert!(!ordinary_result.is_proven());
+}
+
+#[test]
+fn validation_evidence_is_scoped_to_one_impl_trait() {
+    let source = Wc::validate(
+        ValidationContext::new(ValidationState::A, TraitId::new("SourceRoot")),
+        sub(),
+    );
+    let goal = Wc::validate(
+        ValidationContext::new(ValidationState::A, TraitId::new("GoalRoot")),
+        sub(),
+    );
+
+    let result = prove_after(decls(), Constraints::none(()), source, goal);
+
+    assert!(!result.is_proven());
 }
 
 #[test]
@@ -268,7 +303,7 @@ fn ordinary_evidence_can_discharge_stage_b_goal() {
 }
 
 #[test]
-fn stage_b_validation_evidence_elaborates_supertrait() {
+fn ranked_stage_b_validation_evidence_elaborates_supertrait() {
     let result = prove_after(
         decls(),
         Constraints::none(()),
@@ -288,7 +323,7 @@ fn stage_b_validation_preserves_stage_through_implication() {
 }
 
 #[test]
-fn stage_b_validation_evidence_elaborates_transitive_supertrait() {
+fn ranked_stage_b_validation_evidence_elaborates_transitive_supertrait() {
     let result = prove_after(
         transitive_supertrait_decls(),
         Constraints::none(()),
@@ -300,7 +335,7 @@ fn stage_b_validation_evidence_elaborates_transitive_supertrait() {
 }
 
 #[test]
-fn stage_b_validation_evidence_elaborates_higher_ranked_supertrait() {
+fn ranked_stage_b_validation_evidence_elaborates_higher_ranked_supertrait() {
     let result = prove_after(
         higher_ranked_supertrait_decls(),
         Constraints::none(()),
@@ -419,19 +454,19 @@ fn validation_preserves_predicate_congruence() {
 }
 
 #[test]
-fn validation_does_not_yet_elaborate_supertrait_through_implication() {
-    // FIXME(XXX) -- supertrait elaboration in implication
+fn ranked_validation_elaborates_supertrait_through_implication() {
     let implication = Wc::implies(sub(), term::<Wc>("Super(u32)"));
     let result = prove_after(decls(), Constraints::none(()), (), validated(implication));
 
-    assert!(!result.is_proven());
+    assert!(result.is_proven());
 }
 
 #[test]
 fn validation_implication_introduces_only_validation_antecedents() {
-    // Associated-type requirements deliberately have no validation-preserving elaboration rule.
-    // If this implication introduced `Family(u32)` ordinarily, that ordinary evidence would
-    // incorrectly validate its projected `Super` bound.
+    // The implication introduces `Family(u32)` only as evidence rooted at `ValidationRoot`.
+    // Neither `Family` nor `Super` is below that root, so ranked associated-bound elaboration
+    // cannot use it. If the antecedent leaked into the ordinary assumptions, unrestricted
+    // ordinary elaboration would incorrectly prove the projected `Super` bound.
     let implication: Wc = term("if { Family(u32) } Super(<u32 as Family>::Item)");
     let result = prove_after(
         implication_validation_decls(),
@@ -536,8 +571,9 @@ fn ordinary_trait_evidence_does_not_imply_outlives() {
 }
 
 #[test]
-fn validation_does_not_yet_elaborate_outlives_through_implication() {
-    // FIXME(XXX) -- supertrait elaboration in implication
+fn validation_without_rank_does_not_elaborate_outlives_through_implication() {
+    // `Lives` is not below `ValidationRoot`, so its provisional evidence cannot expose the
+    // declaration-side outlives requirement.
     let implication: Wc = term("for<'a, T> if {Lives(T, 'a)} T : 'a");
     let result = prove_after(
         outlives_decls(),
@@ -547,6 +583,19 @@ fn validation_does_not_yet_elaborate_outlives_through_implication() {
     );
 
     assert!(!result.is_proven());
+}
+
+#[test]
+fn ranked_validation_elaborates_outlives_through_implication() {
+    let implication: Wc = term("for<'a, T> if {Lives(T, 'a)} T : 'a");
+    let result = prove_after(
+        ranked_outlives_decls(),
+        Constraints::none(()),
+        (),
+        validated(implication),
+    );
+
+    assert!(result.is_proven());
 }
 
 #[test]

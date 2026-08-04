@@ -1,7 +1,9 @@
-use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Wcs};
+use crate::grammar::{
+    ExistentialVar, Parameter, TraitImpl, TraitRef, ValidationContext, ValidationState, Wc, Wcs,
+};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
-use crate::prove::prove::prove::{prove, prove_after};
-use crate::prove::prove::{requirements::validate_impl, Constrained, Constraints, Env};
+use crate::prove::prove::prove::{prove, prove_after, prove_impl_wf};
+use crate::prove::prove::{Constrained, Constraints, Env};
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
 
@@ -15,6 +17,17 @@ pub(crate) struct ImplApplication {
 }
 
 formality_core::cast_impl!(ImplApplication);
+
+/// The ordinary impl-application judgment can consume ordinary evidence only. A `Validate`
+/// assumption remains scoped to the enclosing impl-validation judgment, regardless of its A/B
+/// state; that judgment may still reconstruct an independent ordinary proof through its own impl
+/// rule.
+fn ordinary_assumptions(assumptions: &Wcs) -> Wcs {
+    assumptions
+        .iter()
+        .filter(|assumption| !matches!(assumption, Wc::Validate(_, _)))
+        .collect()
+}
 
 impl ImplApplication {
     fn new(candidate: &ImplCandidate, impl_variables: &[ExistentialVar]) -> Self {
@@ -60,6 +73,10 @@ judgment_fn! {
             // is a mismatch, not an invitation to search another declaration.
             (if candidate.trait_impl.trait_id() == &requested_trait_ref.trait_id)
 
+            // Impl well-formedness is a closed, inductive premise. Establish it before opening
+            // the binder or making the candidate available as a coinductive hypothesis.
+            (prove_impl_wf(decls, &candidate.trait_impl) => ())
+
             // Retain these fresh variables in the result. Codegen needs them
             // to recover the inferred impl-binder arguments before popping the
             // candidate's local proof scope.
@@ -68,37 +85,50 @@ judgment_fn! {
             (let trait_impl = candidate
                 .trait_impl
                 .binder
-                .instantiate_with(&impl_variables)
+                .instantiate_with(impl_variables)
                 .unwrap())
             (let impl_trait_ref = trait_impl.trait_ref())
             (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
 
+            // Logically, ordinary candidate application is parameterized by the ordinary part of
+            // the ambient assumptions. Provisional validation evidence cannot be an input to the
+            // dictionary constructor being selected.
+            (let ordinary_assumptions = ordinary_assumptions(assumptions))
+
             // Header matching may need to normalize a projection through the candidate being
             // selected, so make the requested trait ref available as a coinductive hypothesis
-            // while matching. This hypothesis is deliberately not passed to `validate_impl`:
-            // the branch still has to validate the candidate's structured requirements before
-            // it can succeed. Fuzzing should continue to check that every accepted application
-            // can recover all impl arguments and monomorphize successfully.
+            // while matching. This ordinary hypothesis is branch-local: no inferred substitution
+            // escapes until header equality and every residual obligation have succeeded, and the
+            // candidate's closed `ImplWF` premise has already been established. Fuzzing should
+            // continue to check that every accepted application can recover all impl arguments
+            // and monomorphize successfully.
             (prove(
                 decls,
                 env,
-                (assumptions, requested_trait_ref),
+                (&ordinary_assumptions, requested_trait_ref),
                 Wcs::all_eq(
                     &requested_trait_ref.parameters,
                     &impl_trait_ref.parameters,
                 ),
             ) => c)!
 
-            // Validate every structured trait requirement, instantiating
-            // associated-type requirements with this impl's concrete values.
-            (validate_impl(decls, c, assumptions, trait_impl) => c)
-
-            // The candidate's where-clauses are caller obligations. Once validation succeeds,
-            // prove them with the requested trait ref as a coinductive hypothesis.
+            // The candidate's where-clauses are caller obligations. Keep the requested trait ref
+            // as an explicit provisional hypothesis while proving them. An exact recursive
+            // condition can use that hypothesis, but deriving another requirement from the root
+            // trait must pass the `trait_less_than` checks in the validation judgment.
+            (let validation = ValidationContext::new(
+                ValidationState::A,
+                &trait_impl.trait_id,
+            ))
+            (let current_impl: Wc = Wc::validate(
+                validation,
+                requested_trait_ref,
+            ))
+            (let impl_where_clauses = impl_where_clauses.validated(validation))
             (prove_after(
                 decls,
                 c,
-                (assumptions, requested_trait_ref),
+                (ordinary_assumptions, current_impl),
                 impl_where_clauses,
             ) => c)
             (let application = ImplApplication::new(candidate, impl_variables))

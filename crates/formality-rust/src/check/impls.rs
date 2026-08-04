@@ -6,7 +6,7 @@ use crate::grammar::{
     NegTraitImplBoundData, Predicate, Relation, RigidName, Substitution, Trait, TraitBoundData,
     TraitImpl, TraitImplBoundData, TraitItem, TraitRef, Ty, Wcs,
 };
-use crate::prove::prove::{trait_input_wf_requirements, Env, Program, Safety};
+use crate::prove::prove::{prove_impl_wf, trait_input_wf_requirements, Env, Program, Safety};
 use crate::rust::Term;
 use formality_core::{judgment::ProofTree, judgment_fn, Downcasted};
 
@@ -36,8 +36,14 @@ judgment_fn! {
             (for_all(impl_item in impl_items)
                 (check_trait_impl_item(program, env, where_clauses, trait_ref, trait_items, impl_item, crate_id) => ()))
 
-            (check_unique_impl_method_names(impl_items) => ())
+            (check_unique_impl_item_names(impl_items) => ())
             (check_all_required_items_present(trait_items, impl_items) => ())
+
+            // Impl well-formedness is closed to caller assumptions. `prove_impl_wf` introduces
+            // the header locally at the validation stage appropriate to each requirement, but
+            // never as an ordinary trait assumption; the impl's where-clauses are likewise
+            // available only in validated form.
+            (prove_impl_wf(program, trait_impl) => ())
 
             ---- ("check_trait_impl")
             (check_trait_impl(program, trait_impl, crate_id) => ())
@@ -205,7 +211,7 @@ judgment_fn! {
     }
 }
 
-fn check_unique_impl_method_names(impl_items: &[ImplItem]) -> Fallible<ProofTree> {
+fn check_unique_impl_item_names(impl_items: &[ImplItem]) -> Fallible<ProofTree> {
     let methods: Vec<&Fn> = impl_items
         .iter()
         .filter_map(|item| match item {
@@ -221,7 +227,27 @@ fn check_unique_impl_method_names(impl_items: &[ImplItem]) -> Fallible<ProofTree
             bail!("multiple impl methods named `{:?}`", method.id);
         }
     }
-    Ok(ProofTree::leaf("check_unique_impl_method_names"))
+
+    let associated_types: Vec<&AssociatedTyValue> = impl_items
+        .iter()
+        .filter_map(|item| match item {
+            ImplItem::Fn(_) => None,
+            ImplItem::AssociatedTyValue(value) => Some(value),
+        })
+        .collect();
+    for (index, associated_type) in associated_types.iter().enumerate() {
+        if associated_types[..index]
+            .iter()
+            .any(|earlier| earlier.id == associated_type.id)
+        {
+            bail!(
+                "multiple impl associated types named `{:?}`",
+                associated_type.id
+            );
+        }
+    }
+
+    Ok(ProofTree::leaf("check_unique_impl_item_names"))
 }
 
 judgment_fn! {

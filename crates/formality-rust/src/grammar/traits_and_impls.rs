@@ -82,6 +82,20 @@ impl TraitImplBoundData {
     pub fn trait_ref(&self) -> TraitRef {
         self.trait_id.with(&self.self_ty, &self.trait_parameters)
     }
+
+    /// Returns the unique value declared for `id`.
+    ///
+    /// Duplicate values make the impl invalid, so do not select either one: projection
+    /// normalization must never observe a value that `ImplWF` did not check.
+    pub fn assoc_ty_value(&self, id: &AssociatedItemId) -> Option<&AssociatedTyValue> {
+        let mut matching_values = self.impl_items.iter().filter_map(|item| match item {
+            ImplItem::AssociatedTyValue(value) if value.id == *id => Some(value),
+            _ => None,
+        });
+
+        let value = matching_values.next()?;
+        matching_values.next().is_none().then_some(value)
+    }
 }
 
 #[term($?safety impl $binder)]
