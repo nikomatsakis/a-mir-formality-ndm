@@ -60,10 +60,8 @@ fn prove_substituted(
             term_in.size(),
             decls.max_size
         );
-        return ProvenSet::singleton((
-            Constraints::none(env).ambiguous(),
-            ProofTree::leaf("max term size exceeded"),
-        ));
+        let constraints = min.reconstitute(Constraints::none(env).ambiguous());
+        return ProvenSet::singleton((constraints, ProofTree::leaf("max term size exceeded")));
     }
 
     // Assert the term we are trying to prove should not have any variables that are not in the environment.
