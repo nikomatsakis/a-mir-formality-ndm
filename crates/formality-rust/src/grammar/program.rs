@@ -71,6 +71,7 @@ impl Crates {
                 CrateItem::AdtItem(AdtItem::Struct(s)) if s.id == *adt_id => Some(s),
 
                 CrateItem::AdtItem(_)
+                | CrateItem::FormalityConfig(_)
                 | CrateItem::FeatureGate(_)
                 | CrateItem::Trait(_)
                 | CrateItem::TraitImpl(_)
@@ -96,6 +97,7 @@ impl Crates {
                 CrateItem::AdtItem(a) if a.name() == adt_id => Some(a),
 
                 CrateItem::AdtItem(_)
+                | CrateItem::FormalityConfig(_)
                 | CrateItem::FeatureGate(_)
                 | CrateItem::Trait(_)
                 | CrateItem::TraitImpl(_)

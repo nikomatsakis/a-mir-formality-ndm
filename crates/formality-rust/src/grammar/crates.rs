@@ -2,7 +2,7 @@ use crate::grammar::{Adt, AdtId, Binder, CrateId};
 use crate::grammar::{Enum, Fn, NegTraitImpl, Struct, Trait, TraitImpl, WhereClause};
 use formality_core::term;
 
-use crate::grammar::feature::FeatureGate;
+use crate::grammar::feature::{FeatureGate, FormalityConfig};
 
 #[term(crate $id { $*items })]
 pub struct Crate {
@@ -12,6 +12,8 @@ pub struct Crate {
 
 #[term]
 pub enum CrateItem {
+    #[cast]
+    FormalityConfig(FormalityConfig),
     #[cast]
     FeatureGate(FeatureGate),
     #[cast]

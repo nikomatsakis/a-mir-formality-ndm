@@ -6,9 +6,20 @@ use std::sync::Arc;
 
 impl Crates {
     pub fn to_prove_decls(&self) -> prove::Program {
+        let max_size = self
+            .crates
+            .last()
+            .and_then(|krate| {
+                krate.items.iter().find_map(|item| match item {
+                    crate::grammar::CrateItem::FormalityConfig(config) => Some(config.max_size),
+                    _ => None,
+                })
+            })
+            .unwrap_or(prove::Program::DEFAULT_MAX_SIZE);
+
         prove::Program {
             crates: Arc::new(self.clone()),
-            max_size: prove::Program::DEFAULT_MAX_SIZE,
+            max_size,
         }
     }
 }

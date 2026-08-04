@@ -44,6 +44,7 @@ pub fn lower_crate(
 
     for item in &krate.items {
         match item {
+            CrateItem::FormalityConfig(_) => {}
             CrateItem::FeatureGate(gate) => attrs.push(feature_gate::lower_feature_gate(gate)?),
             CrateItem::AdtItem(AdtItem::Struct(strukt)) => {
                 items.push(syntax::Item::Struct(structs_enums_and_adts::lower_struct(
