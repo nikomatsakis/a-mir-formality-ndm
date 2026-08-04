@@ -16,7 +16,7 @@ fn test_forall_not_local() {
 
         the rule "local trait" at (is_local.rs) failed because
           condition evaluated to false: `decls.is_local_trait_id(&goal.trait_id)`
-            decls = program([], 222)
+            decls = program([], 100)
             &goal.trait_id = Debug"#]]);
 }
 

@@ -122,6 +122,7 @@ fn check_for_duplicate_items(program: &Program) -> Fallible<ProofTree> {
                         bail!("the feature `{:?}` is declared multiple times", fg)
                     }
                 }
+                CrateItem::FormalityConfig(_) => {}
                 CrateItem::Test(_) => {}
             }
         }
@@ -157,7 +158,9 @@ fn item_has_non_lifetime_binder(item: &CrateItem) -> bool {
         CrateItem::TraitImpl(t) => &t.binder.peek().where_clauses,
         CrateItem::NegTraitImpl(nt) => &nt.binder.peek().where_clauses,
         CrateItem::Fn(f) => &f.binder.peek().where_clauses,
-        CrateItem::FeatureGate(_) | CrateItem::Test(_) => return false,
+        CrateItem::FormalityConfig(_) | CrateItem::FeatureGate(_) | CrateItem::Test(_) => {
+            return false
+        }
     };
 
     where_clauses.iter().any(|wc| wc.has_non_lifetime_binder())
@@ -211,6 +214,11 @@ judgment_fn! {
         (
             ------------------------------------------------------------ ("feature gate")
             (check_crate_item(program, CrateItem::FeatureGate(_feature_gate), crate_id) => ())
+        )
+
+        (
+            ------------------------------------------------------------ ("formality config")
+            (check_crate_item(program, CrateItem::FormalityConfig(_config), crate_id) => ())
         )
     }
 }

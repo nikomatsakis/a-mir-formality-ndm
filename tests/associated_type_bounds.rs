@@ -4,6 +4,8 @@ use formality_core::test;
 #[test]
 fn associated_type_bound_is_implied_by_trait_assumption() {
     FormalityTest::new(crates![crate test {
+        #![formality(max_size = 222)]
+
         trait Ord {}
 
         trait Foo {
@@ -529,6 +531,8 @@ fn impl_header_rigid_type_matches_normalized_goal_projection() {
     // type `Set<X>` from the impl header with an associated-type projection from the goal. The
     // projection has to normalize to expose the matching `Set` constructor.
     FormalityTest::new(crates![crate test {
+        #![formality(max_size = 222)]
+
         trait Iterator {
             type Item : [];
         }
@@ -560,6 +564,8 @@ fn impl_header_normalization_may_infer_binder_from_candidate_cycle() {
     // goal whose candidate header is being matched, so the inferred binder value escapes from a
     // guarded evidence cycle.
     FormalityTest::new(crates![crate test {
+        #![formality(max_size = 222)]
+
         trait Iterator {
             type Item : [];
         }

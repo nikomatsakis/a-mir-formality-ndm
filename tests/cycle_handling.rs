@@ -121,6 +121,8 @@ fn impl_condition_may_project_from_the_dictionary_being_constructed() {
     // therefore occurs in the type of one of its own inputs rather than behind a constructed
     // output field.
     FormalityTest::new(crates![crate test {
+        #![formality(max_size = 222)]
+
         trait Bound {}
 
         trait Foo {
@@ -467,6 +469,8 @@ fn associated_type_ensures_cycle_never_produces_unmonomorphizable_evidence() {
 #[test]
 fn associated_type_supertrait_cycle_never_produces_unmonomorphizable_evidence() {
     assert_monomorphizes_if_accepted(crates![crate test {
+        #![formality(max_size = 32)]
+
         trait Target {
             fn probe() -> ();
         }

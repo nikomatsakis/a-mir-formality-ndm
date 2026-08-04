@@ -16,7 +16,7 @@ pub struct Program {
 
 impl Program {
     /// Max size used in unit tests that are not stress testing maximum size.
-    pub const DEFAULT_MAX_SIZE: usize = 222;
+    pub const DEFAULT_MAX_SIZE: usize = 100;
 
     pub fn program(&self) -> &Crates {
         &self.crates
