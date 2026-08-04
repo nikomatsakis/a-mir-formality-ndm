@@ -64,6 +64,12 @@ use crate::Map;
 
 use super::{insert_smallest_proof, memo, ProofTree};
 
+// Generated judgment rules can have large stack frames in debug builds. Leave enough space for
+// one complete rule evaluation before the next recursive judgment reaches another growth point,
+// and use a large segment so deeply nested proof search does not switch stacks repeatedly.
+const JUDGMENT_STACK_RED_ZONE: usize = 1024 * 1024;
+const JUDGMENT_STACK_SIZE: usize = 32 * 1024 * 1024;
+
 /// The current proven values and smallest known proof for each value.
 type ProofMap<Output> = Map<Output, ProofTree>;
 
@@ -116,7 +122,7 @@ where
     // Recursive judgment chains can exceed the native stack even when they are
     // converging normally. Move this evaluation to a larger stack segment when
     // the remaining stack drops below `stacker`'s requested red zone.
-    stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
+    stacker::maybe_grow(JUDGMENT_STACK_RED_ZONE, JUDGMENT_STACK_SIZE, || {
         // Recursive cycle: this exact judgment input is already being evaluated.
         // Return its current approximation to break the cycle. `search` also marks
         // the active entry as having a dependent, so newly proven values will make
