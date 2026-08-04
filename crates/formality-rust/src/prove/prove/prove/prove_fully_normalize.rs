@@ -1,5 +1,5 @@
 use crate::grammar::{Const, ConstData, Lt, Parameter, RigidConstData, RigidTy, Ty, TyData, Wcs};
-use crate::prove::prove::prove_normalize_after_validation;
+use crate::prove::prove::prove_normalize;
 use crate::prove::prove::{Constrained, Constraints, Env, Program};
 use formality_core::{judgment_fn, Downcast, Upcast};
 
@@ -25,7 +25,7 @@ judgment_fn! {
         )
 
         (
-            (prove_normalize_after_validation(
+            (prove_normalize(
                 decls,
                 env,
                 assumptions,

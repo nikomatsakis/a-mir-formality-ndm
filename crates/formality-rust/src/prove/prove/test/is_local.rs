@@ -12,7 +12,7 @@ fn test_forall_not_local() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_now { p: !ty_1, assumptions: {}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:18:1: no applicable rules for prove_normalize { p: !ty_1, assumptions: {}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
         the rule "local trait" at (is_local.rs) failed because
           condition evaluated to false: `decls.is_local_trait_id(&goal.trait_id)`

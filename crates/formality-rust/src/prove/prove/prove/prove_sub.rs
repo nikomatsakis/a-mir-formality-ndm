@@ -5,7 +5,7 @@ use formality_core::{judgment_fn, Downcast};
 use crate::prove::prove::prove::prove_outlives::prove_outlives;
 use crate::prove::prove::{
     decls::Program,
-    prove::{prove_after::prove_after, prove_normalize::prove_normalize_after_validation},
+    prove::{prove_after::prove_after, prove_normalize::prove_normalize},
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -25,7 +25,7 @@ judgment_fn! {
         trivial(a == b => Constraints::none(env))
 
         (
-            (prove_normalize_after_validation(
+            (prove_normalize(
                 decls,
                 env,
                 assumptions,
@@ -38,14 +38,14 @@ judgment_fn! {
 
         (
             (if let None = x.downcast::<AliasTy>())!
-            (prove_normalize_after_validation(decls, env, assumptions, x) => Constrained(y, c))
+            (prove_normalize(decls, env, assumptions, x) => Constrained(y, c))
             (prove_after(decls, c, assumptions, Relation::sub(y, z)) => c)
             ----------------------------- ("normalize non-alias left now")
             (prove_sub(decls, env, assumptions, x, z) => c)
         )
 
         (
-            (prove_normalize_after_validation(
+            (prove_normalize(
                 decls,
                 env,
                 assumptions,
@@ -58,7 +58,7 @@ judgment_fn! {
 
         (
             (if let None = y.downcast::<AliasTy>())!
-            (prove_normalize_after_validation(decls, env, assumptions, y) => Constrained(z, c))
+            (prove_normalize(decls, env, assumptions, y) => Constrained(z, c))
             (prove_after(decls, c, assumptions, Relation::sub(x, &z)) => c)
             ----------------------------- ("normalize non-alias right now")
             (prove_sub(decls, env, assumptions, x, y) => c)
@@ -114,20 +114,26 @@ mod test {
     }
 
     #[test]
-    fn subtyping_alias_enters_post_validation_context() {
-        let result = prove_sub(
-            normalization_decls(),
+    fn subtyping_alias_uses_only_explicit_assumptions() {
+        let program = normalization_decls();
+        let alias = term::<Parameter>("<u32 as Family>::Output");
+        let target = term::<Parameter>("bool");
+
+        let from_validation = prove_sub(
+            &program,
             (),
             Wc::validate(ValidationState::A, term::<Wc>("Marker(u32)")),
-            term::<Parameter>("<u32 as Family>::Output"),
-            term::<Parameter>("bool"),
+            &alias,
+            &target,
         );
+        assert!(!from_validation.is_proven());
 
-        assert!(result.is_proven());
+        let from_ordinary = prove_sub(program, (), term::<Wc>("Marker(u32)"), alias, target);
+        assert!(from_ordinary.is_proven());
     }
 
     #[test]
-    fn subtyping_after_alias_normalization_does_not_promote_validation_assumptions() {
+    fn subtyping_continuation_uses_only_explicit_assumptions() {
         let result = prove_sub(
             continuation_decls(),
             (),
@@ -136,9 +142,9 @@ mod test {
             term::<Parameter>("bool"),
         );
 
-        // Normalizing the alias yields `u32`, but the remaining `u32 <: bool` goal is proved in
-        // the caller's validation context. The stage-A equality therefore remains wrapped and
-        // cannot discharge the ordinary subtyping goal.
+        // Normalizing the alias yields `u32`, but the remaining `u32 <: bool` goal receives the
+        // caller's assumptions unchanged. The wrapped equality therefore cannot discharge the
+        // ordinary subtyping goal.
         assert!(!result.is_proven());
     }
 }

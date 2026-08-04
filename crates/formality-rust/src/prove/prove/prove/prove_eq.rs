@@ -10,9 +10,7 @@ use formality_core::{judgment_fn, Downcast, ProvenSet, Upcast};
 
 use crate::prove::prove::{
     decls::Program,
-    prove::{
-        constraints::occurs_in, prove_after::prove_after, prove_normalize::prove_normalize_now,
-    },
+    prove::{constraints::occurs_in, prove_after::prove_after, prove_normalize::prove_normalize},
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -69,7 +67,7 @@ judgment_fn! {
         // Equality is phase-preserving, including when it has to normalize an alias. Callers
         // choose explicitly which assumptions are available to the equality proof.
         (
-            (prove_normalize_now(
+            (prove_normalize(
                 decls,
                 env,
                 assumptions,
@@ -84,7 +82,7 @@ judgment_fn! {
         // universal variable `T` while proving another equality.
         (
             (if let None = x.downcast::<AliasTy>())!
-            (prove_normalize_now(decls, env, assumptions, x) => Constrained(y, c))
+            (prove_normalize(decls, env, assumptions, x) => Constrained(y, c))
             (prove_after(decls, c, assumptions, eq(y, z)) => c)
             ----------------------------- ("normalize non-alias")
             (prove_eq(decls, env, assumptions, x, z) => c)

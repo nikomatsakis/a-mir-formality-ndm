@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::grammar::{
-    AliasTy, Binder, Const, Parameter, Predicate, Relation, Ty, ValidationState, Wc, Wcs,
+    AliasTy, Const, Parameter, Predicate, Relation, Ty, ValidationState, Wc, Wcs,
 };
 use crate::prove::prove::{
     decls::Program,
@@ -11,7 +11,7 @@ use crate::rust::term;
 use formality_core::{Downcast, Upcast};
 use formality_macros::test;
 
-use crate::prove::prove::prove::{prove_after, prove_normalize::prove_normalize_after_validation};
+use crate::prove::prove::prove::{prove_after, prove_normalize::prove_normalize};
 
 fn decls() -> Program {
     Program {
@@ -112,15 +112,16 @@ fn associated_requirement_decls() -> Program {
 }
 
 #[test]
-fn normalizing_alias_enters_post_validation_context() {
-    let result = prove_normalize_after_validation(
-        normalization_decls(),
-        (),
-        validated(term::<Wc>("Marker(u32)")),
-        term::<Parameter>("<u32 as Family>::Output"),
-    );
+fn normalizing_alias_uses_only_explicit_assumptions() {
+    let program = normalization_decls();
+    let alias = term::<Parameter>("<u32 as Family>::Output");
 
-    assert!(result.is_proven());
+    let from_validation =
+        prove_normalize(&program, (), validated(term::<Wc>("Marker(u32)")), &alias);
+    assert!(!from_validation.is_proven());
+
+    let from_ordinary = prove_normalize(&program, (), term::<Wc>("Marker(u32)"), alias);
+    assert!(from_ordinary.is_proven());
 }
 
 #[test]
@@ -143,8 +144,8 @@ fn equality_with_alias_stays_in_current_validation_context() {
 }
 
 #[test]
-fn normalizing_non_alias_does_not_enter_post_validation_context() {
-    let result = prove_normalize_after_validation(
+fn normalizing_non_alias_uses_only_explicit_assumptions() {
+    let result = prove_normalize(
         Program::empty(),
         (),
         validated(term::<Wc>("u32 = bool")),
@@ -490,42 +491,6 @@ fn validation_preserves_mode_through_well_formedness() {
 
     let ordinary_result = prove_after(decls(), Constraints::none(()), validated_sub, wf);
     assert!(!ordinary_result.is_proven());
-}
-
-#[test]
-fn validation_promotion_removes_exactly_one_layer() {
-    let assumptions: Wcs = validated(validated_b(sub())).upcast();
-    let expected: Wcs = validated_b(sub()).upcast();
-
-    assert_eq!(assumptions.promote_validation(), expected);
-}
-
-#[test]
-fn validation_promotion_discards_either_stage() {
-    for assumption in [validated(sub()), validated_b(sub())] {
-        let assumptions: Wcs = assumption.upcast();
-        let expected: Wcs = sub().upcast();
-
-        assert_eq!(assumptions.promote_validation(), expected);
-    }
-}
-
-#[test]
-fn validation_promotion_is_shallow_for_compound_assumptions() {
-    let forall: Wc = term("for<T> Sub(T)");
-    let implication: Wc = term("if { Sub(u32) } Super(u32)");
-    let assumptions: Wcs = (validated(&forall), validated(&implication)).upcast();
-    let expected: Wcs = (forall, implication).upcast();
-    assert_eq!(assumptions.promote_validation(), expected);
-
-    let Wc::ForAll(binder) = term::<Wc>("for<T> Sub(T)") else {
-        unreachable!()
-    };
-    let (variables, body) = binder.open();
-    let ordinary_forall_with_inner_validation =
-        Wc::for_all(Binder::new(variables, validated(body)));
-    let assumptions: Wcs = (&ordinary_forall_with_inner_validation).upcast();
-    assert_eq!(assumptions.promote_validation(), assumptions);
 }
 
 #[test]

@@ -60,20 +60,6 @@ impl Wcs {
         let state: ValidationState = state.upcast();
         self.iter().map(|wc| Wc::validate(&state, wc)).collect()
     }
-
-    /// Enter the post-validation phase by removing one outer `Validate` layer from each
-    /// assumption.
-    ///
-    /// This transformation is intentionally shallow. In particular,
-    /// `Validate(A, Validate(B, P))` becomes `Validate(B, P)`, not `P`.
-    pub fn promote_validation(&self) -> Self {
-        self.iter()
-            .map(|wc| match wc {
-                Wc::Validate(_, inner) => inner.upcast(),
-                wc => wc,
-            })
-            .collect()
-    }
 }
 
 impl<'w> IntoIterator for &'w Wcs {
