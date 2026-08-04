@@ -481,6 +481,7 @@ judgment_fn! {
         debug(constraints, assumptions, trait_impl, requirement)
 
         (
+            (let assumptions = (assumptions, Wc::validate(ValidationState::A, trait_impl.trait_ref())))
             (let goal = Wc::for_all(supertrait))
             (let goal = Wc::validate(ValidationState::A, goal))
             (prove_after(decls, c, assumptions, goal) => c)
@@ -495,6 +496,7 @@ judgment_fn! {
         )
 
         (
+            (let assumptions = (assumptions, Wc::validate(ValidationState::A, trait_impl.trait_ref())))
             (let goal = Wc::for_all(outlives))
             (let goal = Wc::validate(ValidationState::A, goal))
             (prove_after(decls, c, assumptions, goal) => c)
@@ -509,6 +511,7 @@ judgment_fn! {
         )
 
         (
+            (let assumptions = (assumptions, Wc::validate(ValidationState::B, trait_impl.trait_ref())))
             (let goals =
                 associated_ty_validation_goals(decls, trait_impl, associated)?)
             (prove_after(decls, c, assumptions, goals) => c)

@@ -66,8 +66,8 @@ judgment_fn! {
             (prove_eq(decls, env, assumptions, Variable::ExistentialVar(v), r) => c)
         )
 
-        // Equality is phase-preserving, including when it has to normalize an alias. Callers that
-        // intentionally want equality after validation must make that transition explicitly.
+        // Equality is phase-preserving, including when it has to normalize an alias. Callers
+        // choose explicitly which assumptions are available to the equality proof.
         (
             (prove_normalize_now(
                 decls,

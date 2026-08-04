@@ -4,7 +4,7 @@ use crate::prove::prove::{
     prove,
     requirements::{trait_requirement, TraitRequirement, TraitRequirementBoundData},
 };
-use formality_core::{judgment_fn, Downcast};
+use formality_core::judgment_fn;
 
 use super::{
     constraints::Constraints, env::Env, prove_after::prove_after,
@@ -99,8 +99,7 @@ judgment_fn! {
         )
 
         (
-            (if let None = validate_goal.downcast::<TraitRef>())!
-            (prove_wc(decls, env, assumptions, WcData::predicate(validate_goal)) => c)
+            (prove_wc(decls, env, assumptions, validate_goal) => c)
             --- ("atomic predicate")
             (prove_validate(
                 decls,
@@ -112,7 +111,7 @@ judgment_fn! {
         )
 
         (
-            (prove_wc(decls, env, assumptions, WcData::relation(validate_goal)) => c)
+            (prove_wc(decls, env, assumptions, validate_goal) => c)
             --- ("atomic relation")
             (prove_validate(
                 decls,

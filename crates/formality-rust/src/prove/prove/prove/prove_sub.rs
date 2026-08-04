@@ -5,10 +5,7 @@ use formality_core::{judgment_fn, Downcast};
 use crate::prove::prove::prove::prove_outlives::prove_outlives;
 use crate::prove::prove::{
     decls::Program,
-    prove::{
-        prove_after::prove_after, prove_after_validation::prove_after_validation,
-        prove_normalize::prove_normalize_after_validation,
-    },
+    prove::{prove_after::prove_after, prove_normalize::prove_normalize_after_validation},
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -34,8 +31,8 @@ judgment_fn! {
                 assumptions,
                 TyData::alias_ty(alias),
             ) => Constrained(y, c))
-            (prove_after_validation(decls, c, assumptions, Relation::sub(y, z)) => c)
-            ----------------------------- ("normalize alias left after validation")
+            (prove_after(decls, c, assumptions, Relation::sub(y, z)) => c)
+            ----------------------------- ("normalize alias left")
             (prove_sub(decls, env, assumptions, TyData::AliasTy(alias), z) => c)
         )
 
@@ -54,8 +51,8 @@ judgment_fn! {
                 assumptions,
                 TyData::alias_ty(alias),
             ) => Constrained(z, c))
-            (prove_after_validation(decls, c, assumptions, Relation::sub(x, &z)) => c)
-            ----------------------------- ("normalize alias right after validation")
+            (prove_after(decls, c, assumptions, Relation::sub(x, &z)) => c)
+            ----------------------------- ("normalize alias right")
             (prove_sub(decls, env, assumptions, x, TyData::AliasTy(alias)) => c)
         )
 
@@ -130,7 +127,7 @@ mod test {
     }
 
     #[test]
-    fn subtyping_after_alias_normalization_stays_post_validation() {
+    fn subtyping_after_alias_normalization_does_not_promote_validation_assumptions() {
         let result = prove_sub(
             continuation_decls(),
             (),
@@ -139,6 +136,9 @@ mod test {
             term::<Parameter>("bool"),
         );
 
-        assert!(result.is_proven());
+        // Normalizing the alias yields `u32`, but the remaining `u32 <: bool` goal is proved in
+        // the caller's validation context. The stage-A equality therefore remains wrapped and
+        // cannot discharge the ordinary subtyping goal.
+        assert!(!result.is_proven());
     }
 }

@@ -11,9 +11,7 @@ use crate::rust::term;
 use formality_core::{Downcast, Upcast};
 use formality_macros::test;
 
-use crate::prove::prove::prove::{
-    prove_after, prove_after_validation, prove_normalize::prove_normalize_after_validation,
-};
+use crate::prove::prove::prove::{prove_after, prove_normalize::prove_normalize_after_validation};
 
 fn decls() -> Program {
     Program {
@@ -111,17 +109,6 @@ fn associated_requirement_decls() -> Program {
         ])),
         ..Program::empty()
     }
-}
-
-#[test]
-fn post_validation_promotes_and_elaborates_validation_assumptions() {
-    let result = prove_after_validation(
-        decls(),
-        Constraints::none(()),
-        validated(sub()),
-        term::<Wc>("Super(u32)"),
-    );
-    assert!(result.is_proven(), "{result}");
 }
 
 #[test]
@@ -262,14 +249,6 @@ fn stage_b_impl_inherits_only_completed_evidence() {
         validated_b(term::<Wc>("Marker(u32)")),
     );
     assert!(from_ordinary.is_proven());
-
-    let from_stage_b = prove_after(
-        &program,
-        Constraints::none(()),
-        validated_b(term::<Wc>("Prerequisite(u32)")),
-        validated_b(term::<Wc>("Marker(u32)")),
-    );
-    assert!(from_stage_b.is_proven());
 
     let from_stage_a = prove_after(
         program,
@@ -547,17 +526,6 @@ fn validation_promotion_is_shallow_for_compound_assumptions() {
         Wc::for_all(Binder::new(variables, validated(body)));
     let assumptions: Wcs = (&ordinary_forall_with_inner_validation).upcast();
     assert_eq!(assumptions.promote_validation(), assumptions);
-}
-
-#[test]
-fn post_validation_promotion_does_not_escape_its_proof() {
-    let assumptions: Wcs = validated(sub()).upcast();
-    let post_validation =
-        prove_after_validation(decls(), Constraints::none(()), &assumptions, sub());
-    assert!(post_validation.is_proven());
-
-    let ordinary = prove_after(decls(), Constraints::none(()), assumptions, sub());
-    assert!(!ordinary.is_proven());
 }
 
 #[test]

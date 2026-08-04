@@ -1,11 +1,7 @@
-use crate::grammar::{
-    ExistentialVar, Parameter, Predicate, TraitImpl, TraitRef, ValidationState, Wc, Wcs,
-};
+use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
-use crate::prove::prove::{
-    prove::prove_after_validation::prove_after_validation, requirements::validate_impl,
-    Constrained, Constraints, Env,
-};
+use crate::prove::prove::prove::{prove, prove_after};
+use crate::prove::prove::{requirements::validate_impl, Constrained, Constraints, Env};
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
 
@@ -77,41 +73,32 @@ judgment_fn! {
             (let impl_trait_ref = trait_impl.trait_ref())
             (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
 
-            // Header matching is itself part of validation. Record this
-            // candidate before matching, then deliberately prove the header
-            // equality after validation so normalization can use the promised
-            // impl. This is a subtle boundary: it permits normalization through
-            // a cycle to infer impl-binder arguments. It appears sound because
-            // this branch records a concrete impl id and succeeds only after
-            // all of that impl's header equalities and obligations hold, but
-            // fuzzing should continue to check that every accepted application
+            // Header matching may need to normalize a projection through the candidate being
+            // selected, so make the requested trait ref available as a coinductive hypothesis
+            // while matching. This hypothesis is deliberately not passed to `validate_impl`:
+            // the branch still has to validate the candidate's structured requirements before
+            // it can succeed. Fuzzing should continue to check that every accepted application
             // can recover all impl arguments and monomorphize successfully.
-            (let current_impl: Wc =
-                Predicate::is_implemented(requested_trait_ref).upcast())
-            (let validation_assumption =
-                Wc::validate(ValidationState::A, current_impl))
-            (let assumptions = (assumptions, validation_assumption))
-            (let header_goals = Wcs::all_eq(
-                &requested_trait_ref.parameters,
-                &impl_trait_ref.parameters,
-            ).validated(ValidationState::A))
-            (prove_after_validation(
+            (prove(
                 decls,
                 env,
-                assumptions,
-                header_goals,
+                (assumptions, requested_trait_ref),
+                Wcs::all_eq(
+                    &requested_trait_ref.parameters,
+                    &impl_trait_ref.parameters,
+                ),
             ) => c)!
 
             // Validate every structured trait requirement, instantiating
             // associated-type requirements with this impl's concrete values.
             (validate_impl(decls, c, assumptions, trait_impl) => c)
 
-            // The candidate's where-clauses are caller obligations. Prove
-            // them after validation, when `Validate(I)` becomes ordinary `I`.
-            (prove_after_validation(
+            // The candidate's where-clauses are caller obligations. Once validation succeeds,
+            // prove them with the requested trait ref as a coinductive hypothesis.
+            (prove_after(
                 decls,
                 c,
-                assumptions,
+                (assumptions, requested_trait_ref),
                 impl_where_clauses,
             ) => c)
             (let application = ImplApplication::new(candidate, impl_variables))

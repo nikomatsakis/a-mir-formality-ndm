@@ -1,6 +1,6 @@
-use crate::grammar::{Predicate, Relation, TraitRef, ValidationState, Wc, WcData, Wcs};
+use crate::grammar::{Predicate, Relation, Wc, WcData, Wcs};
 use crate::prove::ToWcs;
-use formality_core::{judgment_fn, Downcast};
+use formality_core::judgment_fn;
 
 use crate::prove::prove::{
     decls::Program,
@@ -45,30 +45,6 @@ fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, 
     };
 
     has_unconditional_validation_supertrait_assumption(decls, assumptions, goal)
-}
-
-fn positive_impl_trait_ref(goal: &Wc) -> Option<TraitRef> {
-    match goal {
-        Wc::Validate(_, goal) => goal.as_ref().downcast(),
-        goal => goal.downcast(),
-    }
-}
-
-fn positive_impl_assumptions(assumptions: &Wcs, goal: &Wc) -> Wcs {
-    if matches!(goal, Wc::Validate(ValidationState::B, _)) {
-        // A stage-B impl may rely only on completed evidence from its caller: ordinary evidence
-        // or other stage-B evidence. Inheriting any provisional stage-A evidence could let the
-        // candidate use requirements of an enclosing impl whose validation has not completed.
-        //
-        // `prove_via_impl` will still add this candidate's own stage-A assumption and promote it
-        // after validation, preserving coinductive impl application for residual where-clauses.
-        assumptions
-            .iter()
-            .filter(|assumption| !matches!(assumption, Wc::Validate(ValidationState::A, _)))
-            .collect()
-    } else {
-        assumptions.clone()
-    }
 }
 
 fn is_ordinary_assumption_goal(goal: &Wc) -> bool {
@@ -154,21 +130,20 @@ judgment_fn! {
             (prove_wc(decls, env, assumptions, goal) => c)
         )
 
-        // Prove an ordinary trait goal, or a validation goal, with a concrete impl.
+        // Prove an ordinary trait goal with a concrete impl. Validation goals enter the ordinary
+        // solver through `prove_validate`'s `verify_x(G) :- G` rule.
         (
-            (if let Some(trait_ref) = positive_impl_trait_ref(goal))
-            (let impl_assumptions = positive_impl_assumptions(assumptions, goal))
             (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
             (prove_via_impl(
                 decls,
                 env,
-                impl_assumptions,
+                assumptions,
                 trait_ref,
                 candidate,
             ) => Constrained(application, c))
             (let c = application.proof_constraints(c))
             ----------------------------- ("positive impl")
-            (prove_wc(decls, env, assumptions, goal) => c)
+            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
         )
 
         (
@@ -277,7 +252,7 @@ judgment_fn! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grammar::Crates;
+    use crate::grammar::{Crates, ValidationState};
     use crate::rust::term;
 
     fn supertrait_program() -> Program {
