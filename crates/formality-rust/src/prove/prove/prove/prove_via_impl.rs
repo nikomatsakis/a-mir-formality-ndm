@@ -2,10 +2,12 @@ use crate::grammar::{
     ExistentialVar, Parameter, TraitImpl, TraitRef, ValidationContext, ValidationState, Wc, Wcs,
 };
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
-use crate::prove::prove::prove::{prove, prove_after, prove_impl_wf};
+use crate::prove::prove::prove::{match_impl_candidate, prove_after};
 use crate::prove::prove::{Constrained, Constraints, Env};
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
+
+use super::prove_match_impl::{ordinary_assumptions, ImplMatchMode};
 
 /// A successful application of one particular impl declaration.
 /// It retains the source impl identity and its inferred binder variables.
@@ -17,17 +19,6 @@ pub(crate) struct ImplApplication {
 }
 
 formality_core::cast_impl!(ImplApplication);
-
-/// The ordinary impl-application judgment can consume ordinary evidence only. A `Validate`
-/// assumption remains scoped to the enclosing impl-validation judgment, regardless of its A/B
-/// state; that judgment may still reconstruct an independent ordinary proof through its own impl
-/// rule.
-fn ordinary_assumptions(assumptions: &Wcs) -> Wcs {
-    assumptions
-        .iter()
-        .filter(|assumption| !matches!(assumption, Wc::Validate(_, _)))
-        .collect()
-}
 
 impl ImplApplication {
     fn new(candidate: &ImplCandidate, impl_variables: &[ExistentialVar]) -> Self {
@@ -69,27 +60,6 @@ judgment_fn! {
         debug(_requested_trait_ref, _candidate, _assumptions, _env)
 
         (
-            // The caller supplies exactly one candidate. A different trait id
-            // is a mismatch, not an invitation to search another declaration.
-            (if candidate.trait_impl.trait_id() == &requested_trait_ref.trait_id)
-
-            // Impl well-formedness is a closed, inductive premise. Establish it before opening
-            // the binder or making the candidate available as a coinductive hypothesis.
-            (prove_impl_wf(decls, &candidate.trait_impl) => ())
-
-            // Retain these fresh variables in the result. Codegen needs them
-            // to recover the inferred impl-binder arguments before popping the
-            // candidate's local proof scope.
-            (let (env, impl_variables) =
-                env.existential_substitution(&candidate.trait_impl.binder))
-            (let trait_impl = candidate
-                .trait_impl
-                .binder
-                .instantiate_with(impl_variables)
-                .unwrap())
-            (let impl_trait_ref = trait_impl.trait_ref())
-            (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
-
             // Logically, ordinary candidate application is parameterized by the ordinary part of
             // the ambient assumptions. Provisional validation evidence cannot be an input to the
             // dictionary constructor being selected.
@@ -102,15 +72,16 @@ judgment_fn! {
             // candidate's closed `ImplWF` premise has already been established. Fuzzing should
             // continue to check that every accepted application can recover all impl arguments
             // and monomorphize successfully.
-            (prove(
+            (match_impl_candidate(
                 decls,
                 env,
                 (&ordinary_assumptions, requested_trait_ref),
-                Wcs::all_eq(
-                    &requested_trait_ref.parameters,
-                    &impl_trait_ref.parameters,
-                ),
-            ) => c)!
+                requested_trait_ref,
+                candidate,
+                ImplMatchMode::Ordinary,
+            ) => Constrained(matched, c))!
+            (let trait_impl = matched.trait_impl(c))
+            (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
 
             // The candidate's where-clauses are caller obligations. Keep the requested trait ref
             // as an explicit provisional hypothesis while proving them. An exact recursive
@@ -131,7 +102,10 @@ judgment_fn! {
                 (ordinary_assumptions, current_impl),
                 impl_where_clauses,
             ) => c)
-            (let application = ImplApplication::new(candidate, impl_variables))
+            (let application = ImplApplication::new(
+                candidate,
+                &matched.impl_variables,
+            ))
             ---------------------------------------------------- ("candidate")
             (prove_via_impl(
                 decls,

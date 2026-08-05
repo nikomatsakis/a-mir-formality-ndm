@@ -1,10 +1,9 @@
 use crate::grammar::{
-    AdtId, AliasName, AliasTy, AssociatedTy, AssociatedTyValue, AssociatedTyValueBoundData, Binder,
-    Crate, CrateId, CrateItem, Crates, Fallible, ImplItem, NegTraitImpl, Predicate, Trait, TraitId,
-    TraitImpl, TraitImplBoundData, TraitRef, Ty, Wcs,
+    AdtId, AliasName, AliasTy, AssociatedTy, Crate, CrateId, CrateItem, Crates, Fallible,
+    NegTraitImpl, Trait, TraitId, TraitImpl, TraitRef, Wcs,
 };
 use crate::prove::ToWcs;
-use formality_core::{seq, Downcasted, To, Upcast, Upcasted};
+use formality_core::{Downcasted, Upcast};
 use formality_macros::term;
 use std::sync::Arc;
 
@@ -128,74 +127,6 @@ impl Program {
         self.crates.trait_named(trait_id).unwrap().upcast()
     }
 
-    /// Enumerate projection equations together with the impl declaration that supplies each.
-    pub(crate) fn alias_eq_candidates(&self, name: &AliasName) -> Vec<AliasEqCandidate> {
-        self.raw_trait_impls()
-            .into_iter()
-            .flat_map(|source_impl| {
-                let (
-                    impl_vars,
-                    TraitImplBoundData {
-                        trait_id,
-                        self_ty,
-                        trait_parameters,
-                        where_clauses: _,
-                        impl_items,
-                    },
-                ) = source_impl.trait_impl.binder.open();
-
-                impl_items
-                    .iter()
-                    .filter_map(|impl_item| match impl_item {
-                        ImplItem::Fn(_) => None,
-                        ImplItem::AssociatedTyValue(AssociatedTyValue {
-                            id: item_id,
-                            binder,
-                        }) => {
-                            let (
-                                assoc_vars,
-                                AssociatedTyValueBoundData {
-                                    where_clauses: _,
-                                    ty,
-                                },
-                            ) = binder.open();
-                            let alias = AliasTy::associated_ty(
-                                &trait_id,
-                                item_id,
-                                assoc_vars.len(),
-                                seq![
-                                    self_ty.to::<crate::grammar::Parameter>(),
-                                    ..trait_parameters.iter().upcasted(),
-                                    ..assoc_vars.iter().upcasted(),
-                                ],
-                            );
-                            let (trait_ref, associated_ty_conditions) =
-                                self.associated_ty_requirements(&alias).ok()?;
-                            Some(AliasEqCandidate {
-                                source_impl: source_impl.clone(),
-                                decl: AliasEqDecl {
-                                    binder: Binder::new(
-                                        (&impl_vars, &assoc_vars),
-                                        AliasEqDeclBoundData {
-                                            alias,
-                                            ty,
-                                            where_clause: (
-                                                Predicate::is_implemented(trait_ref),
-                                                associated_ty_conditions,
-                                            )
-                                                .to_wcs(),
-                                        },
-                                    ),
-                                },
-                            })
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .filter(|candidate| candidate.decl.alias_name() == *name)
-            .collect()
-    }
-
     /// Return the trait evidence and associated-item conditions required to use an associated
     /// type projection.
     pub fn associated_ty_requirements(&self, alias: &AliasTy) -> Fallible<(TraitRef, Wcs)> {
@@ -270,13 +201,6 @@ pub(crate) struct ImplCandidate {
 }
 
 formality_core::cast_impl!(ImplCandidate);
-
-/// One impl-provided projection equation and the impl that supplies it.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) struct AliasEqCandidate {
-    pub(crate) source_impl: ImplCandidate,
-    pub(crate) decl: AliasEqDecl,
-}
 /// Mark a trait or trait impl as `unsafe`.
 #[term]
 #[derive(Default)]
@@ -284,32 +208,4 @@ pub enum Safety {
     #[default]
     Safe,
     Unsafe,
-}
-
-/// An "alias equal declaration" declares when an alias type can be normalized
-/// to something else. They are derived from `type Foo = Bar` declarations in
-/// impls, which would generate an alias eq decl saying that `<T as SomeTrait>::Foo = Bar`.
-#[term(alias $binder)]
-pub struct AliasEqDecl {
-    /// The binder includes the generics from the impl and also any generics on the GAT.
-    pub binder: Binder<AliasEqDeclBoundData>,
-}
-
-impl AliasEqDecl {
-    pub fn alias_name(&self) -> AliasName {
-        (&self.binder.peek().alias.name).upcast()
-    }
-}
-
-/// Data bound under the impl generics for a [`AliasEqDecl`][]
-#[term($alias = $ty $:where $where_clause)]
-pub struct AliasEqDeclBoundData {
-    /// The alias that is equal
-    pub alias: AliasTy,
-
-    /// The type the alias is equal to
-    pub ty: Ty,
-
-    /// The where-clauses that must hold for this rule to be applicable; derived from the impl and the GAT
-    pub where_clause: Wcs,
 }

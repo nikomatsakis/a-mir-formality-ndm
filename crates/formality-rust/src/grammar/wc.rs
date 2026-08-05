@@ -155,10 +155,19 @@ impl DowncastTo<()> for Wcs {
 
 /// The strength of evidence available while validating an impl.
 ///
-/// Stage A marks provisional conclusions about a dictionary being checked. Stage B marks
-/// completed inputs supplied to that check. Stage B can discharge an otherwise identical stage-A
-/// goal, but not conversely. Eligibility to expose an implied trait requirement is independent of
-/// this state and is governed by the trait order carried in [`ValidationContext`].
+/// Stage A is constructor evidence: while applying an impl, the solver uses stage-A evidence for
+/// the impl header and its where-clauses to establish that the resulting trait is `Implemented`.
+/// This evidence may therefore participate in the recursive dictionary knot being constructed.
+///
+/// Stage B is associated-type evidence: while checking a particular impl-provided associated type
+/// or GAT, the solver uses stage-B evidence for the completed impl header and the relevant impl/GAT
+/// conditions to establish that the associated value is well formed and satisfies its promised
+/// bounds. These are hypothetical inputs to the associated type's contract, not ordinary trait
+/// evidence.
+///
+/// Stage B can discharge an otherwise identical stage-A goal, but not conversely. Eligibility to
+/// expose an implied trait requirement is independent of this state and is governed by the trait
+/// order carried in [`ValidationContext`].
 #[term]
 pub enum ValidationState {
     A,

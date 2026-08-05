@@ -209,13 +209,13 @@ fn rooted_validation_cycle_cannot_invent_impl_for_ground_type() {
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Trait(Ground), via: validate(validation_context(a, Trait), Trait(Wrapper<Ground>)), assumptions: {validate(validation_context(a, Trait), Trait(Wrapper<Ground>))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { _requested_trait_ref: Trait(Ground), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> Trait for Wrapper<^ty0_0> where ^ty0_0 : Trait { } }, _assumptions: {validate(validation_context(a, Trait), Trait(Wrapper<Ground>))}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Trait(Ground), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> Trait for Wrapper<^ty0_0> where ^ty0_0 : Trait { } }, _assumptions: {validate(validation_context(a, Trait), Trait(Wrapper<Ground>))}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Ground = Wrapper<?ty_0>, via: validate(validation_context(a, Trait), Trait(Wrapper<Ground>)), assumptions: {validate(validation_context(a, Trait), Trait(Wrapper<Ground>))}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_via { goal: Ground, via: validate(validation_context(a, Trait), Trait(Wrapper<Ground>)), assumptions: {validate(validation_context(a, Trait), Trait(Wrapper<Ground>))}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: true } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: Ground, via: validate(validation_context(a, Trait), Trait(Wrapper<Ground>)), assumptions: {validate(validation_context(a, Trait), Trait(Wrapper<Ground>))}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_via { goal: Wrapper<?ty_0>, via: validate(validation_context(a, Trait), Trait(Wrapper<Ground>)), assumptions: {validate(validation_context(a, Trait), Trait(Wrapper<Ground>))}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: Wrapper<?ty_0>, via: validate(validation_context(a, Trait), Trait(Wrapper<Ground>)), assumptions: {validate(validation_context(a, Trait), Trait(Wrapper<Ground>))}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -360,23 +360,23 @@ fn grounded_supertrait_chain_rejects_type_without_debug_impl() {
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Debug(Bar), via: validate(validation_context(a, B), B(Bar)), assumptions: {validate(validation_context(a, B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { _requested_trait_ref: Debug(Bar), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, _assumptions: {validate(validation_context(a, B), B(Bar))}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Debug(Bar), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, _assumptions: {validate(validation_context(a, B), B(Bar))}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Bar = Foo, via: validate(validation_context(a, B), B(Bar)), assumptions: {validate(validation_context(a, B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_via { goal: Bar, via: validate(validation_context(a, B), B(Bar)), assumptions: {validate(validation_context(a, B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: Bar, via: validate(validation_context(a, B), B(Bar)), assumptions: {validate(validation_context(a, B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_via { goal: Foo, via: validate(validation_context(a, B), B(Bar)), assumptions: {validate(validation_context(a, B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: Foo, via: validate(validation_context(a, B), B(Bar)), assumptions: {validate(validation_context(a, B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Debug(Bar), via: validate(validation_context(a, A), A(Bar)), assumptions: {validate(validation_context(a, A), A(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { _requested_trait_ref: Debug(Bar), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, _assumptions: {validate(validation_context(a, A), A(Bar))}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Debug(Bar), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, _assumptions: {validate(validation_context(a, A), A(Bar))}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Bar = Foo, via: validate(validation_context(a, A), A(Bar)), assumptions: {validate(validation_context(a, A), A(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_via { goal: Bar, via: validate(validation_context(a, A), A(Bar)), assumptions: {validate(validation_context(a, A), A(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: Bar, via: validate(validation_context(a, A), A(Bar)), assumptions: {validate(validation_context(a, A), A(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_via { goal: Foo, via: validate(validation_context(a, A), A(Bar)), assumptions: {validate(validation_context(a, A), A(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: Foo, via: validate(validation_context(a, A), A(Bar)), assumptions: {validate(validation_context(a, A), A(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]

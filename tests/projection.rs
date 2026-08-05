@@ -84,11 +84,13 @@ const NORMALIZE_INTO_ITERATOR: &str = "[
 
 #[test]
 fn normalize_into_iterator() {
+    // The blanket impl cannot contribute a value: its own `Vec<T>: Iterator` condition is not
+    // known. In particular, applicability cannot be borrowed from the direct `Vec<T>` impl.
     test_where_clause(
         NORMALIZE_INTO_ITERATOR,
         "forall<T> exists<U> {} => { <Vec<T> as IntoIterator>::Item = U }",
     )
-    .assert_ok(expect_test::expect!["{Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => <Vec<!ty_1> as IntoIterator>::Item} }, Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => <Vec<!ty_1> as Iterator>::Item} }, Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => !ty_1} }}"]);
+    .assert_ok(expect_test::expect!["{Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => <Vec<!ty_1> as IntoIterator>::Item} }, Constraints { env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {?ty_2 => !ty_1} }}"]);
 }
 
 const PROJECTION_EQUALITY: &str = "[

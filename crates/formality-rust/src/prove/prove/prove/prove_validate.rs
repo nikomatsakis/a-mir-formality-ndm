@@ -9,8 +9,13 @@ use crate::prove::ToWcs;
 use formality_core::judgment_fn;
 
 use super::{
-    constraints::Constraints, env::Env, prove_after::prove_after, prove_impl_wf::prove_impl_wf,
-    prove_via_assumption::prove_via_assumption, prove_wc::prove_wc, prove_wf::wf_requirements,
+    constraints::{Constrained, Constraints},
+    env::Env,
+    prove_after::prove_after,
+    prove_match_impl::{match_impl_candidate, ImplMatchMode},
+    prove_via_assumption::prove_via_assumption,
+    prove_wc::prove_wc,
+    prove_wf::wf_requirements,
 };
 use crate::prove::prove::Program;
 
@@ -140,27 +145,21 @@ judgment_fn! {
         // root context for the selected candidate.
         (
             (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
-            (prove_impl_wf(decls, &candidate.trait_impl) => ())
-            (let (env, impl_subst) =
-                env.existential_substitution(&candidate.trait_impl.binder))
-            (let trait_impl = candidate
-                .trait_impl
-                .binder
-                .instantiate_with(impl_subst)?)
-            (prove(
+            (match_impl_candidate(
                 decls,
                 env,
                 assumptions,
-                Wcs::all_eq(
-                    &trait_ref.parameters,
-                    &trait_impl.trait_ref().parameters,
-                ).validated(validation),
-            ) => c)
-            (let impl_where_clauses = c
-                .substitution()
-                .apply(trait_impl.where_clauses.to_wcs())
+                trait_ref,
+                candidate,
+                ImplMatchMode::Validated(validation.clone()),
+            ) => Constrained(matched, c))
+            (let trait_impl = matched.trait_impl(c))
+            (let impl_where_clauses = trait_impl
+                .where_clauses
+                .to_wcs()
                 .validated(validation))
             (prove_after(decls, c, assumptions, impl_where_clauses) => c)
+            (let c = matched.pop_constraints(c))
             ----------------------------- ("impl")
             (prove_validate(
                 decls,
@@ -168,7 +167,7 @@ judgment_fn! {
                 assumptions,
                 validation,
                 WcData::Predicate(Predicate::IsImplemented(trait_ref)),
-            ) => c.pop_subst(impl_subst))
+            ) => c)
         )
 
         // A complete ordinary proof is valid in every validation context. Validation evidence

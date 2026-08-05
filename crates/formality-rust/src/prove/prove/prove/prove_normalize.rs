@@ -1,20 +1,66 @@
 use crate::{
     grammar::{
-        AliasTy, ExistentialVar, Parameter, Relation, RigidTy, TyData, Variable, Wc, WcData, Wcs,
+        AliasName, AliasTy, AssociatedItemId, ExistentialVar, Fallible, Parameter, Relation,
+        RigidTy, TraitRef, Ty, TyData, ValidationContext, ValidationState, Variable, Wc, WcData,
+        Wcs,
     },
     prove::prove::Constrained,
 };
 use formality_core::{judgment_fn, Downcast};
 
 use crate::prove::prove::{
-    decls::{AliasEqDeclBoundData, Program},
+    decls::Program,
     prove::{
-        combinators::zip, env::Env, prove_after::prove_after, prove_eq::prove_existential_var_eq,
-        prove_impl_wf::prove_impl_wf,
+        combinators::zip,
+        env::Env,
+        prove_after::prove_after,
+        prove_eq::prove_existential_var_eq,
+        prove_match_impl::{
+            match_impl_candidate, ordinary_assumptions, ImplMatchMode, MatchedImpl,
+        },
     },
 };
+use crate::prove::ToWcs;
 
 use super::constraints::Constraints;
+
+fn associated_ty_parts(
+    decls: &Program,
+    alias: &AliasTy,
+) -> Fallible<(AssociatedItemId, Vec<Parameter>, TraitRef, Wcs)> {
+    let AliasName::AssociatedTyId(name) = &alias.name;
+    let trait_parameter_count = alias
+        .parameters
+        .len()
+        .checked_sub(name.item_arity)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "associated type alias {:?} has fewer parameters than its item arity",
+                alias,
+            )
+        })?;
+    let (_, gat_parameters) = alias.parameters.split_at(trait_parameter_count);
+    let (trait_ref, gat_where_clauses) = decls.associated_ty_requirements(alias)?;
+    Ok((
+        name.item_id.clone(),
+        gat_parameters.to_vec(),
+        trait_ref,
+        gat_where_clauses,
+    ))
+}
+
+fn associated_ty_value(
+    matched: &MatchedImpl,
+    constraints: &Constraints,
+    item_id: &AssociatedItemId,
+    gat_parameters: &[Parameter],
+) -> Fallible<Ty> {
+    let trait_impl = matched.trait_impl(constraints);
+    let associated_value = trait_impl.assoc_ty_value(item_id).ok_or_else(|| {
+        anyhow::anyhow!("impl has no unique value for associated type {item_id:?}")
+    })?;
+    Ok(associated_value.binder.instantiate_with(gat_parameters)?.ty)
+}
 
 judgment_fn! {
     /// Normalize `p` one step using exactly the assumptions supplied by the caller.
@@ -37,18 +83,51 @@ judgment_fn! {
         )
 
         (
-            (candidate in decls.alias_eq_candidates(&a.name))
-            (prove_impl_wf(decls, &candidate.source_impl.trait_impl) => ())
-            (let decl = candidate.decl.clone())
-            (let (env, subst) = env.existential_substitution(&decl.binder))
-            (let decl = decl.binder.instantiate_with(&subst).unwrap())
-            (let AliasEqDeclBoundData { alias: AliasTy { name, parameters }, ty, where_clause } = decl)
-            (assert a.name == *name)
-            (prove_after(decls, env, assumptions, Wcs::all_eq(&a.parameters, &parameters)) => c)
-            (prove_after(decls, c, assumptions, &where_clause) => c)
+            (let (item_id, gat_parameters, requested_trait_ref, gat_where_clauses) =
+                associated_ty_parts(decls, a)?)
+            (candidate in decls.raw_trait_impls_for(&requested_trait_ref.trait_id))
+
+            // Match this exact impl using only ordinary evidence. The requested trait-ref is a
+            // branch-local hypothesis so matching may normalize through the candidate itself.
+            (let ordinary_assumptions = ordinary_assumptions(assumptions))
+            (match_impl_candidate(
+                decls,
+                env,
+                (&ordinary_assumptions, &requested_trait_ref),
+                requested_trait_ref,
+                candidate,
+                ImplMatchMode::Ordinary,
+            ) => Constrained(matched, c))
+
+            // Establish the matched impl's residual conditions with the same stage-A semantics
+            // as ordinary impl application, together with the GAT's declaration-side conditions.
+            (let trait_impl = matched.trait_impl(c))
+            (let validation = ValidationContext::new(
+                ValidationState::A,
+                &trait_impl.trait_id,
+            ))
+            (let current_impl = Wc::validate(validation, requested_trait_ref))
+            (let impl_where_clauses = trait_impl
+                .where_clauses
+                .to_wcs()
+                .validated(validation))
+            (let conditions = (
+                &impl_where_clauses,
+                &gat_where_clauses,
+            ).to_wcs())
+            (prove_after(
+                decls,
+                c,
+                (&ordinary_assumptions, current_impl),
+                conditions,
+            ) => c)
+
+            // Where-clauses may have inferred impl parameters absent from the header, so apply the
+            // latest substitution before selecting and instantiating the associated value.
+            (let ty = associated_ty_value(matched, c, item_id, gat_parameters)?)
             (let ty = c.substitution().apply(ty))
-            (let c = c.pop_subst(&subst))
-            (assert c.env().encloses(&ty))
+            (let c = matched.pop_constraints(c))
+            (assert c.env().encloses(ty))
             ----------------------------- ("normalize-via-impl")
             (prove_normalize(decls, env, assumptions, TyData::AliasTy(a)) => Constrained(ty, c))
         )

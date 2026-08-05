@@ -207,17 +207,17 @@ fn impl_wf_is_checked_for_every_header_substitution() {
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(!ty_0), via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { _requested_trait_ref: Required(!ty_0), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, _assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Required(!ty_0), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, _assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(!ty_0), via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { _requested_trait_ref: Required(!ty_0), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, _assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Required(!ty_0), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, _assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: !ty_0 = u32, via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:58:1: no applicable rules for prove_normalize_via { goal: u32, via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: u32, via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -638,7 +638,7 @@ fn assumption_preserving_alias_normalization_still_checks_the_normalized_type() 
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { _requested_trait_ref: Target(Bar, X), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Target(Bar, X), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -697,6 +697,49 @@ fn gat_value_may_project_from_validation_argument_bound() {
             type Assoc<T> = <T as Iterator>::Item
             where
                 T: Iterator;
+        }
+
+        test {
+            (): Family
+        }
+    }])
+    .skip_execute()
+    .ok();
+}
+
+#[test]
+#[ignore = "validated normalization does not yet use stage-B GAT conditions"]
+fn gat_value_bound_may_normalize_using_validation_argument_bound() {
+    // Checking `Family::Assoc<T>: IsU32` starts with completed stage-B evidence for
+    // `T: Marker`. That evidence should validate the `HasOut for T` impl, allowing its
+    // associated-type equation to normalize `<T as HasOut>::Out` to `u32`.
+    FormalityTest::new(crates![crate test {
+        trait Marker {}
+
+        trait IsU32 {}
+        impl IsU32 for u32 {}
+
+        trait HasOut {
+            type Out : [];
+        }
+
+        impl<T> HasOut for T
+        where
+            T: Marker,
+        {
+            type Out = u32;
+        }
+
+        trait Family {
+            type Assoc<T> : [IsU32]
+            where
+                T: Marker;
+        }
+
+        impl Family for () {
+            type Assoc<T> = <T as HasOut>::Out
+            where
+                T: Marker;
         }
 
         test {
