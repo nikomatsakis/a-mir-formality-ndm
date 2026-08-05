@@ -7,8 +7,6 @@ use crate::prove::prove::{Constrained, Constraints, Env};
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
 
-use super::prove_match_impl::{ordinary_assumptions, ImplMatchMode};
-
 /// A successful application of one particular impl declaration.
 /// It retains the source impl identity and its inferred binder variables.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -52,19 +50,14 @@ judgment_fn! {
     /// `requested_trait_ref`. This judgment never searches another impl.
     pub(crate) fn prove_via_impl(
         _decls: Program,
-        _env: Env,
-        _assumptions: Wcs,
-        _requested_trait_ref: TraitRef,
-        _candidate: ImplCandidate,
+        env: Env,
+        assumptions: Wcs,
+        requested_trait_ref: TraitRef,
+        candidate: ImplCandidate,
     ) => Constrained<ImplApplication> {
-        debug(_requested_trait_ref, _candidate, _assumptions, _env)
+        debug(requested_trait_ref, candidate, assumptions, env)
 
         (
-            // Logically, ordinary candidate application is parameterized by the ordinary part of
-            // the ambient assumptions. Provisional validation evidence cannot be an input to the
-            // dictionary constructor being selected.
-            (let ordinary_assumptions = ordinary_assumptions(assumptions))
-
             // Header matching may need to normalize a projection through the candidate being
             // selected, so make the requested trait ref available as a coinductive hypothesis
             // while matching. This ordinary hypothesis is branch-local: no inferred substitution
@@ -75,10 +68,9 @@ judgment_fn! {
             (match_impl_candidate(
                 decls,
                 env,
-                (&ordinary_assumptions, requested_trait_ref),
+                assumptions,
                 requested_trait_ref,
                 candidate,
-                ImplMatchMode::Ordinary,
             ) => Constrained(matched, c))!
             (let trait_impl = matched.trait_impl(c))
             (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
@@ -91,21 +83,12 @@ judgment_fn! {
                 ValidationState::A,
                 &trait_impl.trait_id,
             ))
-            (let current_impl: Wc = Wc::validate(
-                validation,
-                requested_trait_ref,
-            ))
-            (let impl_where_clauses = impl_where_clauses.validated(validation))
             (prove_after(
                 decls,
                 c,
-                (ordinary_assumptions, current_impl),
-                impl_where_clauses,
+                (assumptions, Wc::validate(validation, requested_trait_ref)),
+                Wcs::validate(validation, impl_where_clauses),
             ) => c)
-            (let application = ImplApplication::new(
-                candidate,
-                &matched.impl_variables,
-            ))
             ---------------------------------------------------- ("candidate")
             (prove_via_impl(
                 decls,
@@ -113,7 +96,13 @@ judgment_fn! {
                 assumptions,
                 requested_trait_ref,
                 candidate,
-            ) => Constrained(application, c))
+            ) => Constrained(
+                ImplApplication::new(
+                    candidate,
+                    &matched.impl_variables,
+                ),
+                c,
+            ))
         )
     }
 }

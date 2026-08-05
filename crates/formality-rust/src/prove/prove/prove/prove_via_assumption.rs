@@ -1,4 +1,5 @@
 use crate::grammar::{ValidationContext, WcData, Wcs};
+use crate::prove::prove::trait_order::trait_less_than_or_equal;
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
@@ -21,7 +22,10 @@ judgment_fn! {
         debug(goal, via, assumptions, env)
 
         (
-            (if via_validation.can_prove(goal_validation))
+            (let ValidationContext { state: via_state, impl_trait_id: via_trait_id } = via_validation)
+            (let ValidationContext { state: goal_state, impl_trait_id: goal_trait_id } = goal_validation)
+            (if goal_state <= via_state)
+            (trait_less_than_or_equal(decls, goal_trait_id, via_trait_id) => ())
             (prove_via_validate(
                 decls,
                 env,
@@ -38,31 +42,6 @@ judgment_fn! {
                 assumptions,
                 WcData::Validate(via_validation, via),
                 WcData::Validate(goal_validation, goal),
-            ) => c)
-        )
-
-        // Ordinary evidence is strong enough to validate an atomic goal at either stage.
-        (
-            (if !matches!(via, WcData::Validate(_, _)))
-            (if matches!(
-                validate_goal.as_ref(),
-                WcData::Predicate(_) | WcData::Relation(_),
-            ))!
-            (let goal = validate_goal.as_ref().clone())
-            (prove_via_assumption(
-                decls,
-                env,
-                assumptions,
-                via,
-                goal,
-            ) => c)
-            ----------------------------- ("ordinary evidence validates")
-            (prove_via_assumption(
-                decls,
-                env,
-                assumptions,
-                via,
-                WcData::Validate(_goal_validation, validate_goal),
             ) => c)
         )
 

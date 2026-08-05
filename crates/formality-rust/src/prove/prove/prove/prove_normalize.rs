@@ -15,9 +15,7 @@ use crate::prove::prove::{
         env::Env,
         prove_after::prove_after,
         prove_eq::prove_existential_var_eq,
-        prove_match_impl::{
-            match_impl_candidate, ordinary_assumptions, ImplMatchMode, MatchedImpl,
-        },
+        prove_match_impl::{match_impl_candidate, MatchedImpl},
     },
 };
 use crate::prove::ToWcs;
@@ -87,16 +85,12 @@ judgment_fn! {
                 associated_ty_parts(decls, a)?)
             (candidate in decls.raw_trait_impls_for(&requested_trait_ref.trait_id))
 
-            // Match this exact impl using only ordinary evidence. The requested trait-ref is a
-            // branch-local hypothesis so matching may normalize through the candidate itself.
-            (let ordinary_assumptions = ordinary_assumptions(assumptions))
             (match_impl_candidate(
                 decls,
                 env,
-                (&ordinary_assumptions, &requested_trait_ref),
+                assumptions,
                 requested_trait_ref,
                 candidate,
-                ImplMatchMode::Ordinary,
             ) => Constrained(matched, c))
 
             // Establish the matched impl's residual conditions with the same stage-A semantics
@@ -118,7 +112,7 @@ judgment_fn! {
             (prove_after(
                 decls,
                 c,
-                (&ordinary_assumptions, current_impl),
+                assumptions,
                 conditions,
             ) => c)
 

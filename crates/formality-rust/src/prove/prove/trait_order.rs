@@ -107,11 +107,51 @@ judgment_fn! {
 judgment_fn! {
     /// The strict partial order induced by asymmetric graph reachability.
     ///
+    ///
     /// `lower < upper` when `upper` transitively depends on `lower`, but
-    /// `lower` does not transitively depend on `upper`. Traits in the same
-    /// dependency cycle are therefore incomparable. The negative premise is
-    /// stratified: `trait_reachable` depends only on the finite, immutable edge
-    /// graph and has no dependency back on this judgment.
+    /// `lower` does not transitively depend on `upper`. For example,
+    /// `trait Sub: Super` has an edge `Sub -> Super` and therefore
+    /// `Super < Sub`.
+    ///
+    /// Traits in the same dependency cycle are therefore incomparable.
+    ///
+    /// The negative premise is stratified: `trait_reachable` depends only
+    /// on the finite, immutable edge graph and has no dependency back
+    /// on this judgment.
+    pub(crate) fn trait_less_than_or_equal(
+        program: Program,
+        lower: TraitId,
+        upper: TraitId,
+    ) => () {
+        debug(program, lower, upper)
+
+        (
+            (if lower == upper)!
+            -------------------------------------------- ("equal")
+            (trait_less_than_or_equal(program, lower, upper) => ())
+        )
+        (
+            (trait_less_than(program, lower, upper) => ())!
+            -------------------------------------------- ("less than")
+            (trait_less_than_or_equal(program, lower, upper) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// The strict partial order induced by asymmetric graph reachability.
+    ///
+    ///
+    /// `lower < upper` when `upper` transitively depends on `lower`, but
+    /// `lower` does not transitively depend on `upper`. For example,
+    /// `trait Sub: Super` has an edge `Sub -> Super` and therefore
+    /// `Super < Sub`.
+    ///
+    /// Traits in the same dependency cycle are therefore incomparable.
+    ///
+    /// The negative premise is stratified: `trait_reachable` depends only
+    /// on the finite, immutable edge graph and has no dependency back
+    /// on this judgment.
     pub(crate) fn trait_less_than(
         program: Program,
         lower: TraitId,

@@ -55,6 +55,14 @@ impl Wcs {
         self.into_iter()
     }
 
+    pub fn validate(validation: impl Upcast<ValidationContext>, wcs: impl Upcast<Wcs>) -> Wcs {
+        let validation: ValidationContext = validation.upcast();
+        let wcs: Wcs = wcs.upcast();
+        wcs.into_iter()
+            .map(|wc| Wc::validate(&validation, wc))
+            .collect()
+    }
+
     /// Wrap each clause in `Validate` for the given impl-validation context.
     pub fn validated(&self, validation: impl Upcast<ValidationContext>) -> Self {
         let validation: ValidationContext = validation.upcast();

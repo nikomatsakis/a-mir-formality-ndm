@@ -78,7 +78,7 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: validate(validation_context(b, Foo), Foo(X)), assumptions: {validate(validation_context(b, Foo), Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: validate(validation_context(b, Foo), Foo(X)), assumptions: {validate(validation_context(b, Foo), Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -120,7 +120,7 @@ fn conditional_associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: validate(validation_context(b, MyTrait), MyTrait(X)), assumptions: {validate(validation_context(b, MyTrait), MyTrait(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: validate(validation_context(b, MyTrait), MyTrait(X)), assumptions: {validate(validation_context(b, MyTrait), MyTrait(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -203,21 +203,15 @@ fn impl_wf_is_checked_for_every_header_substitution() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<!ty_0>), via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<!ty_0>), via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(!ty_0), via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Required(!ty_0), via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Required(!ty_0), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, _assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:48:1: no applicable rules for prove_via_impl { requested_trait_ref: Required(!ty_0), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(!ty_0), via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Required(!ty_0), via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Required(!ty_0), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, _assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: !ty_0 = u32, via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:137:1: no applicable rules for prove_normalize_via { goal: u32, via: validate(validation_context(b, Family), Family((), !ty_0)), assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:48:1: no applicable rules for prove_via_impl { requested_trait_ref: Required(!ty_0), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {validate(validation_context(b, Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -283,11 +277,11 @@ fn associated_type_value_must_be_well_formed() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: validate(validation_context(b, Foo), Foo(())), assumptions: {validate(validation_context(b, Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: validate(validation_context(b, Foo), Foo(())), assumptions: {validate(validation_context(b, Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(validation_context(b, Foo), Foo(())), assumptions: {validate(validation_context(b, Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(validation_context(b, Foo), Foo(())), assumptions: {validate(validation_context(b, Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(validation_context(b, Foo), Foo(())), assumptions: {validate(validation_context(b, Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: validate(validation_context(b, Foo), Foo(())), assumptions: {validate(validation_context(b, Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -306,7 +300,7 @@ fn unused_invalid_associated_type_impl_is_rejected() {
             type Output = Bad;
         }
     }])
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(validation_context(b, Family), Family(())), assumptions: {validate(validation_context(b, Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(validation_context(b, Family), Family(())), assumptions: {validate(validation_context(b, Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -339,7 +333,7 @@ fn associated_type_projection_requires_a_valid_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(validation_context(b, Foo), Foo(X)), assumptions: {validate(validation_context(b, Foo), Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(validation_context(b, Foo), Foo(X)), assumptions: {validate(validation_context(b, Foo), Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -451,7 +445,7 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(validation_context(b, Family), Family(())), assumptions: {validate(validation_context(b, Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(validation_context(b, Family), Family(())), assumptions: {validate(validation_context(b, Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -493,7 +487,7 @@ fn validation_antecedent_does_not_leak_to_impl_where_clause() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(validation_context(a, Family), Family(())), assumptions: {validate(validation_context(a, Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: validate(validation_context(a, Family), Family(())), assumptions: {validate(validation_context(a, Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -638,7 +632,7 @@ fn assumption_preserving_alias_normalization_still_checks_the_normalized_type() 
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Target(Bar, X), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, _assumptions: {}, _env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:48:1: no applicable rules for prove_via_impl { requested_trait_ref: Target(Bar, X), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]

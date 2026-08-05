@@ -9,13 +9,8 @@ use crate::prove::ToWcs;
 use formality_core::judgment_fn;
 
 use super::{
-    constraints::{Constrained, Constraints},
-    env::Env,
-    prove_after::prove_after,
-    prove_match_impl::{match_impl_candidate, ImplMatchMode},
-    prove_via_assumption::prove_via_assumption,
-    prove_wc::prove_wc,
-    prove_wf::wf_requirements,
+    constraints::Constraints, env::Env, prove_after::prove_after,
+    prove_via_assumption::prove_via_assumption, prove_wc::prove_wc, prove_wf::wf_requirements,
 };
 use crate::prove::prove::Program;
 
@@ -130,43 +125,6 @@ judgment_fn! {
                 assumptions,
                 validation,
                 WcData::Relation(Relation::Outlives(a, b)),
-            ) => c)
-        )
-
-        // Apply a concrete impl within the validation judgment. Selecting a concrete dictionary
-        // constructor is productive, so it does not require a rank check. Its inputs may consume
-        // coinductive evidence already present in the enclosing validation assumptions; this rule
-        // does not add the candidate goal as a new hypothesis. Rank is required only by the
-        // trait-requirement rule above, which projects evidence without constructing a dictionary.
-        //
-        // This is deliberately distinct from `prove_via_impl`: header equality and residual
-        // where-clauses stay wrapped in the caller's validation context here. Ordinary impl
-        // application instead discards ambient validation assumptions and establishes its own
-        // root context for the selected candidate.
-        (
-            (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
-            (match_impl_candidate(
-                decls,
-                env,
-                assumptions,
-                trait_ref,
-                candidate,
-                ImplMatchMode::Validated(validation.clone()),
-            ) => Constrained(matched, c))
-            (let trait_impl = matched.trait_impl(c))
-            (let impl_where_clauses = trait_impl
-                .where_clauses
-                .to_wcs()
-                .validated(validation))
-            (prove_after(decls, c, assumptions, impl_where_clauses) => c)
-            (let c = matched.pop_constraints(c))
-            ----------------------------- ("impl")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation,
-                WcData::Predicate(Predicate::IsImplemented(trait_ref)),
             ) => c)
         )
 
