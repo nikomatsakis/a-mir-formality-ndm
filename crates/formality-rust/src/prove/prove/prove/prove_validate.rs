@@ -180,11 +180,11 @@ judgment_fn! {
         // only when both `Stronger < Impl` and `Super < Impl`.
         (
             (if let WcData::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
-            (trait_less_than(decls, &trait_def.id, &validation.impl_trait_id) => ())
+            (trait_less_than(decls, &trait_def.id, &validation.trait_id) => ())
             (trait_less_than(
                 decls,
                 &goal_trait_ref.trait_id,
-                &validation.impl_trait_id,
+                &validation.trait_id,
             ) => ())
 
             (let (env, trait_subst) =
@@ -225,11 +225,11 @@ judgment_fn! {
         // result traits.
         (
             (if let WcData::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
-            (trait_less_than(decls, &trait_def.id, &validation.impl_trait_id) => ())
+            (trait_less_than(decls, &trait_def.id, &validation.trait_id) => ())
             (trait_less_than(
                 decls,
                 &goal_trait_ref.trait_id,
-                &validation.impl_trait_id,
+                &validation.trait_id,
             ) => ())
 
             (let (env, trait_subst) =
@@ -301,7 +301,7 @@ judgment_fn! {
         // Outlives requirements have no target trait to rank. The trait supplying the
         // requirement must nevertheless be strictly below the impl under validation.
         (
-            (trait_less_than(decls, &trait_def.id, &validation.impl_trait_id) => ())
+            (trait_less_than(decls, &trait_def.id, &validation.trait_id) => ())
             (if let WcData::Relation(goal_relation) = goal)
             (let (env, trait_subst) =
                 env.existential_substitution(&requirement.binder))

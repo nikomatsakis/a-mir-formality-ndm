@@ -5,7 +5,9 @@
 //! in distinct strongly connected components: `A < B` when `B` can reach `A`
 //! but `A` cannot reach `B`.
 
-use crate::grammar::{CrateItem, Trait, TraitId, TraitItem, Ty, Variable, WhereBound, WhereClause};
+use crate::grammar::{
+    CrateItem, Trait, TraitId, TraitItem, Ty, ValidationContext, Variable, WhereBound, WhereClause,
+};
 use crate::prove::prove::{trait_header_clause, Program, TraitHeaderClause};
 use crate::prove::ToWcs;
 use formality_core::judgment_fn;
@@ -118,22 +120,30 @@ judgment_fn! {
     /// The negative premise is stratified: `trait_reachable` depends only
     /// on the finite, immutable edge graph and has no dependency back
     /// on this judgment.
-    pub(crate) fn trait_less_than_or_equal(
+    pub(crate) fn validation_less_than_or_equals(
         program: Program,
-        lower: TraitId,
-        upper: TraitId,
+        lower: ValidationContext,
+        upper: ValidationContext,
     ) => () {
         debug(program, lower, upper)
 
         (
             (if lower == upper)!
             -------------------------------------------- ("equal")
-            (trait_less_than_or_equal(program, lower, upper) => ())
+            (validation_less_than_or_equals(program, lower, upper) => ())
         )
+
         (
-            (trait_less_than(program, lower, upper) => ())!
-            -------------------------------------------- ("less than")
-            (trait_less_than_or_equal(program, lower, upper) => ())
+            (if lower.state < upper.state)
+            -------------------------------------------- ("states")
+            (validation_less_than_or_equals(program, lower, upper) => ())
+        )
+
+        (
+            (if lower.state == upper.state)!
+            (trait_less_than(program, &lower.trait_id, &upper.trait_id) => ())
+            -------------------------------------------- ("traits less than")
+            (validation_less_than_or_equals(program, lower, upper) => ())
         )
     }
 }

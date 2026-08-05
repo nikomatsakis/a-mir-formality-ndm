@@ -190,13 +190,13 @@ pub enum ValidationState {
 #[term]
 pub struct ValidationContext {
     pub state: ValidationState,
-    pub impl_trait_id: TraitId,
+    pub trait_id: TraitId,
 }
 
 impl ValidationContext {
     /// True if evidence at `self` is strong enough to establish `goal`.
     pub(crate) fn can_prove(&self, goal: &Self) -> bool {
-        if self.impl_trait_id != goal.impl_trait_id {
+        if self.trait_id != goal.trait_id {
             return false;
         }
 

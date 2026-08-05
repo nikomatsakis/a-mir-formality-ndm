@@ -1,10 +1,11 @@
 use crate::grammar::{ValidationContext, WcData, Wcs};
-use crate::prove::prove::trait_order::trait_less_than_or_equal;
+use crate::prove::prove::trait_order::validation_less_than_or_equals;
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
 };
 use formality_core::judgment_fn;
+
 judgment_fn! {
     /// Check whether the where-clause `via` (which is one of the `assumptions` that are in in scope)
     /// can be used to prove `goal` (the thing we are trying to prove).
@@ -22,10 +23,7 @@ judgment_fn! {
         debug(goal, via, assumptions, env)
 
         (
-            (let ValidationContext { state: via_state, impl_trait_id: via_trait_id } = via_validation)
-            (let ValidationContext { state: goal_state, impl_trait_id: goal_trait_id } = goal_validation)
-            (if goal_state <= via_state)
-            (trait_less_than_or_equal(decls, goal_trait_id, via_trait_id) => ())
+            (validation_less_than_or_equals(decls, goal_validation, via_validation) => ())
             (prove_via_validate(
                 decls,
                 env,
