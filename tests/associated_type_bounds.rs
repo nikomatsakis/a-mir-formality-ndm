@@ -145,6 +145,59 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
 }
 
 #[test]
+fn rust_135011_diverging_associated_type_cannot_supply_its_own_bound() {
+    // Reduced from https://github.com/rust-lang/rust/issues/135011. Rust exposes the declared
+    // bound of an associated type even when its value diverges, which can ultimately be used to
+    // prove arbitrary type equalities. Here `T: MetaMetaImpossible` would imply
+    // `T::Assoc: MetaImpossible`, whose own associated bound would then supply `Impossible`.
+    // Neither not-yet-constructed bound may be used to validate this cyclic impl.
+    FormalityTest::new(crates![crate test {
+        trait Impossible {}
+
+        trait MetaImpossible {
+            type Assoc : [Impossible];
+        }
+
+        trait MetaMetaImpossible {
+            type Assoc : [MetaImpossible];
+        }
+
+        impl<T> MetaImpossible for T
+        where
+            T: MetaMetaImpossible,
+        {
+            type Assoc = <<T as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc;
+        }
+
+        impl MetaMetaImpossible for () {
+            type Assoc = ();
+        }
+    }])
+    .err(expect_test::expect![[r#"
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<<!ty_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), via: GatBounds[MetaImpossible](!ty_0: MetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<<!ty_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), via: GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: GatBounds[MetaImpossible](!ty_0: MetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: GatBounds[MetaImpossible](!ty_0: MetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: MetaMetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:143:1: no applicable rules for prove_normalize_via_impl_candidate { a: <!ty_0 as MetaMetaImpossible>::Assoc, impl_validation: Supertraits[MetaMetaImpossible], candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, via: GatBounds[MetaImpossible](!ty_0: MetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, via: GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { requested_trait_ref: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> MetaImpossible for ^ty0_0 where ^ty0_0 : MetaMetaImpossible { type Assoc = <<^ty1_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc ; } }, assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+}
+
+#[test]
 fn conditional_associated_type_bound_cannot_validate_its_own_impl() {
     // This is the conditional form of the same exploit. If `MyTrait for X` were accepted, its
     // own `X: MyTrait` condition could be used to obtain the associated-type requirement
