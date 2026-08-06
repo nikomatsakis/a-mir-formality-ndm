@@ -141,7 +141,10 @@ impl Constraints {
 
         self.assert_valid();
         c2.assert_valid();
-        assert!(c2.is_valid_extension_of(&self.env));
+        assert!(
+            c2.is_valid_extension_of(&self.env),
+            "second constraints are not an extension of the first environment:\nfirst={self:?}\nsecond={c2:?}"
+        );
 
         // This substitution should have already been applied to produce
         // `c2`, therefore we don't expect any bindings for *our* variables.
