@@ -39,9 +39,9 @@ fn direct_occurs_check_cycle_is_rejected() {
             failed at (proven_set.rs) because
               `?ty_0` occurs in `Vec<?ty_0>`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:62:1: no applicable rules for prove_normalize { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:53:1: no applicable rules for prove_normalize { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:62:1: no applicable rules for prove_normalize { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:53:1: no applicable rules for prove_normalize { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -69,9 +69,9 @@ fn indirect_occurs_check_cycle_is_rejected() {
             failed at (proven_set.rs) because
               `?ty_0` occurs in `Vec<?ty_0>`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:62:1: no applicable rules for prove_normalize { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:53:1: no applicable rules for prove_normalize { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:62:1: no applicable rules for prove_normalize { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:53:1: no applicable rules for prove_normalize { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -85,9 +85,9 @@ fn reordered_indirect_occurs_check_cycle_is_rejected() {
             failed at (proven_set.rs) because
               `?ty_0` occurs in `Vec<?ty_0>`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:62:1: no applicable rules for prove_normalize { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:53:1: no applicable rules for prove_normalize { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:62:1: no applicable rules for prove_normalize { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:53:1: no applicable rules for prove_normalize { p: Vec<?ty_0>, assumptions: {}, env: Env { variables: [?ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn existential_cannot_name_a_later_universal_in_alias_assumption() {
               condition evaluated to false: `env.universe(p) < env.universe(v)`
 
             the rule "normalize-via-impl" at (prove_normalize.rs) failed because
-              expression evaluated to an empty collection: `decls.raw_trait_impls_for(&name.trait_id)`
+              expression evaluated to an empty collection: `decls.raw_trait_impls_for(trait_id)`
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <!ty_0 as Iterator>::Item = <?ty_1 as Iterator>::Item, via: <!ty_0 as Iterator>::Item = u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
@@ -136,7 +136,7 @@ fn existential_cannot_name_a_later_universal_in_alias_assumption() {
             the rule "existential-universal" at (prove_eq.rs) failed because
               condition evaluated to false: `env.universe(p) < env.universe(v)`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:226:1: no applicable rules for prove_normalize_via { goal: ?ty_1, via: <!ty_0 as Iterator>::Item = u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:310:1: no applicable rules for prove_normalize_via_eq { goal: ?ty_1, left: <!ty_0 as Iterator>::Item, right: u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: u32 = <?ty_1 as Iterator>::Item, via: <!ty_0 as Iterator>::Item = u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
@@ -153,7 +153,7 @@ fn existential_cannot_name_a_later_universal_in_alias_assumption() {
               condition evaluated to false: `env.universe(p) < env.universe(v)`
 
             the rule "normalize-via-impl" at (prove_normalize.rs) failed because
-              expression evaluated to an empty collection: `decls.raw_trait_impls_for(&name.trait_id)`
+              expression evaluated to an empty collection: `decls.raw_trait_impls_for(trait_id)`
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: ?ty_1 = !ty_0, via: <!ty_0 as Iterator>::Item = u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
@@ -163,7 +163,7 @@ fn existential_cannot_name_a_later_universal_in_alias_assumption() {
             the rule "existential-universal" at (prove_eq.rs) failed because
               condition evaluated to false: `env.universe(p) < env.universe(v)`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:226:1: no applicable rules for prove_normalize_via { goal: ?ty_1, via: <!ty_0 as Iterator>::Item = u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:310:1: no applicable rules for prove_normalize_via_eq { goal: ?ty_1, left: <!ty_0 as Iterator>::Item, right: u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
             the rule "existential-nonvar" at (prove_eq.rs) failed because
               pattern `None` did not match value `Some(!ty_0)`
@@ -178,7 +178,7 @@ fn existential_cannot_name_a_later_universal_in_alias_assumption() {
               condition evaluated to false: `env.universe(p) < env.universe(v)`
 
             the rule "normalize-via-impl" at (prove_normalize.rs) failed because
-              expression evaluated to an empty collection: `decls.raw_trait_impls_for(&name.trait_id)`"#]]);
+              expression evaluated to an empty collection: `decls.raw_trait_impls_for(trait_id)`"#]]);
 }
 
 #[test]
@@ -205,7 +205,7 @@ fn existential_cannot_equal_every_later_universal() {
             the rule "assumption" at (prove_wc.rs) failed because
               expression evaluated to an empty collection: `assumptions`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:62:1: no applicable rules for prove_normalize { p: !ty_1, assumptions: {}, env: Env { variables: [?ty_0, !ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:53:1: no applicable rules for prove_normalize { p: !ty_1, assumptions: {}, env: Env { variables: [?ty_0, !ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
             the rule "existential-nonvar" at (prove_eq.rs) failed because
               pattern `None` did not match value `Some(!ty_1)`
@@ -213,5 +213,5 @@ fn existential_cannot_equal_every_later_universal() {
             the rule "existential-universal" at (prove_eq.rs) failed because
               condition evaluated to false: `env.universe(p) < env.universe(v)`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:62:1: no applicable rules for prove_normalize { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0, !ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:53:1: no applicable rules for prove_normalize { p: ?ty_0, assumptions: {}, env: Env { variables: [?ty_0, !ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }

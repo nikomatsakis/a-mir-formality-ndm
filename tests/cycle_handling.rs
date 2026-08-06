@@ -239,7 +239,7 @@ fn rooted_validation_cycle_cannot_invent_impl_for_ground_type() {
 
         crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Trait, via: Supertraits[Trait](Wrapper<Ground>: Trait), assumptions: {Supertraits[Trait](Wrapper<Ground>: Trait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Ground: Trait, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> Trait for Wrapper<^ty0_0> where ^ty0_0 : Trait { } }, assumptions: {Supertraits[Trait](Wrapper<Ground>: Trait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { requested_trait_ref: Ground: Trait, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> Trait for Wrapper<^ty0_0> where ^ty0_0 : Trait { } }, assumptions: {Supertraits[Trait](Wrapper<Ground>: Trait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -387,7 +387,7 @@ fn grounded_supertrait_chain_rejects_type_without_debug_impl() {
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bar: Debug, via: Supertraits[B](Bar: B), assumptions: {Supertraits[A](Bar: A), Supertraits[B](Bar: B)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Bar: Debug, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, assumptions: {Supertraits[A](Bar: A), Supertraits[B](Bar: B)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { requested_trait_ref: Bar: Debug, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, assumptions: {Supertraits[A](Bar: A), Supertraits[B](Bar: B)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]

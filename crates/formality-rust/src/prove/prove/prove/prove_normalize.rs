@@ -1,7 +1,8 @@
 use crate::{
     grammar::{
-        AliasName, AliasTy, AssociatedItemId, ExistentialVar, Fallible, Parameter, Predicate,
-        Relation, RigidTy, TraitRef, Ty, TyData, Upto, Variable, Wc, WcData, Wcs,
+        AliasName, AliasTy, AssociatedItemId, AssociatedTyName, ExistentialVar, Fallible,
+        Parameter, Predicate, Relation, RigidTy, TraitImplBoundData, TraitRef, Ty, TyData, Upto,
+        Variable, Wc, WcData, Wcs,
     },
     prove::prove::Constrained,
 };
@@ -10,49 +11,39 @@ use formality_core::{judgment_fn, Downcast};
 use crate::prove::prove::{
     decls::{ImplCandidate, Program},
     prove::{
-        combinators::zip,
-        env::Env,
-        prove_after::prove_after,
-        prove_eq::prove_existential_var_eq,
-        prove_match_impl::{match_impl_candidate, MatchedImpl},
+        combinators::zip, env::Env, prove_after::prove_after, prove_eq::prove_existential_var_eq,
+        prove_match_impl::match_impl_candidate,
     },
 };
-use crate::prove::ToWcs;
 
 use super::constraints::Constraints;
 
-fn associated_ty_parts(
+fn associated_ty_parts<'a>(
     decls: &Program,
-    alias: &AliasTy,
-) -> Fallible<(AssociatedItemId, Vec<Parameter>, TraitRef, Wcs)> {
-    let AliasName::AssociatedTyId(name) = &alias.name;
-    let trait_parameter_count = alias
-        .parameters
-        .len()
-        .checked_sub(name.item_arity)
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "associated type alias {:?} has fewer parameters than its item arity",
-                alias,
-            )
-        })?;
+    alias: &'a AliasTy,
+    item_arity: usize,
+) -> Fallible<(&'a [Parameter], TraitRef, Wcs)> {
+    let trait_parameter_count =
+        alias
+            .parameters
+            .len()
+            .checked_sub(item_arity)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "associated type alias {:?} has fewer parameters than its item arity",
+                    alias,
+                )
+            })?;
     let (_, gat_parameters) = alias.parameters.split_at(trait_parameter_count);
     let (trait_ref, gat_where_clauses) = decls.associated_ty_requirements(alias)?;
-    Ok((
-        name.item_id.clone(),
-        gat_parameters.to_vec(),
-        trait_ref,
-        gat_where_clauses,
-    ))
+    Ok((gat_parameters, trait_ref, gat_where_clauses))
 }
 
 fn associated_ty_value(
-    matched: &MatchedImpl,
-    constraints: &Constraints,
+    trait_impl: &TraitImplBoundData,
     item_id: &AssociatedItemId,
     gat_parameters: &[Parameter],
 ) -> Fallible<Ty> {
-    let trait_impl = matched.trait_impl(constraints);
     let associated_value = trait_impl.assoc_ty_value(item_id).ok_or_else(|| {
         anyhow::anyhow!("impl has no unique value for associated type {item_id:?}")
     })?;
@@ -80,9 +71,8 @@ judgment_fn! {
         )
 
         (
-            (let AliasName::AssociatedTyId(name) = &a.name)
-            (let impl_validation = Upto::gat_bounds(&name.trait_id))
-            (candidate in decls.raw_trait_impls_for(&name.trait_id))
+            (let impl_validation = Upto::gat_bounds(trait_id))
+            (candidate in decls.raw_trait_impls_for(trait_id))
             (prove_normalize_via_impl_candidate(
                 decls,
                 env,
@@ -92,7 +82,18 @@ judgment_fn! {
                 candidate,
             ) => normalized)
             ----------------------------- ("normalize-via-impl")
-            (prove_normalize(decls, env, assumptions, TyData::AliasTy(a)) => normalized)
+            (prove_normalize(
+                decls,
+                env,
+                assumptions,
+                a @ AliasTy {
+                    name: AliasName::AssociatedTyId(AssociatedTyName {
+                        trait_id,
+                        ..
+                    }),
+                    ..
+                },
+            ) => normalized)
         )
     }
 }
@@ -112,9 +113,8 @@ judgment_fn! {
         debug(a, assumptions, env)
 
         (
-            (let AliasName::AssociatedTyId(name) = &a.name)
-            (let impl_validation = Upto::supertraits(&name.trait_id))
-            (candidate in decls.raw_trait_impls_for(&name.trait_id))
+            (let impl_validation = Upto::supertraits(trait_id))
+            (candidate in decls.raw_trait_impls_for(trait_id))
             (prove_normalize_via_impl_candidate(
                 decls,
                 env,
@@ -128,7 +128,13 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                a,
+                a @ AliasTy {
+                    name: AliasName::AssociatedTyId(AssociatedTyName {
+                        trait_id,
+                        ..
+                    }),
+                    ..
+                },
             ) => normalized)
         )
     }
@@ -148,8 +154,8 @@ judgment_fn! {
         debug(a, impl_validation, candidate, assumptions, env)
 
         (
-            (let (item_id, gat_parameters, requested_trait_ref, gat_where_clauses) =
-                associated_ty_parts(decls, a)?)
+            (let (gat_parameters, requested_trait_ref, gat_where_clauses) =
+                associated_ty_parts(decls, a, *item_arity)?)
 
             // Normalizing through an impl is itself a coinductive application. The recursive
             // handle is deliberately zero-capability: it can close an exact occurrence but cannot
@@ -160,17 +166,23 @@ judgment_fn! {
             (match_impl_candidate(
                 decls,
                 env,
-                (assumptions, &recursive_assumption),
+                (assumptions, recursive_assumption),
                 requested_trait_ref,
                 candidate,
             ) => Constrained(matched, c))
 
+            (let trait_impl @ TraitImplBoundData {
+                trait_id: impl_trait_id,
+                where_clauses: impl_where_clauses,
+                ..
+            } = matched.trait_impl(c))
+
             // The selected impl fixes its associated value before any dictionaries witnessing
             // that value's bounds exist. Make that equation available only inside this candidate
             // branch, then commit it only after every residual obligation below succeeds.
-            (let provisional_ty = associated_ty_value(matched, c, item_id, gat_parameters)?)
-            (let provisional_alias_eq =
-                Predicate::AliasEq(a.clone(), provisional_ty.clone()))
+            (let provisional_ty =
+                associated_ty_value(trait_impl, item_id, gat_parameters)?)
+            (let provisional_alias_eq = Predicate::alias_eq(a, provisional_ty))
 
             // Selecting the impl makes its header available at the supertrait frontier. Ordinary
             // normalization passes `GatBounds[ImplTrait]` as `impl_validation`, matching the
@@ -181,16 +193,9 @@ judgment_fn! {
             // FIXME: Value-only normalization still requires declaration-side GAT conditions at
             // `GatBounds[ImplTrait]`. Determine whether selecting the value should require those
             // conditions only at an earlier frontier too.
-            (let trait_impl = matched.trait_impl(c))
-            (let gat_validation = Upto::gat_bounds(&trait_impl.trait_id))
+            (let gat_validation = Upto::gat_bounds(impl_trait_id))
             (let provisional_impl_header =
-                Upto::supertraits(&trait_impl.trait_id).apply(trait_impl.trait_ref()))
-            (let impl_where_clauses =
-                impl_validation.apply_goals(trait_impl.where_clauses.to_wcs()))
-            (let conditions = (
-                &impl_where_clauses,
-                gat_validation.apply_goals(gat_where_clauses),
-            ).to_wcs())
+                Upto::supertraits(impl_trait_id).apply(trait_impl.trait_ref()))
             (prove_after(
                 decls,
                 c,
@@ -199,7 +204,10 @@ judgment_fn! {
                     provisional_impl_header,
                     provisional_alias_eq,
                 ),
-                conditions,
+                (
+                    impl_validation.apply_goals(impl_where_clauses),
+                    gat_validation.apply_goals(gat_where_clauses),
+                ),
             ) => c)
 
             // Where-clauses may have inferred impl parameters absent from the header, so apply the
@@ -215,7 +223,14 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                a,
+                a @ AliasTy {
+                    name: AliasName::AssociatedTyId(AssociatedTyName {
+                        item_id,
+                        item_arity,
+                        ..
+                    }),
+                    ..
+                },
                 impl_validation,
                 candidate,
             ) => Constrained(ty, c))
@@ -242,13 +257,11 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                TyData::AliasTy(via_alias.clone()),
-                TyData::AliasTy(goal_alias.clone()),
+                via_alias,
+                goal_alias,
             ) => c)
             (let ty = c.substitution().apply(via_ty))
-            (let goal = c
-                .substitution()
-                .apply(TyData::AliasTy(goal_alias.clone())))
+            (let goal = c.substitution().apply(TyData::alias_ty(goal_alias)))
             (if goal != ty)!
             ----------------------------- ("alias-eq")
             (prove_normalize_via(
@@ -256,64 +269,30 @@ judgment_fn! {
                 env,
                 assumptions,
                 Predicate::AliasEq(via_alias, via_ty),
-                TyData::AliasTy(goal_alias),
+                goal_alias @ AliasTy { .. },
             ) => Constrained(ty, c))
         )
 
-        // The following 2 rules handle normalization of existential variables. We look specifically for
-        // the case of a assumption `?X = Y`, which lets us normalize `?X` to `Y`, and ignore
-        // everything else. In principle, we could allow the more general normalization rules
-        // below handle this case too, but that generates a LOT of false paths, and I *believe*
-        // it is unnecessary
-
         (
-            (if let Some(Variable::ExistentialVar(v_a)) = a.downcast())
-            (if v_goal == v_a)!
-            ----------------------------- ("var-axiom-l")
-            (prove_normalize_via(_decls, env, _assumptions, Relation::Equals(a, b), Variable::ExistentialVar(v_goal)) => Constrained::none(env, b))
-        )
-
-        (
-            (if let Some(Variable::ExistentialVar(v_a)) = a.downcast())
-            (if v_goal == v_a)!
-            ----------------------------- ("var-axiom-r")
-            (prove_normalize_via(_decls, env, _assumptions, Relation::Equals(b, a), Variable::ExistentialVar(v_goal)) => Constrained::none(env, b))
-        )
-
-        // The following 2 rules handle normalization of a type `X` given an assumption `X = Y`.
-        // We can't just check for `goal == a` though because we sometimes need to bind existential
-        // variables. Consider normalizing `R<?X>` given an assumption `R<u32> = Y`: this can be
-        // normalized to `Y` given the constraint `?X = u32`.
-        //
-        // We don't use these rules to normalize an existential variable `?X` because such a goal
-        // could be equated to everything, and thus generates a ton of spurious paths.
-
-        (
-            (if let None = goal.downcast::<ExistentialVar>())
-            (if goal != b)!
-            (prove_syntactically_eq(decls, env, assumptions, a, goal) => c)
-            (let b = c.substitution().apply(b))
-            ----------------------------- ("axiom-l")
-            (prove_normalize_via(decls, env, assumptions, Relation::Equals(a, b), goal) => Constrained(b, c))
-        )
-
-        (
-            (if let None = goal.downcast::<ExistentialVar>())
-            (if goal != b)!
-            (prove_syntactically_eq(decls, env, assumptions, a, goal) => c)
-            (let b = c.substitution().apply(b))
-            ----------------------------- ("axiom-r")
-            (prove_normalize_via(decls, env, assumptions, Relation::Equals(b, a), goal) => Constrained(b, c))
+            (prove_normalize_via_eq(decls, env, assumptions, a, b, goal) => c)
+            ----------------------------- ("equality")
+            (prove_normalize_via(
+                decls,
+                env,
+                assumptions,
+                Relation::Equals(a, b),
+                goal,
+            ) => c)
         )
 
         // These rules handle the the ∀ and ⇒ cases.
 
         (
             (let (env, subst) = env.existential_substitution(binder))
-            (let via1 = binder.instantiate_with(&subst).unwrap())
+            (let via1 = binder.instantiate_with(subst)?)
             (prove_normalize_via(decls, env, assumptions, via1, goal) => Constrained(p, c))
-            (let c = c.pop_subst(&subst))
-            (assert c.env().encloses(&p))
+            (let c = c.pop_subst(subst))
+            (assert c.env().encloses(p))
             ----------------------------- ("forall")
             (prove_normalize_via(decls, env, assumptions, WcData::ForAll(binder), goal) => Constrained(p, c))
         )
@@ -324,6 +303,83 @@ judgment_fn! {
             (let p = c.substitution().apply(p))
             ----------------------------- ("implies")
             (prove_normalize_via(decls, env, assumptions, WcData::Implies(wc_condition, wc_consequence), goal) => Constrained(p, c))
+        )
+    }
+}
+
+judgment_fn! {
+    /// Normalize through an equality assumption, considering either orientation.
+    fn prove_normalize_via_eq(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        left: Parameter,
+        right: Parameter,
+        goal: Parameter,
+    ) => Constrained<Parameter> {
+        debug(goal, left, right, assumptions, env)
+
+        // Normalize an existential variable only through an equality that names that exact
+        // variable. Allowing the general rules below to match an existential goal generates many
+        // spurious paths.
+        (
+            (if goal_var == left_var)!
+            ----------------------------- ("var-axiom-l")
+            (prove_normalize_via_eq(
+                _decls,
+                env,
+                _assumptions,
+                Variable::ExistentialVar(left_var),
+                right,
+                Variable::ExistentialVar(goal_var),
+            ) => Constrained::none(env, right))
+        )
+
+        (
+            (if goal_var == right_var)!
+            ----------------------------- ("var-axiom-r")
+            (prove_normalize_via_eq(
+                _decls,
+                env,
+                _assumptions,
+                left,
+                Variable::ExistentialVar(right_var),
+                Variable::ExistentialVar(goal_var),
+            ) => Constrained::none(env, left))
+        )
+
+        // For a non-variable goal, syntactic equality may infer variables nested within the
+        // matched side. For example, `R<u32> = Y` normalizes `R<?X>` to `Y` with `?X = u32`.
+        (
+            (if goal.downcast::<ExistentialVar>().is_none())
+            (if goal != right)!
+            (prove_syntactically_eq(decls, env, assumptions, left, goal) => c)
+            (let right = c.substitution().apply(right))
+            ----------------------------- ("axiom-l")
+            (prove_normalize_via_eq(
+                decls,
+                env,
+                assumptions,
+                left,
+                right,
+                goal,
+            ) => Constrained(right, c))
+        )
+
+        (
+            (if goal.downcast::<ExistentialVar>().is_none())
+            (if goal != left)!
+            (prove_syntactically_eq(decls, env, assumptions, right, goal) => c)
+            (let left = c.substitution().apply(left))
+            ----------------------------- ("axiom-r")
+            (prove_normalize_via_eq(
+                decls,
+                env,
+                assumptions,
+                left,
+                right,
+                goal,
+            ) => Constrained(left, c))
         )
     }
 }
@@ -347,21 +403,41 @@ judgment_fn! {
         )
 
         (
-            (let RigidTy { name: a_name, parameters: a_parameters } = a)
-            (let RigidTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)!
             (zip(decls, env, assumptions, a_parameters, b_parameters, &prove_syntactically_eq) => c)
             ----------------------------- ("rigid")
-            (prove_syntactically_eq(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
+            (prove_syntactically_eq(
+                decls,
+                env,
+                assumptions,
+                RigidTy {
+                    name: a_name,
+                    parameters: a_parameters,
+                },
+                RigidTy {
+                    name: b_name,
+                    parameters: b_parameters,
+                },
+            ) => c)
         )
 
         (
-            (let AliasTy { name: a_name, parameters: a_parameters } = a)
-            (let AliasTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)!
             (zip(decls, env, assumptions, a_parameters, b_parameters, &prove_syntactically_eq) => c)
             ----------------------------- ("alias")
-            (prove_syntactically_eq(decls, env, assumptions, TyData::AliasTy(a), TyData::AliasTy(b)) => c)
+            (prove_syntactically_eq(
+                decls,
+                env,
+                assumptions,
+                AliasTy {
+                    name: a_name,
+                    parameters: a_parameters,
+                },
+                AliasTy {
+                    name: b_name,
+                    parameters: b_parameters,
+                },
+            ) => c)
         )
 
         (

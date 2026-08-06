@@ -1,4 +1,4 @@
-use crate::grammar::{ExistentialVar, TraitImplBoundData, TraitRef, Wcs};
+use crate::grammar::{ExistentialVar, TraitImpl, TraitImplBoundData, TraitRef, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, Program};
 use crate::prove::prove::prove::{prove, prove_impl_wf};
 use crate::prove::prove::{Constrained, Constraints, Env};
@@ -24,7 +24,7 @@ impl MatchedImpl {
     fn new(impl_variables: &[ExistentialVar], trait_impl: &TraitImplBoundData) -> Self {
         Self {
             impl_variables: impl_variables.to_vec(),
-            trait_impl: trait_impl.clone(),
+            trait_impl: trait_impl.to_owned(),
         }
     }
 
@@ -33,7 +33,7 @@ impl MatchedImpl {
     /// Call this again after proving the impl's where-clauses: those clauses may constrain impl
     /// parameters that did not occur in the header.
     pub(crate) fn trait_impl(&self, constraints: &Constraints) -> TraitImplBoundData {
-        constraints.substitution().apply(self.trait_impl.clone())
+        constraints.substitution().apply(&self.trait_impl)
     }
 
     /// Remove the fresh impl variables after all caller-specific obligations have succeeded.
@@ -62,27 +62,35 @@ judgment_fn! {
         debug(requested_trait_ref, candidate, assumptions, env)
 
         (
-            (if candidate.trait_impl.trait_id() == &requested_trait_ref.trait_id)
-            (prove_impl_wf(decls, &candidate.trait_impl) => ())
+            (if candidate_impl.trait_id() == requested_trait_id)
+            (prove_impl_wf(decls, candidate_impl) => ())
             (let (env, impl_variables) =
-                env.existential_substitution(&candidate.trait_impl.binder))
-            (let trait_impl = candidate
-                .trait_impl
-                .binder
-                .instantiate_with(impl_variables)?)
-            (let equality = Wcs::all_eq(
-                &requested_trait_ref.parameters,
-                &trait_impl.trait_ref().parameters
-            ))
-            (prove(decls, env, assumptions, equality) => c)
+                env.existential_substitution(candidate_binder))
+            (let trait_impl = candidate_binder.instantiate_with(impl_variables)?)
+            (let TraitRef { parameters: impl_parameters, .. } = trait_impl.trait_ref())
+            (prove(
+                decls,
+                env,
+                assumptions,
+                Wcs::all_eq(requested_parameters, impl_parameters),
+            ) => c)
             (let trait_impl = c.substitution().apply(trait_impl))
             ----------------------------- ("match impl candidate")
             (match_impl_candidate(
                 decls,
                 env,
                 assumptions,
-                requested_trait_ref,
-                candidate,
+                TraitRef {
+                    trait_id: requested_trait_id,
+                    parameters: requested_parameters,
+                },
+                ImplCandidate {
+                    id: _,
+                    trait_impl: candidate_impl @ TraitImpl {
+                        binder: candidate_binder,
+                        safety: _,
+                    },
+                },
             ) => Constrained(MatchedImpl::new(impl_variables, trait_impl), c))
         )
     }

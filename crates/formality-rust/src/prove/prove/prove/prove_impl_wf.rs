@@ -1,12 +1,14 @@
 use crate::grammar::{
-    AssociatedTyBoundData, AssociatedTyValueBoundData, Relation, TraitImpl, TraitImplBoundData,
-    TraitItem, Upto, Wc, Wcs,
+    AssociatedTy, AssociatedTyBoundData, AssociatedTyValue, AssociatedTyValueBoundData, Relation,
+    TraitBoundData, TraitImpl, TraitImplBoundData, TraitRef, Upto, Wc, Wcs,
 };
 use crate::prove::prove::decls::Program;
 use crate::prove::prove::prove::prove;
-use crate::prove::prove::{trait_requirement, TraitRequirementBoundData};
-use crate::prove::ToWcs;
-use formality_core::{judgment_fn, Upcast};
+use crate::prove::prove::{
+    trait_associated_ty, trait_requirement, AssociatedTyRequirement, TraitRequirement,
+    TraitRequirementBoundData,
+};
+use formality_core::judgment_fn;
 
 use super::{constraints::Constraints, env::Env};
 
@@ -28,26 +30,24 @@ judgment_fn! {
         debug(trait_impl, program)
 
         (
-            (let (env, impl_data) =
-                Env::default().instantiate_universally(&trait_impl.binder))
-            (let trait_ref = impl_data.trait_ref())
-            (let validation = Upto::supertraits(&trait_ref.trait_id))
-            (let provisional_impl_header = validation.apply(trait_ref).to_wcs())
-            (let trait_def = program.trait_def(&trait_ref.trait_id))
+            (let (env, impl_data @ TraitImplBoundData { trait_id, .. }) =
+                Env::default().instantiate_universally(binder))
+            (let TraitRef { parameters, .. } = impl_data.trait_ref())
+            (let trait_def = program.trait_def(trait_id))
             (trait_requirement(trait_def) => requirements)
             (for_all(requirement in requirements)
+                (let TraitRequirement { binder: requirement_binder } = requirement)
                 (let requirement =
-                    requirement.binder.instantiate_with(&trait_ref.parameters)?)
+                    requirement_binder.instantiate_with(parameters)?)
                 (validate_impl_requirement(
                     program,
                     env,
-                    provisional_impl_header,
                     impl_data,
                     requirement,
                 ) => c)
                 (if c.unconditionally_true()))
             ----------------------------- ("requirements")
-            (prove_impl_wf(program, trait_impl) => ())
+            (prove_impl_wf(program, TraitImpl { binder, safety: _ }) => ())
         )
     }
 }
@@ -57,44 +57,49 @@ judgment_fn! {
     fn validate_impl_requirement(
         program: Program,
         env: Env,
-        provisional_impl_header: Wcs,
         trait_impl: TraitImplBoundData,
         requirement: TraitRequirementBoundData,
     ) => Constraints {
-        debug(provisional_impl_header, trait_impl, requirement, env, program)
+        debug(trait_impl, requirement, env, program)
 
         (
-            (let validation = Upto::supertraits(&trait_impl.trait_id))
+            (let validation = Upto::supertraits(trait_id))
             (let assumptions = (
-                provisional_impl_header,
-                validation.apply_assumptions(trait_impl.where_clauses.to_wcs()),
-            ).to_wcs())
+                validation.apply(trait_impl.trait_ref()),
+                validation.apply_assumptions(where_clauses),
+            ))
             (let goal = validation.apply(Wc::for_all(supertrait)))
             (prove(program, env, assumptions, goal) => c)
             ----------------------------- ("supertrait")
             (validate_impl_requirement(
                 program,
                 env,
-                provisional_impl_header,
-                trait_impl,
+                trait_impl @ TraitImplBoundData {
+                    trait_id,
+                    where_clauses,
+                    ..
+                },
                 TraitRequirementBoundData::Supertrait(supertrait),
             ) => c)
         )
 
         (
-            (let validation = Upto::supertraits(&trait_impl.trait_id))
+            (let validation = Upto::supertraits(trait_id))
             (let assumptions = (
-                provisional_impl_header,
-                validation.apply_assumptions(trait_impl.where_clauses.to_wcs()),
-            ).to_wcs())
+                validation.apply(trait_impl.trait_ref()),
+                validation.apply_assumptions(where_clauses),
+            ))
             (let goal = validation.apply(Wc::for_all(outlives)))
             (prove(program, env, assumptions, goal) => c)
             ----------------------------- ("outlives")
             (validate_impl_requirement(
                 program,
                 env,
-                provisional_impl_header,
-                trait_impl,
+                trait_impl @ TraitImplBoundData {
+                    trait_id,
+                    where_clauses,
+                    ..
+                },
                 TraitRequirementBoundData::Outlives(outlives),
             ) => c)
         )
@@ -102,73 +107,66 @@ judgment_fn! {
         (
             // Universally instantiate the associated type's parameters. These variables are
             // independent of the universally instantiated impl parameters already in `env`.
-            (let (env, gat_subst) = env.universal_substitution(&associated.binder))
+            (let (env, gat_subst) = env.universal_substitution(associated_binder))
 
             // Instantiate this impl's associated value with the same GAT arguments.
-            (if let Some(assoc_ty_value) = trait_impl.assoc_ty_value(&associated.id))
-            (if assoc_ty_value.binder.kinds() == associated.binder.kinds())!
+            (AssociatedTyValue { binder: value_binder, .. } in
+                trait_impl.assoc_ty_value(associated_id))
+            (if value_binder.kinds() == associated_binder.kinds())!
             (let AssociatedTyValueBoundData {
                 where_clauses: _,
                 ty: impl_ty,
-            } = assoc_ty_value.binder.instantiate_with(gat_subst)?)
+            } = value_binder.instantiate_with(gat_subst)?)
 
             // Substitute that value into the bounds promised by the trait.
-            (let gat_goals = associated
-                .binder
+            (let gat_goals = associated_binder
                 .instantiate_with(gat_subst)?
-                .instantiate_with(std::slice::from_ref(&impl_ty))?)
+                .instantiate_with((impl_ty,))?)
 
             // Instantiate the declaration-side GAT conditions with the same arguments.
-            (let trait_def = program.trait_def(&trait_impl.trait_id))
-            (let trait_data =
-                trait_def.binder.instantiate_with(&trait_impl.trait_ref().parameters)?)
-            (let trait_associated_ty = trait_data
-                .trait_items
-                .iter()
-                .find_map(|item| match item {
-                    TraitItem::AssociatedTy(associated_ty)
-                        if associated_ty.id == associated.id =>
-                    {
-                        Some(associated_ty)
-                    }
-                    _ => None,
-                })
-                .ok_or_else(|| anyhow::anyhow!(
-                    "trait has no associated type {:?}",
-                    associated.id,
-                ))?)
+            (let trait_def = program.trait_def(trait_id))
+            (let TraitRef { parameters, .. } = trait_impl.trait_ref())
+            (let TraitBoundData { trait_items, .. } =
+                trait_def.binder.instantiate_with(parameters)?)
+            (trait_associated_ty(trait_items, associated_id) =>
+                AssociatedTy { binder: trait_associated_binder, .. })
             (let AssociatedTyBoundData {
                 ensures: _,
                 where_clauses: trait_gat_wc,
-            } = trait_associated_ty.binder.instantiate_with(gat_subst)?)
+            } = trait_associated_binder.instantiate_with(gat_subst)?)
 
             // Associated values and supertrait fields are already available while constructing
             // the dictionaries promised by an associated type. The impl header and the impl/GAT
             // conditions are therefore viewed at `GatBounds[ImplTrait]` while checking both the
             // concrete value's WF and each promised bound.
-            (let gat_bounds = Upto::gat_bounds(&trait_impl.trait_id))
-            (let gat_bound_impl_header =
-                gat_bounds.apply(trait_impl.trait_ref()).to_wcs())
-            (let validation_conditions =
-                gat_bounds.apply_assumptions(
-                    (trait_impl.where_clauses.to_wcs(), trait_gat_wc.to_wcs()).to_wcs(),
-                ))
-            (let value_wf: Wc = Relation::well_formed(impl_ty).upcast())
-            (let validation_goals: Wcs = std::iter::once(value_wf.clone())
-                .chain(gat_goals.iter())
-                .map(|goal| Wc::implies(
-                    validation_conditions,
-                    gat_bounds.apply(goal),
-                ))
-                .collect())
-            (prove(program, env, gat_bound_impl_header, validation_goals) => c)
+            (let gat_bounds = Upto::gat_bounds(trait_id))
+            (let conditions =
+                gat_bounds.apply_assumptions((where_clauses, trait_gat_wc)))
+            (let goals =
+                gat_bounds.apply_goals((Relation::well_formed(impl_ty), gat_goals)))
+            (let goals = Wcs::from_iter(
+                goals.iter().map(|goal| Wc::implies(conditions, goal))))
+            (prove(
+                program,
+                env,
+                gat_bounds.apply(trait_impl.trait_ref()),
+                goals,
+            ) => c)
             ----------------------------- ("associated type")
             (validate_impl_requirement(
                 program,
                 env,
-                provisional_impl_header,
-                trait_impl,
-                TraitRequirementBoundData::AssociatedTyRequirement(associated),
+                trait_impl @ TraitImplBoundData {
+                    trait_id,
+                    where_clauses,
+                    ..
+                },
+                TraitRequirementBoundData::AssociatedTyRequirement(
+                    AssociatedTyRequirement {
+                        id: associated_id,
+                        binder: associated_binder,
+                    },
+                ),
             ) => c.pop_subst(gat_subst))
         )
     }
