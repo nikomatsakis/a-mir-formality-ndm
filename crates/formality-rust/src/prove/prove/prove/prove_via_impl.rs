@@ -1,13 +1,12 @@
-use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Wcs};
+use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Upto, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
-use crate::prove::prove::{
-    prove::{prove, prove_after::prove_after},
-    Constrained, Constraints, Env,
-};
+use crate::prove::prove::prove::{match_impl_candidate, prove_after};
+use crate::prove::prove::{Constrained, Constraints, Env};
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Upcast};
 
 /// A successful application of one particular impl declaration.
+/// It retains the source impl identity and its inferred binder variables.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct ImplApplication {
     pub(crate) impl_id: ImplId,
@@ -49,53 +48,49 @@ judgment_fn! {
     /// `requested_trait_ref`. This judgment never searches another impl.
     pub(crate) fn prove_via_impl(
         _decls: Program,
-        _env: Env,
-        _assumptions: Wcs,
-        _requested_trait_ref: TraitRef,
-        _candidate: ImplCandidate,
+        env: Env,
+        assumptions: Wcs,
+        requested_trait_ref: TraitRef,
+        candidate: ImplCandidate,
     ) => Constrained<ImplApplication> {
-        debug(_requested_trait_ref, _candidate, _assumptions, _env)
+        debug(requested_trait_ref, candidate, assumptions, env)
 
         (
-            // The caller supplies exactly one candidate. A different trait id
-            // is a mismatch, not an invitation to search another declaration.
-            (if candidate.trait_impl.trait_id() == &requested_trait_ref.trait_id)!
-
-            // Retain these fresh variables in the result. Codegen needs them
-            // to recover the inferred impl-binder arguments before popping the
-            // candidate's local proof scope.
-            (let (env, impl_variables) =
-                env.existential_substitution(&candidate.trait_impl.binder))
-            (let trait_impl = candidate
-                .trait_impl
-                .binder
-                .instantiate_with(&impl_variables)
-                .unwrap())
-            (let impl_trait_ref = trait_impl.trait_ref())
-
-            // Instantiate the trait's own well-formedness requirements using
-            // the candidate header, exactly as the ordinary positive rule did.
-            (let trait_decl = decls
-                .trait_decl(&impl_trait_ref.trait_id)
-                .binder
-                .instantiate_with(&impl_trait_ref.parameters)
-                .unwrap())
-
-            (let co_assumptions = (assumptions, requested_trait_ref))
-            (prove(
+            // Löb induction begins with an opaque handle to the dictionary being constructed.
+            // Header matching may close an exact recursive occurrence with this handle, but it
+            // cannot project supertraits or associated-type bounds from it. After matching, the
+            // residual obligations below receive the candidate's independently validated
+            // `Supertraits` view instead.
+            (let recursive_assumption =
+                Upto::Zero.apply(requested_trait_ref))
+            (match_impl_candidate(
                 decls,
                 env,
-                co_assumptions,
-                Wcs::all_eq(&requested_trait_ref.parameters, &impl_trait_ref.parameters),
-            ) => c)
+                (assumptions, &recursive_assumption),
+                requested_trait_ref,
+                candidate,
+            ) => Constrained(matched, c))!
+            (let trait_impl = matched.trait_impl(c))
+            (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
+
+            // A well-formed impl is a dictionary constructor from validated inputs to ordinary,
+            // completed `Implemented` evidence. Selecting the impl fixes its associated-type
+            // values, so its header is available at the supertrait frontier within this branch.
+            // That view still cannot expose the root dictionary's own supertrait or associated-
+            // bound fields.
+            //
+            // FIXME(ndm): It seems to me that this logic can be "extracted and shared" somehow
+            // between impl WF checking and this code here. We are basically constructing the
+            // "inputs" to the impl's implication.
+            (let validation = Upto::supertraits(&trait_impl.trait_id))
+            (let provisional_impl_header =
+                validation.apply(trait_impl.trait_ref()))
             (prove_after(
                 decls,
                 c,
-                co_assumptions,
-                trait_impl.where_clauses.to_wcs(),
+                (assumptions, provisional_impl_header),
+                validation.apply_goals(impl_where_clauses),
             ) => c)
-            (prove_after(decls, c, assumptions, &trait_decl.where_clause) => c)
-            (let application = ImplApplication::new(candidate, impl_variables))
             ---------------------------------------------------- ("candidate")
             (prove_via_impl(
                 decls,
@@ -103,7 +98,13 @@ judgment_fn! {
                 assumptions,
                 requested_trait_ref,
                 candidate,
-            ) => Constrained(application, c))
+            ) => Constrained(
+                ImplApplication::new(
+                    candidate,
+                    &matched.impl_variables,
+                ),
+                c,
+            ))
         )
     }
 }
@@ -154,7 +155,7 @@ mod tests {
         assert!(apply_candidate(
             &program,
             Env::default(),
-            term::<TraitRef>("Foo(u32)"),
+            term::<TraitRef>("u32: Foo"),
             &candidates[0],
         )
         .is_some());
@@ -168,7 +169,7 @@ mod tests {
         assert!(apply_candidate(
             &program,
             Env::default(),
-            term::<TraitRef>("Foo(u32)"),
+            term::<TraitRef>("u32: Foo"),
             &candidates[1],
         )
         .is_none());
@@ -188,7 +189,7 @@ mod tests {
         let candidates = program.raw_trait_impls_for(&term("Bar"));
 
         assert!(
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0],).is_none()
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0],).is_none()
         );
     }
 
@@ -209,9 +210,9 @@ mod tests {
         assert_ne!(candidates[0].id, candidates[1].id);
 
         let (first, _) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
         let (second, _) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[1]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[1]).unwrap();
         assert_ne!(first.impl_id, second.impl_id);
     }
 
@@ -229,7 +230,7 @@ mod tests {
         let candidates = program.raw_trait_impls_for(&term("Foo"));
 
         assert!(
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0],).is_none()
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0],).is_none()
         );
     }
 
@@ -248,7 +249,7 @@ mod tests {
         let (application, constraints) = apply_candidate(
             &program,
             Env::default(),
-            term("Pair(Wrapper<u32, i32>, i32)"),
+            term("Wrapper<u32, i32>: Pair<i32>"),
             &candidates[0],
         )
         .unwrap();
@@ -273,7 +274,7 @@ mod tests {
         let (application, constraints) = apply_candidate(
             &program,
             Env::default(),
-            term("Project(u32, i32)"),
+            term("u32: Project<i32>"),
             &candidates[0],
         )
         .unwrap();
@@ -298,7 +299,7 @@ mod tests {
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
         let (application, constraints) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
 
         assert_eq!(
             application.inferred_impl_arguments(&constraints),
@@ -318,7 +319,7 @@ mod tests {
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
         let (application, constraints) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
 
         assert_ne!(constraints.env(), &Env::default());
         assert_eq!(
@@ -368,7 +369,7 @@ mod tests {
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
         let (application, constraints) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
         let arguments = application.inferred_impl_arguments(&constraints);
 
         assert_eq!(arguments.len(), 1);
@@ -388,7 +389,7 @@ mod tests {
         let candidates = program.raw_trait_impls_for(&term("Foo"));
 
         assert!(
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0],).is_some()
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0],).is_some()
         );
     }
 
@@ -407,7 +408,7 @@ mod tests {
         let candidates = program.raw_trait_impls_for(&term("Foo"));
 
         assert!(
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0],).is_some()
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0],).is_some()
         );
     }
 }

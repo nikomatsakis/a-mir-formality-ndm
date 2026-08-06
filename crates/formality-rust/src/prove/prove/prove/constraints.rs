@@ -74,6 +74,12 @@ pub struct Constraints {
 
 cast_impl!(Constraints);
 
+impl UpcastFrom<Env> for Constraints {
+    fn upcast_from(env: Env) -> Self {
+        Constraints::none(env)
+    }
+}
+
 impl<E, A, B> UpcastFrom<(E, (A, B))> for Constraints
 where
     E: Upcast<Env>,

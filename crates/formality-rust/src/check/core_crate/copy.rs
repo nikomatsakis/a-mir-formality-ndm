@@ -17,6 +17,9 @@ pub fn lang_items() -> LangItems {
         impl Copy for bool {}
         impl Copy for usize {}
         impl Copy for isize {}
-        impl<'a, T> Copy for &'a T {}
+        impl<'a, T> Copy for &'a T
+        where
+            T: 'a,
+        {}
     }
 }

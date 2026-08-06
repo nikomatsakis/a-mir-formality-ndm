@@ -4,9 +4,9 @@ use crate::grammar::{
     AdtId, AssociatedTy, AssociatedTyBoundData, AssociatedTyValue, AssociatedTyValueBoundData,
     Binder, CrateId, Fallible, Fn, FnBoundData, ImplItem, MaybeFnBody, NegTraitImpl,
     NegTraitImplBoundData, Predicate, Relation, RigidName, Substitution, Trait, TraitBoundData,
-    TraitImpl, TraitImplBoundData, TraitItem, Ty, Wcs,
+    TraitImpl, TraitImplBoundData, TraitItem, TraitRef, Ty, Wcs,
 };
-use crate::prove::prove::{Env, Program, Safety};
+use crate::prove::prove::{prove_impl_wf, trait_input_wf_requirements, Env, Program, Safety};
 use crate::rust::Term;
 use formality_core::{judgment::ProofTree, judgment_fn, Downcasted};
 
@@ -22,20 +22,28 @@ judgment_fn! {
             (let (env, bound_data) = Env::default().instantiate_universally(binder))
             (let TraitImplBoundData { trait_id, self_ty, trait_parameters, where_clauses, impl_items } = bound_data)
             (let trait_ref = trait_id.with(self_ty, trait_parameters))
+            (let trait_decl = program.program().trait_named(&trait_ref.trait_id)?)
+            (let input_wf_requirements =
+                trait_input_wf_requirements(trait_decl, trait_ref)?)
 
             (super::where_clauses::prove_where_clauses_well_formed(program, env, where_clauses, where_clauses) => ())
-            (super::prove_goal(program, env, where_clauses, Predicate::is_implemented(trait_ref)) => ())
+            (super::prove_goal(program, env, where_clauses, input_wf_requirements) => ())
             (super::prove_not_goal(program, env, where_clauses, Predicate::not_implemented(trait_ref)) => ())
 
-            (let trait_decl = program.program().trait_named(&trait_ref.trait_id)?)
             (let TraitBoundData { where_clauses: _, trait_items } = trait_decl.binder.instantiate_with(&trait_ref.parameters)?)
             (check_safety_matches(&trait_decl, &trait_impl) => ())
 
             (for_all(impl_item in impl_items)
-                (check_trait_impl_item(program, env, where_clauses, trait_items, impl_item, crate_id) => ()))
+                (check_trait_impl_item(program, env, where_clauses, trait_ref, trait_items, impl_item, crate_id) => ()))
 
-            (check_unique_impl_method_names(impl_items) => ())
+            (check_unique_impl_item_names(impl_items) => ())
             (check_all_required_items_present(trait_items, impl_items) => ())
+
+            // Impl well-formedness is closed to caller assumptions. `prove_impl_wf` introduces
+            // the header locally at the construction frontier appropriate to each requirement, but
+            // never as an ordinary trait assumption; the impl's where-clauses are likewise
+            // available only in validated form.
+            (prove_impl_wf(program, trait_impl) => ())
 
             ---- ("check_trait_impl")
             (check_trait_impl(program, trait_impl, crate_id) => ())
@@ -60,8 +68,12 @@ judgment_fn! {
             (let (env, bound_data) = Env::default().instantiate_universally(binder))
             (let NegTraitImplBoundData { trait_id, self_ty, trait_parameters, where_clauses } = bound_data)
             (let trait_ref = trait_id.with(self_ty, trait_parameters))
+            (let trait_decl = program.program().trait_named(&trait_ref.trait_id)?)
+            (let input_wf_requirements =
+                trait_input_wf_requirements(trait_decl, trait_ref)?)
             (super::where_clauses::prove_where_clauses_well_formed(program, &env, &where_clauses, &where_clauses) => ())
-            (super::prove_goal(program, &env, &where_clauses, Predicate::not_implemented(&trait_ref)) => ())
+            (super::prove_goal(program, &env, &where_clauses, input_wf_requirements) => ())
+            (super::prove_not_goal(program, &env, &where_clauses, Predicate::is_implemented(&trait_ref)) => ())
             ---- ("check_neg_trait_impl")
             (check_neg_trait_impl(program, NegTraitImpl { binder, safety: Safety::Safe }) => ())
         )
@@ -129,6 +141,7 @@ judgment_fn! {
         program: Program,
         env: Env,
         assumptions: Wcs,
+        trait_ref: TraitRef,
         trait_items: Vec<TraitItem>,
         impl_item: ImplItem,
         crate_id: CrateId,
@@ -138,13 +151,13 @@ judgment_fn! {
         (
             (check_fn_in_impl(program, env, assumptions, trait_items, v, crate_id) => ())
             ---- ("fn in impl")
-            (check_trait_impl_item(program, env, assumptions, trait_items, ImplItem::Fn(v), crate_id) => ())
+            (check_trait_impl_item(program, env, assumptions, _trait_ref, trait_items, ImplItem::Fn(v), crate_id) => ())
         )
 
         (
             (check_associated_ty_value(program, env, assumptions, trait_items, v) => ())
             ---- ("associated ty value")
-            (check_trait_impl_item(program, env, assumptions, trait_items, ImplItem::AssociatedTyValue(v), crate_id) => ())
+            (check_trait_impl_item(program, env, assumptions, _trait_ref, trait_items, ImplItem::AssociatedTyValue(v), _crate_id) => ())
         )
     }
 }
@@ -198,7 +211,7 @@ judgment_fn! {
     }
 }
 
-fn check_unique_impl_method_names(impl_items: &[ImplItem]) -> Fallible<ProofTree> {
+fn check_unique_impl_item_names(impl_items: &[ImplItem]) -> Fallible<ProofTree> {
     let methods: Vec<&Fn> = impl_items
         .iter()
         .filter_map(|item| match item {
@@ -214,7 +227,27 @@ fn check_unique_impl_method_names(impl_items: &[ImplItem]) -> Fallible<ProofTree
             bail!("multiple impl methods named `{:?}`", method.id);
         }
     }
-    Ok(ProofTree::leaf("check_unique_impl_method_names"))
+
+    let associated_types: Vec<&AssociatedTyValue> = impl_items
+        .iter()
+        .filter_map(|item| match item {
+            ImplItem::Fn(_) => None,
+            ImplItem::AssociatedTyValue(value) => Some(value),
+        })
+        .collect();
+    for (index, associated_type) in associated_types.iter().enumerate() {
+        if associated_types[..index]
+            .iter()
+            .any(|earlier| earlier.id == associated_type.id)
+        {
+            bail!(
+                "multiple impl associated types named `{:?}`",
+                associated_type.id
+            );
+        }
+    }
+
+    Ok(ProofTree::leaf("check_unique_impl_item_names"))
 }
 
 judgment_fn! {
@@ -237,21 +270,14 @@ judgment_fn! {
 
             // Merge binders and instantiate universally
             (let (env, (ii_bound, ti_bound)) = impl_env.instantiate_universally(&merge_binders(binder, &trait_associated_ty.binder)?))
-            (let AssociatedTyValueBoundData { where_clauses: ii_where_clauses, ty: ii_ty } = ii_bound)
-            (let AssociatedTyBoundData { ensures: ti_ensures, where_clauses: ti_where_clauses } = ti_bound)
+            (let AssociatedTyValueBoundData { where_clauses: ii_where_clauses, ty: _ } = ii_bound)
+            (let AssociatedTyBoundData { ensures: _, where_clauses: ti_where_clauses } = ti_bound)
 
             // Prove impl where-clauses are well-formed
             (super::where_clauses::prove_where_clauses_well_formed(program, &env, (&impl_assumptions, &ii_where_clauses), &ii_where_clauses) => ())
 
             // Prove impl where-clauses follow from trait where-clauses
             (super::prove_goal(program, &env, (&impl_assumptions, &ti_where_clauses), &ii_where_clauses) => ())
-
-            // Prove the impl type is well-formed
-            (super::prove_goal(program, env, (impl_assumptions, ii_where_clauses), Relation::well_formed(ii_ty)) => ())
-
-            // Prove the ensures clauses
-            (let ensures: Wcs = ti_ensures.iter().map(|e| e.to_wc(&ii_ty)).collect())
-            (super::prove_goal(program, &env, (&impl_assumptions, &ii_where_clauses), ensures) => ())
 
             ---- ("check_associated_ty_value")
             (check_associated_ty_value(program, impl_env, impl_assumptions, trait_items, impl_value) => ())

@@ -12,8 +12,9 @@ use crate::prove::prove::{
         combinators::for_all, env::Bias, negation::may_not_be_provable,
         prove_normalize::prove_normalize, Constraints,
     },
-    Env,
 };
+
+use super::Env;
 
 // From https://rust-lang.github.io/rfcs/2451-re-rebalancing-coherence.html:
 //
@@ -189,7 +190,12 @@ judgment_fn! {
         debug(parameter, assumptions, env)
 
         (
-            (prove_normalize(decls, env, assumptions, parameter) => Constrained(parameter, c1))
+            (prove_normalize(
+                decls,
+                env,
+                assumptions,
+                parameter,
+            ) => Constrained(parameter, c1))
             (let assumptions = c1.substitution().apply(assumptions))
             (is_not_downstream(decls, env, assumptions, parameter) => c2)
             --- ("ambiguous")
@@ -259,7 +265,12 @@ judgment_fn! {
         )
 
         (
-            (prove_normalize(decls, env, assumptions, parameter) => Constrained(p, c1))
+            (prove_normalize(
+                decls,
+                env,
+                assumptions,
+                parameter,
+            ) => Constrained(p, c1))
             (let assumptions = c1.substitution().apply(assumptions))
             (is_not_downstream(decls, c1.env(), assumptions, p) => c2)
             --- ("via normalize")

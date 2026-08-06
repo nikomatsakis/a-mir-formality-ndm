@@ -10,7 +10,6 @@ use crate::prove::prove::{Constrained, Env, Program};
 use formality_core::Upcast;
 use libspecr::prelude::Map;
 use minirust_rs::lang;
-use std::sync::Arc;
 
 use super::code_block::CodeBlock;
 use super::minirust::*;
@@ -278,10 +277,7 @@ fn is_normalized_const(constant: &Const) -> bool {
 impl CodegenFn {
     /// Create per-function state for compiling a function with the given return type.
     pub(super) fn new(crates: &Crates, output_ty: &Ty) -> Self {
-        let program = Program {
-            crates: Arc::new(crates.clone()),
-            max_size: Program::DEFAULT_MAX_SIZE,
-        };
+        let program = crates.to_prove_decls();
         let typeck_env = TypeckEnv::for_fn_body(Env::default(), &program, output_ty);
         CodegenFn {
             crates: crates.clone(),
@@ -450,14 +446,14 @@ mod tests {
         let global = CodegenGlobal::new(&normalization_program());
         let (i32_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
-                term::<TraitRef>("Convert((), i32)"),
+                term::<TraitRef>("(): Convert<i32>"),
                 term::<ValueId>("convert"),
                 (),
             ))
             .unwrap();
         let (u32_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
-                term::<TraitRef>("Convert((), u32)"),
+                term::<TraitRef>("(): Convert<u32>"),
                 term::<ValueId>("convert"),
                 (),
             ))
@@ -470,7 +466,7 @@ mod tests {
     #[test]
     fn method_arguments_are_part_of_trait_method_identity() {
         let global = CodegenGlobal::new(&normalization_program());
-        let trait_ref: TraitRef = term("Identity(())");
+        let trait_ref: TraitRef = term("(): Identity");
         let (i32_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
                 &trait_ref,
@@ -495,14 +491,14 @@ mod tests {
         let global = CodegenGlobal::new(&normalization_program());
         let (alias_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
-                term::<TraitRef>("Identity(<() as Family>::Output)"),
+                term::<TraitRef>("<() as Family>::Output: Identity"),
                 term::<ValueId>("identity"),
                 (),
             ))
             .unwrap();
         let (rigid_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
-                term::<TraitRef>("Identity(i32)"),
+                term::<TraitRef>("i32: Identity"),
                 term::<ValueId>("identity"),
                 (),
             ))

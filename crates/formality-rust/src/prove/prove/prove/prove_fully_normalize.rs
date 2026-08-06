@@ -25,7 +25,12 @@ judgment_fn! {
         )
 
         (
-            (prove_normalize(decls, env, assumptions, &alias) => Constrained(parameter, c0))
+            (prove_normalize(
+                decls,
+                env,
+                assumptions,
+                &alias,
+            ) => Constrained(parameter, c0))
             (let parameter = c0.substitution().apply(parameter))
             (if let Some(ty) = parameter.downcast::<Ty>())!
             (let assumptions = c0.substitution().apply(assumptions))

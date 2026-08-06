@@ -1,4 +1,5 @@
-use crate::grammar::{Predicate, Relation, Wc, WcData, Wcs};
+use crate::grammar::{AtomicPredicate, Predicate, Relation, Wc, WcData, Wcs};
+use crate::prove::ToWcs;
 use formality_core::judgment_fn;
 
 use crate::prove::prove::{
@@ -7,37 +8,100 @@ use crate::prove::prove::{
         combinators::for_all,
         env::{Bias, Env},
         is_local::{is_local_trait_ref, may_be_remote},
-        prove,
         prove_after::prove_after,
         prove_const_has_type::prove_const_has_type,
         prove_eq::prove_eq,
         prove_outlives::prove_outlives,
         prove_sub::prove_sub,
+        prove_validate::prove_validate,
         prove_via_assumption::prove_via_assumption,
         prove_via_impl::prove_via_impl,
         prove_wf::prove_wf,
     },
+    requirements::{prove_via_trait_requirement, trait_requirement},
+    validation_evidence_suffices, validation_frontier_suffices,
 };
 
 use super::constraints::{Constrained, Constraints};
+
+fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, goal: &Wc) -> bool {
+    if assumptions
+        .iter()
+        .any(|assumption| match (&assumption, goal) {
+            (Wc::Mode(assumption_validation, assumption_goal), Wc::Mode(goal_validation, goal))
+                if assumption_goal == goal =>
+            {
+                match assumption_goal {
+                    AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)) => {
+                        validation_evidence_suffices(
+                            decls,
+                            assumption_validation,
+                            goal_validation,
+                            &trait_ref.trait_id,
+                        )
+                        .is_proven()
+                    }
+
+                    _ => {
+                        validation_frontier_suffices(decls, assumption_validation, goal_validation)
+                            .is_proven()
+                    }
+                }
+            }
+
+            _ => &assumption == goal,
+        })
+    {
+        return true;
+    }
+
+    false
+}
+
+fn is_ordinary_assumption_goal(goal: &Wc) -> bool {
+    matches!(goal, Wc::Atomic(_))
+}
+
+fn is_validation_assumption_goal(goal: &Wc) -> bool {
+    matches!(goal, Wc::Mode(_, _))
+}
 
 judgment_fn! {
     /// The "heart" of the trait system -- prove that a where-clause holds given a set of declarations, variable environment, and set of assumptions.
     /// If successful, returns the constraints under which the where-clause holds.
     pub fn prove_wc(
-        _decls: Program,
+        decls: Program,
         env: Env,
         assumptions: Wcs,
         goal: Wc,
     ) => Constraints {
         debug(goal, assumptions, env)
 
+        // Prefer an assumption that proves the goal directly before exploring derived proofs.
+        // Validation evidence can directly prove an identical goal whose observable dictionary
+        // view is no stronger. This cut is important when validating requirements of the form
+        // `forall<T> conditions => goal`: opening the binder creates a fresh universal and adds
+        // the conditions to the assumptions. Even when one of those assumptions proves the goal,
+        // exhaustive search would otherwise also explore the impl rule, which can recursively
+        // validate the same associated type requirement. Each recursion opens `forall<T>` again,
+        // so the assumptions grow with distinct universals (`!T_1`, `!T_2`, ...); the fixed-point
+        // machinery therefore sees distinct calls instead of recognizing a cycle.
+        //
+        // `trivial` acts as a logical cut here. The direct assumption proves the goal without
+        // introducing constraints, which is the most general possible result, so no alternative
+        // derivation can improve it. This cut would not be valid if the result were more
+        // restrictive.
+        trivial(
+            has_unconditional_proof_from_assumptions(&decls, &assumptions, &goal)
+            => Constraints::none(env)
+        )
+
         (
             (let (env, subst) = env.universal_substitution(binder))
-            (let p1 = binder.instantiate_with(&subst).unwrap())
+            (let p1 = binder.instantiate_with(subst).unwrap())
             (prove_wc(decls, env, assumptions, p1) => c)
             --- ("forall")
-            (prove_wc(decls, env, assumptions, WcData::ForAll(binder)) => c.pop_subst(&subst))
+            (prove_wc(decls, env, assumptions, WcData::ForAll(binder)) => c.pop_subst(subst))
         )
 
         (
@@ -47,20 +111,34 @@ judgment_fn! {
         )
 
         (
-            (a in assumptions)!
-            (prove_via_assumption(decls, env, assumptions, a, goal) => c)
-            ----------------------------- ("assumption - predicate")
-            (prove_wc(decls, env, assumptions, WcData::Predicate(goal)) => c)
+            (prove_validate(decls, env, assumptions, validation, validate_goal) => c)
+            --- ("mode")
+            (prove_wc(
+                decls,
+                env,
+                assumptions,
+                WcData::Mode(validation, validate_goal),
+            ) => c)
         )
+
         (
-            (a in assumptions)!
+            (if is_ordinary_assumption_goal(&goal))!
+            (a in assumptions)
             (prove_via_assumption(decls, env, assumptions, a, goal) => c)
-            ----------------------------- ("assumption - relation")
-            (prove_wc(decls, env, assumptions, WcData::Relation(goal)) => c)
+            ----------------------------- ("assumption")
+            (prove_wc(decls, env, assumptions, goal) => c)
         )
 
+        (
+            (if is_validation_assumption_goal(&goal))
+            (a in assumptions)
+            (prove_via_assumption(decls, env, assumptions, a, goal) => c)!
+            ----------------------------- ("validation assumption")
+            (prove_wc(decls, env, assumptions, goal) => c)
+        )
 
-        // This rule is: prove `T: Foo<U>` holds on the basis of an `impl<A,B> Foo<B> for A where WC` impl somewhere.
+        // Prove an ordinary trait goal with a concrete impl. Validation goals enter the ordinary
+        // solver through `prove_validate`'s `verify_x(G) :- G` rule.
         (
             (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
             (prove_via_impl(
@@ -83,13 +161,15 @@ judgment_fn! {
         )
 
         (
-            (i in decls.neg_impl_decls(&trait_ref.trait_id))
+            (i in decls.neg_trait_impls_for(&trait_ref.trait_id))
             (let (env, subst) = env.existential_substitution(&i.binder))
-            (let i = i.binder.instantiate_with(&subst).unwrap())
-            (prove(decls, env, assumptions, Wcs::all_eq(&trait_ref.parameters, &i.trait_ref.parameters)) => c)
-            (prove_after(decls, c, assumptions, &i.where_clause) => c)
+            (let i = i.binder.instantiate_with(subst).unwrap())
+            (let impl_trait_ref = i.trait_ref())
+            (let impl_where_clauses = i.where_clauses.to_wcs())
+            (prove_after(decls, env, assumptions, Wcs::all_eq(&trait_ref.parameters, &impl_trait_ref.parameters)) => c)
+            (prove_after(decls, c, assumptions, impl_where_clauses) => c)
             ----------------------------- ("negative impl")
-            (prove_wc(decls, env, assumptions, Predicate::NotImplemented(trait_ref)) => c.pop_subst(&subst))
+            (prove_wc(decls, env, assumptions, Predicate::NotImplemented(trait_ref)) => c.pop_subst(subst))
         )
 
         (
@@ -98,14 +178,26 @@ judgment_fn! {
             (prove_wc(decls, env, assumptions, Predicate::AliasEq(alias_ty, ty)) => c)
         )
 
+        // The Rust declaration `trait Eq: PartialEq` gives rise to the requirement template
+        // `forall<T> T: Eq => T: PartialEq`. Apply that requirement by backward chaining: for
+        // the goal `U: PartialEq`, instantiate `T` with an inference variable, match the
+        // requirement's `required` clause against the goal, and then prove its `source`
+        // (`U: Eq`). This lazily elaborates implied bounds rather than adding all of their
+        // consequences to the assumptions eagerly.
         (
-            (ti in decls.trait_invariants())
-            (let (env, subst) = env.existential_substitution(&ti.binder))
-            (let ti = ti.binder.instantiate_with(&subst).unwrap())
-            (prove_via_assumption(decls, env, assumptions, &ti.where_clause, trait_ref) => c)
-            (prove_after(decls, c, assumptions, &ti.trait_ref) => c)
-            ----------------------------- ("trait implied bound")
-            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c.pop_subst(&subst))
+            (trait_def in decls.traits())
+            (trait_requirement(trait_def) => requirements)
+            (requirement in requirements)
+            (prove_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                trait_def,
+                requirement,
+                Predicate::is_implemented(trait_ref),
+            ) => c)!
+            ----------------------------- ("trait requirement")
+            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
         )
 
         (
@@ -117,14 +209,21 @@ judgment_fn! {
         (
             (prove_sub(decls, env, assumptions, a, b) => c)
             ----------------------------- ("subtype")
-            (prove_wc(decls, env, assumptions, WcData::Relation(Relation::Sub(a, b))) => c)
+            (prove_wc(decls, env, assumptions, Relation::Sub(a, b)) => c)
         )
 
+        // For example, `trait Foo<T> where T: Debug` means that the trait-ref `S: Foo<U>` is
+        // well formed only if `S` and `U` are well formed and `U: Debug`. In general, substitute
+        // the trait-ref's parameters into the Rust trait declaration and prove every resulting
+        // where-clause. This checks every trait-header condition; it is distinct from the
+        // trait-requirement rule above, which exposes only the clauses classified as implied
+        // requirements.
         (
             (for_all(decls, env, assumptions, &trait_ref.parameters, &prove_wf) => c)
-            (let t = decls.trait_decl(&trait_ref.trait_id))
-            (let t = t.binder.instantiate_with(&trait_ref.parameters).unwrap())
-            (prove_after(decls, c, assumptions, &t.where_clause) => c)
+            (let trait_def = decls.trait_def(&trait_ref.trait_id))
+            (let trait_data = trait_def.binder.instantiate_with(&trait_ref.parameters).unwrap())
+            (let trait_where_clauses = trait_data.where_clauses.to_wcs())
+            (prove_after(decls, c, assumptions, trait_where_clauses) => c)
             ----------------------------- ("trait well formed")
             (prove_wc(decls, env, assumptions, Predicate::WellFormedTraitRef(trait_ref)) => c)
         )
@@ -154,5 +253,70 @@ judgment_fn! {
             ----------------------------- ("const has ty")
             (prove_wc(decls, env, assumptions, Predicate::ConstHasType(constant, ty)) => c)
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::grammar::{Crates, TraitId, Upto};
+    use crate::rust::term;
+
+    fn supertrait_program() -> Program {
+        let crates: Crates = term(
+            "[
+                crate test {
+                    trait Super {}
+                    trait Mid where Self: Super {}
+                    trait Sub where Self: Mid {}
+                    trait ValidationRoot where Self: Sub {}
+                }
+            ]",
+        );
+        crates.to_prove_decls()
+    }
+
+    #[test]
+    fn exact_assumption_uses_trivial_proof() {
+        let goal: Wc = term("u32: Exact");
+        let (_, proof) = prove_wc(Program::empty(), Env::default(), &goal, &goal)
+            .into_singleton()
+            .unwrap();
+
+        assert_eq!(proof.total_nodes(), 1, "{proof}");
+    }
+
+    #[test]
+    fn stronger_validation_assumption_uses_trivial_proof() {
+        let inner: Wc = term("u32 = bool");
+        let assumption = Upto::gat_bounds(TraitId::new("ValidationRoot")).apply(&inner);
+        let goal = Upto::supertraits(TraitId::new("ValidationRoot")).apply(inner);
+        let (_, proof) = prove_wc(Program::empty(), Env::default(), assumption, goal)
+            .into_singleton()
+            .unwrap();
+
+        assert_eq!(proof.total_nodes(), 1, "{proof}");
+    }
+
+    #[test]
+    fn ordinary_supertrait_assumption_is_proven() {
+        let result = prove_wc(
+            supertrait_program(),
+            Env::default(),
+            term::<Wc>("u32: Sub"),
+            term::<Wc>("u32: Super"),
+        );
+
+        assert!(result.is_proven(), "{result}");
+    }
+
+    #[test]
+    fn ranked_gat_bound_supertrait_assumption_elaborates() {
+        let assumption =
+            Upto::gat_bounds(TraitId::new("ValidationRoot")).apply(term::<Wc>("u32: Sub"));
+        let goal =
+            Upto::supertraits(TraitId::new("ValidationRoot")).apply(term::<Wc>("u32: Super"));
+        let result = prove_wc(supertrait_program(), Env::default(), assumption, goal);
+        assert!(result.is_proven(), "{result}");
     }
 }

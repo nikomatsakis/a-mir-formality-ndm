@@ -56,7 +56,10 @@ impl<L: Language, T: CoreFold<L, Output = T>> CoreBinder<L, T> {
 
     /// Given a set of variables (X, Y, Z) and a term referecing some subset of them,
     /// create a binder where exactly those variables are bound (even the ones not used).
-    pub fn new(variables: impl Upcast<Vec<CoreVariable<L>>>, term: T) -> Self {
+    pub fn new(
+        variables: impl Upcast<Vec<CoreVariable<L>>>,
+        term: impl CoreFold<L, Output = T>,
+    ) -> Self {
         let variables: Vec<CoreVariable<L>> = variables.upcast();
         let (kinds, substitution): (Vec<CoreKind<L>>, CoreSubstitution<L>) = variables
             .iter()

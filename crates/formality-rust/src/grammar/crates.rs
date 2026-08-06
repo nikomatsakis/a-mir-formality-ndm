@@ -1,4 +1,4 @@
-use crate::grammar::{Adt, AdtId, Binder, CrateId};
+use crate::grammar::{Adt, AdtId, Binder, CrateId, Parameter, TraitId, TraitRef, Ty};
 use crate::grammar::{Enum, Fn, NegTraitImpl, Struct, Trait, TraitImpl, WhereClause};
 use formality_core::term;
 
@@ -72,5 +72,28 @@ pub struct Test {
 #[term($:where $,assumptions { $,goals })]
 pub struct TestBoundData {
     pub assumptions: Vec<WhereClause>,
-    pub goals: Vec<WhereClause>,
+    pub goals: Vec<TestGoal>,
+}
+
+/// One assertion made by a `test` declaration.
+#[term]
+pub enum TestGoal {
+    /// Prove a trait-ref and verify that an explicit impl application supplies it.
+    #[grammar($v0 : $v1 $<?v2>)]
+    TraitRef(Ty, TraitId, Vec<Parameter>),
+
+    /// Prove an arbitrary where-clause without requiring an impl application.
+    #[grammar(prove($v0))]
+    Prove(WhereClause),
+}
+
+impl TestGoal {
+    pub fn as_trait_ref(&self) -> Option<TraitRef> {
+        match self {
+            TestGoal::TraitRef(self_ty, trait_id, trait_parameters) => {
+                Some(trait_id.with(self_ty, trait_parameters))
+            }
+            TestGoal::Prove(_) => None,
+        }
+    }
 }

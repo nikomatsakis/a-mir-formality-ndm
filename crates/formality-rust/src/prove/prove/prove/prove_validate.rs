@@ -1,0 +1,345 @@
+use crate::grammar::{
+    AliasTy, AssociatedTyBoundData, AtomicPredicate, Parameter, Predicate, Relation, Trait,
+    TraitItem, TraitRef, Upto, Wc, Wcs,
+};
+use crate::prove::prove::{
+    can_project_associated_bound, can_project_outlives, can_project_supertrait, trait_requirement,
+    TraitRequirement, TraitRequirementBoundData,
+};
+use crate::prove::ToWcs;
+use formality_core::{judgment_fn, Downcast};
+
+use super::{
+    constraints::{Constrained, Constraints},
+    env::Env,
+    prove_after::prove_after,
+    prove_normalize::prove_normalize_for_validation,
+    prove_via_assumption::prove_via_assumption,
+    prove_wc::prove_wc,
+    prove_wf::wf_requirements,
+};
+use crate::prove::prove::Program;
+
+fn replace_trait_parameter(
+    mut trait_ref: TraitRef,
+    index: usize,
+    parameter: Parameter,
+) -> TraitRef {
+    trait_ref.parameters[index] = parameter;
+    trait_ref
+}
+
+judgment_fn! {
+    /// Prove that `validate_goal` is available at one dictionary-construction frontier.
+    pub(super) fn prove_validate(
+        decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        validation: Upto,
+        validate_goal: AtomicPredicate,
+    ) => Constraints {
+        debug(validation, validate_goal, assumptions, env)
+
+        (
+            (wf_requirements(decls, parameter) => requirements)
+            (let requirements = validation.apply_goals(requirements))
+            (prove_after(decls, env, assumptions, requirements) => c)
+            --- ("well formed")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation,
+                AtomicPredicate::Relation(Relation::WellFormed(parameter)),
+            ) => c)
+        )
+
+        // Associated values are fixed as soon as an impl is selected, before the dictionaries
+        // proving their well-formedness and declared bounds have been constructed. Rewrite a
+        // validated trait predicate through that value without promoting the equation or the
+        // normalized type into ordinary evidence.
+        (
+            (i in 0 .. trait_ref.parameters.len())
+            (let parameter = trait_ref.parameters[*i].clone())
+            (if let Some(alias) = parameter.downcast::<AliasTy>())!
+            (prove_normalize_for_validation(
+                decls,
+                env,
+                assumptions,
+                alias,
+            ) => Constrained(normalized, c))
+            (let normalized_trait_ref =
+                replace_trait_parameter(trait_ref.clone(), *i, normalized.clone()))
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                validation.apply(normalized_trait_ref),
+            ) => c)
+            ----------------------------- ("normalize associated value")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation,
+                AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)),
+            ) => c)
+        )
+
+        // Provisional evidence may expose only fields already constructed at `validation`.
+        // Exact evidence is handled by the assumption rule before reaching this rule, and a
+        // complete ordinary proof is handled by the fallback rules below.
+        (
+            (trait_def in decls.traits())
+            (trait_requirement(trait_def) => requirements)
+            (requirement in requirements)
+            (prove_validate_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                validation,
+                trait_def,
+                requirement,
+                trait_ref,
+            ) => c)!
+            ----------------------------- ("trait requirement")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation,
+                AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)),
+            ) => c)
+        )
+
+        // The same declared-requirement judgment handles outlives conclusions. Unlike a
+        // supertrait conclusion this is a relation, so it needs its own dispatch rule.
+        (
+            (trait_def in decls.traits())
+            (trait_requirement(trait_def) => requirements)
+            (requirement in requirements)
+            (prove_validate_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                validation,
+                trait_def,
+                requirement,
+                Relation::Outlives(a.clone(), b.clone()),
+            ) => c)!
+            ----------------------------- ("outlives requirement")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation,
+                AtomicPredicate::Relation(Relation::Outlives(a, b)),
+            ) => c)
+        )
+
+        // A complete ordinary proof is valid in every validation context. Validation evidence
+        // itself never becomes ordinary evidence, so this fallback cannot bypass the rank check
+        // above.
+        (
+            (prove_wc(decls, env, assumptions, validate_goal) => c)
+            --- ("atomic predicate")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation,
+                AtomicPredicate::Predicate(validate_goal),
+            ) => c)
+        )
+
+        (
+            (prove_wc(decls, env, assumptions, validate_goal) => c)
+            --- ("atomic relation")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation,
+                AtomicPredicate::Relation(validate_goal),
+            ) => c)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Use one declared trait requirement without turning provisional evidence into ordinary
+    /// evidence.
+    fn prove_validate_via_trait_requirement(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        validation: Upto,
+        trait_def: Trait,
+        requirement: TraitRequirement,
+        goal: AtomicPredicate,
+    ) => Constraints {
+        debug(validation, assumptions, trait_def, requirement, goal, env)
+
+        // Given `trait Stronger: Super`, this rule derives
+        //
+        //     verify(S, Impl, T: Stronger)
+        //     --------------------------------
+        //     verify(S, Impl, T: Super)
+        //
+        // only when that supertrait field is available at `S`. At the supertrait frontier this
+        // requires both `Stronger < Impl` and `Super < Impl`; at the GAT-bound frontier the root
+        // trait's own supertrait fields are available too.
+        (
+            (if let AtomicPredicate::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
+            (can_project_supertrait(
+                decls,
+                validation,
+                &trait_def.id,
+                &goal_trait_ref.trait_id,
+            ) => ())
+
+            (let (env, trait_subst) =
+                env.existential_substitution(&requirement.binder))
+            (let requirement = requirement.binder.instantiate_with(trait_subst)?)
+            (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                Wc::for_all(supertrait),
+                goal,
+            ) => c)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
+            ) => c)
+            ----------------------------- ("supertrait")
+            (prove_validate_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                validation,
+                trait_def,
+                requirement,
+                goal,
+            ) => c.pop_subst(trait_subst))
+        )
+
+        // Associated type bounds are implied requirements too. For example, from verified
+        // `T: Family` and the verified GAT conditions this rule can derive a verified
+        // `<T as Family>::Item<U>: Bound`, provided that associated-bound field has already been
+        // constructed at the current frontier.
+        (
+            (if let AtomicPredicate::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
+            (can_project_associated_bound(
+                decls,
+                validation,
+                &trait_def.id,
+                &goal_trait_ref.trait_id,
+            ) => ())
+
+            (let (env, trait_subst) =
+                env.existential_substitution(&requirement.binder))
+            (let requirement = requirement.binder.instantiate_with(trait_subst)?)
+            (if let TraitRequirementBoundData::AssociatedTyRequirement(associated) = requirement)
+            (let (env, associated_subst) =
+                env.existential_substitution(&associated.binder))
+            (let value_template = associated.binder.instantiate_with(associated_subst)?)
+            (let alias = AliasTy::associated_ty(
+                &trait_def.id,
+                &associated.id,
+                associated_subst.len(),
+                (trait_subst, associated_subst),
+            ))
+            (let value_bounds =
+                value_template.instantiate_with(std::slice::from_ref(&alias))?)
+            (required in value_bounds)!
+            (prove_via_assumption(decls, env, assumptions, required, goal) => c)
+
+            (let trait_data = trait_def.binder.instantiate_with(trait_subst)?)
+            (let trait_associated_ty = trait_data
+                .trait_items
+                .iter()
+                .find_map(|item| match item {
+                    TraitItem::AssociatedTy(associated_ty)
+                        if associated_ty.id == associated.id =>
+                    {
+                        Some(associated_ty)
+                    }
+                    _ => None,
+                })
+                .ok_or_else(|| anyhow::anyhow!(
+                    "trait has no associated type {:?}",
+                    associated.id,
+                ))?)
+            (let AssociatedTyBoundData {
+                ensures: _,
+                where_clauses,
+            } = trait_associated_ty.binder.instantiate_with(associated_subst)?)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                validation.apply_goals(where_clauses.to_wcs()),
+            ) => c)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
+            ) => c)
+            (let c = c.pop_subst(associated_subst))
+            ----------------------------- ("associated type")
+            (prove_validate_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                validation,
+                trait_def,
+                requirement,
+                goal,
+            ) => c.pop_subst(trait_subst))
+        )
+
+        // Outlives requirements occupy the supertrait portion of a dictionary and follow that
+        // portion's construction frontier.
+        (
+            (can_project_outlives(decls, validation, &trait_def.id) => ())
+            (if let AtomicPredicate::Relation(goal_relation) = goal)
+            (let (env, trait_subst) =
+                env.existential_substitution(&requirement.binder))
+            (let requirement = requirement.binder.instantiate_with(trait_subst)?)
+            (if let TraitRequirementBoundData::Outlives(outlives) = requirement)!
+            (let (env, outlives_subst) = env.existential_substitution(outlives))
+            (let required_relation = outlives.instantiate_with(outlives_subst)?)
+            (let (required_skeleton, required_parameters) = required_relation.debone())
+            (let (goal_skeleton, goal_parameters) = goal_relation.debone())
+            (if required_skeleton == goal_skeleton)
+            (prove_after(
+                decls,
+                env,
+                assumptions,
+                Wcs::all_eq(required_parameters, goal_parameters),
+            ) => c)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
+            ) => c)
+            (let c = c.pop_subst(outlives_subst))
+            ----------------------------- ("outlives")
+            (prove_validate_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                validation,
+                trait_def,
+                requirement,
+                goal,
+            ) => c.pop_subst(trait_subst))
+        )
+    }
+}

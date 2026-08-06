@@ -10,9 +10,7 @@ use formality_core::{judgment_fn, Downcast, ProvenSet, Upcast};
 
 use crate::prove::prove::{
     decls::Program,
-    prove::{
-        constraints::occurs_in, prove, prove_after::prove_after, prove_normalize::prove_normalize,
-    },
+    prove::{constraints::occurs_in, prove_after::prove_after, prove_normalize::prove_normalize},
 };
 
 use super::{constraints::Constraints, env::Env};
@@ -46,7 +44,7 @@ judgment_fn! {
             (let RigidTy { name: a_name, parameters: a_parameters } = a)
             (let RigidTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)!
-            (prove(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => c)
+            (prove_after(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => c)
             ----------------------------- ("rigid")
             (prove_eq(decls, env, assumptions, TyData::RigidTy(a), TyData::RigidTy(b)) => c)
         )
@@ -55,7 +53,7 @@ judgment_fn! {
             (let AliasTy { name: a_name, parameters: a_parameters } = a)
             (let AliasTy { name: b_name, parameters: b_parameters } = b)
             (if a_name == b_name)!
-            (prove(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => env_c)
+            (prove_after(decls, env, assumptions, Wcs::all_eq(a_parameters, b_parameters)) => env_c)
             ----------------------------- ("alias")
             (prove_eq(decls, env, assumptions, TyData::AliasTy(a), TyData::AliasTy(b)) => env_c)
         )
@@ -66,10 +64,27 @@ judgment_fn! {
             (prove_eq(decls, env, assumptions, Variable::ExistentialVar(v), r) => c)
         )
 
+        // Equality is assumption-preserving, including when it has to normalize an alias. Callers
+        // choose explicitly which assumptions are available to the equality proof.
         (
+            (prove_normalize(
+                decls,
+                env,
+                assumptions,
+                alias,
+            ) => Constrained(normalized, c))
+            (prove_after(decls, c, assumptions, eq(normalized, z)) => c)
+            ----------------------------- ("normalize alias")
+            (prove_eq(decls, env, assumptions, TyData::AliasTy(alias), z) => c)
+        )
+
+        // In particular, this is how an equality assumption such as `T = u32` rewrites a rigid
+        // universal variable `T` while proving another equality.
+        (
+            (if let None = x.downcast::<AliasTy>())!
             (prove_normalize(decls, env, assumptions, x) => Constrained(y, c))
             (prove_after(decls, c, assumptions, eq(y, z)) => c)
-            ----------------------------- ("normalize-l")
+            ----------------------------- ("normalize non-alias")
             (prove_eq(decls, env, assumptions, x, z) => c)
         )
     }

@@ -191,7 +191,7 @@ mod tests {
     #[should_panic(expected = "codegen found no applicable impl")]
     fn no_candidate_panics_at_selection_boundary() {
         let program = program("[crate test { trait Foo {} }]");
-        select_impl(&program, &term("Foo(u32)"));
+        select_impl(&program, &term("u32: Foo"));
     }
 
     #[test]
@@ -204,7 +204,7 @@ mod tests {
                 }
             ]",
         );
-        let selected = select_impl(&program, &term("Foo(u32)"));
+        let selected = select_impl(&program, &term("u32: Foo"));
 
         assert!(selected.impl_arguments.is_empty());
         assert_eq!(
@@ -225,7 +225,7 @@ mod tests {
                 }
             ]",
         );
-        select_impl(&program, &term("Foo(u32)"));
+        select_impl(&program, &term("u32: Foo"));
     }
 
     #[test]
@@ -240,7 +240,7 @@ mod tests {
                 }
             ]",
         );
-        let selected = select_impl(&program, &term("Foo(u32)"));
+        let selected = select_impl(&program, &term("u32: Foo"));
 
         assert_eq!(selected.impl_arguments, vec![term::<Parameter>("u32")]);
     }
@@ -257,7 +257,7 @@ mod tests {
                 }
             ]",
         );
-        select_impl(&program, &term("Foo(u32)"));
+        select_impl(&program, &term("u32: Foo"));
     }
 
     #[test]
@@ -271,7 +271,7 @@ mod tests {
                 }
             ]",
         );
-        select_impl(&program, &term("Foo(u32)"));
+        select_impl(&program, &term("u32: Foo"));
     }
 
     #[test]
@@ -286,7 +286,7 @@ mod tests {
                 }
             ]",
         );
-        select_impl(&program, &term("Foo(u32)"));
+        select_impl(&program, &term("u32: Foo"));
     }
 
     #[test]
@@ -299,7 +299,7 @@ mod tests {
                 }
             ]",
         );
-        let trait_ref: TraitRef = term("Foo(u32)");
+        let trait_ref: TraitRef = term("u32: Foo");
         let application = application(&program, &trait_ref);
         let key = ApplicationKey {
             impl_id: application.impl_id,

@@ -10,6 +10,9 @@ use super::Parameters;
 use super::TraitId;
 use super::Ty;
 
+mod debug_impls;
+mod parse_impls;
+
 pub type Fallible<T> = anyhow::Result<T>;
 
 /// Atomic predicates are the base goals we can try to prove; the rules for proving them
@@ -134,6 +137,12 @@ pub enum Relation {
     Sub(Parameter, Parameter),
 
     #[grammar($v0 : $v1)]
+    // Rust outlives predicates always have a lifetime on the right. Keeping the
+    // representation as `Parameter` is convenient for the solver, but rejecting
+    // the other parameter kinds while parsing also distinguishes `T: 'a` from
+    // the trait-reference syntax `T: Trait`.
+    #[reject(_, Parameter::Ty(_))]
+    #[reject(_, Parameter::Const(_))]
     Outlives(Parameter, Parameter),
 
     #[grammar(@wf($v0))]
@@ -152,7 +161,8 @@ impl Relation {
     }
 }
 
-#[term($trait_id ( $,parameters ))]
+#[term]
+#[customize(parse, debug)]
 pub struct TraitRef {
     pub trait_id: TraitId,
     pub parameters: Parameters,
@@ -190,3 +200,40 @@ macro_rules! debone_impl {
 
 debone_impl!(Predicate);
 debone_impl!(Relation);
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        grammar::{AtomicPredicate, Wc},
+        rust::term,
+    };
+
+    use super::{Parameter, Predicate, Relation, TraitRef};
+
+    #[test]
+    fn trait_refs_use_rust_like_syntax() {
+        for text in ["u32: Debug", "u32: Debug<Foo, Bar>"] {
+            let trait_ref = term::<TraitRef>(text);
+            assert_eq!(format!("{trait_ref:?}"), text);
+            assert_eq!(term::<TraitRef>(&format!("{trait_ref:?}")), trait_ref);
+        }
+    }
+
+    #[test]
+    fn trait_refs_are_distinct_from_outlives_relations() {
+        let trait_ref = term::<Wc>("u32: Debug<Foo>");
+        assert!(matches!(
+            trait_ref,
+            Wc::Atomic(AtomicPredicate::Predicate(Predicate::IsImplemented(_)))
+        ));
+
+        let outlives = term::<Wc>("u32: 'static");
+        assert!(matches!(
+            outlives,
+            Wc::Atomic(AtomicPredicate::Relation(Relation::Outlives(
+                _,
+                Parameter::Lt(_)
+            )))
+        ));
+    }
+}

@@ -1,17 +1,15 @@
 use crate::grammar::{
-    AliasName, AliasTy, ConstData, Lt, LtData, Parameter, Parameters, Relation, RigidName, RigidTy,
-    Ty, UniversalVar, Wcs,
+    AliasTy, ConstData, Lt, LtData, Parameter, Parameters, Relation, RigidName, RigidTy, Ty,
+    UniversalVar, Wcs,
 };
-use formality_core::{judgment_fn, Downcast, ProvenSet, Upcast};
+use formality_core::{judgment_fn, Cons, Downcast};
 
-use crate::prove::prove::{
-    decls::Program,
-    prove::{combinators::for_all, prove, prove_after::prove_after},
-};
+use crate::prove::prove::decls::Program;
 
-use super::{constraints::Constraints, env::Env};
+use super::{constraints::Constraints, env::Env, prove_after::prove_after};
 
 judgment_fn! {
+    /// Prove that `goal` is well formed in the ordinary proof mode.
     pub fn prove_wf(
         _decls: Program,
         env: Env,
@@ -23,86 +21,113 @@ judgment_fn! {
         assert(env.encloses((assumptions, goal)))
 
         (
-            // Always assume that universal variables are WF. This is debatable, it implies
-            // that we ensure by construction that the values we infer for existential variables
-            // are WF. An alternative would be to add explicit assumptions into the environment
-            // for every universal variable. That just seems tedious.
-            --- ("universal variables")
-            (prove_wf(_decls, env, _assumptions, UniversalVar { .. }) => Constraints::none(env))
-        )
-
-        (
-            // `&'a T` is well-formed if `T: 'a`
-            (let (lt, ty) = parameters.downcast_err::<(Lt, Ty)>()?)
-            (prove_wf_recursive(decls, env, assumptions, ty) => c)
-            (prove_after(decls, c, assumptions, Relation::outlives(ty, lt)) => c)
-            --- ("references")
-            (prove_wf(decls, env, assumptions, RigidTy { name: RigidName::Ref(_), parameters }) => c)
-        )
-
-        (
-            // `*const T`/`*mut T` is well-formed if `T` is.
-            (let (ty,) = parameters.downcast_err::<(Ty,)>()?)
-            (prove_wf_recursive(decls, env, assumptions, ty) => c)
-            --- ("raw-pointers")
-            (prove_wf(decls, env, assumptions, RigidTy { name: RigidName::Raw(_), parameters }) => c)
-        )
-
-        (
-            (for_all(decls, env, assumptions, parameters, &prove_wf_recursive) => c)
-            --- ("tuples")
-            (prove_wf(decls, env, assumptions, RigidTy { name: RigidName::Tuple(_), parameters }) => c)
-        )
-
-        (
-            (for_all(decls, env, assumptions, parameters, &prove_wf_recursive) => c)
-            --- ("integers and booleans")
-            (prove_wf(decls, env, assumptions, RigidTy { name: RigidName::ScalarId(_), parameters }) => c)
-        )
-
-        (
-            (for_all(decls, env, assumptions, parameters, &prove_wf_recursive) => c)
-            (let t = decls.program().adt_item_named(adt_id)?.to_adt())
-            (let t = t.binder.instantiate_with(parameters).unwrap())
-            (prove_after(decls, c, assumptions, &t.where_clauses) => c)
-            --- ("ADT")
-            (prove_wf(decls, env, assumptions, RigidTy { name: RigidName::AdtId(adt_id), parameters }) => c)
-        )
-
-        (
-            --- ("static lifetime")
-            (prove_wf(_decls, env, _assumptions, LtData::Static) => Constraints::none(env))
-        )
-
-        (
-            --- ("scalar constants are always wf")
-            (prove_wf(_decls, env, _assumptions, ConstData::Scalar(_)) => Constraints::none(env))
-        )
-
-        (
-            (prove_alias_wf(decls, env, assumptions, name, parameters) => c)
-            --- ("aliases")
-            (prove_wf(decls, env, assumptions, AliasTy { name, parameters }) => c)
+            // `prove_wf` has one rule for every enclosed parameter. Commit before generating
+            // requirements so declaration lookup errors remain visible to the caller.
+            (if env.encloses(&(assumptions, goal)))!
+            (wf_requirements(decls, goal) => requirements)
+            (prove_after(decls, env, assumptions, requirements) => c)
+            ----------------------------- ("well-formedness requirements now")
+            (prove_wf(decls, env, assumptions, goal) => c)
         )
     }
 }
 
-pub fn prove_alias_wf(
-    decls: &Program,
-    env: &Env,
-    assumptions: &Wcs,
-    _name: &AliasName,
-    parameters: &Parameters,
-) -> ProvenSet<Constraints> {
-    // FIXME(#217): verify self type implements trait
-    for_all(decls, env, assumptions, parameters, &prove_wf_recursive)
+judgment_fn! {
+    /// Generate the obligations that make one parameter well formed.
+    ///
+    /// Keeping this decomposition independent of proof mode ensures ordinary proof and validation
+    /// agree on the shape of well-formedness while choosing how to establish the resulting
+    /// obligations.
+    pub(super) fn wf_requirements(
+        _decls: Program,
+        goal: Parameter,
+    ) => Wcs {
+        debug(goal)
+
+        (
+            // Universal variables are well formed by construction.
+            ----------------------------- ("universal variable")
+            (wf_requirements(_decls, UniversalVar { .. }) => ())
+        )
+
+        (
+            // `&'a T` is well formed if `T` is well formed and `T: 'a`.
+            (let (lt, ty) = parameters.downcast_err::<(Lt, Ty)>()?)
+            ----------------------------- ("reference")
+            (wf_requirements(_decls, RigidTy { name: RigidName::Ref(_), parameters }) =>
+                (Relation::well_formed(ty), Relation::outlives(ty, lt)))
+        )
+
+        (
+            // `*const T` and `*mut T` are well formed if `T` is.
+            (let (ty,) = parameters.downcast_err::<(Ty,)>()?)
+            ----------------------------- ("raw pointer")
+            (wf_requirements(_decls, RigidTy { name: RigidName::Raw(_), parameters }) =>
+                Relation::well_formed(ty))
+        )
+
+        (
+            (parameter_requirements(parameters) => requirements)
+            ----------------------------- ("tuple")
+            (wf_requirements(_decls, RigidTy { name: RigidName::Tuple(_), parameters }) => requirements)
+        )
+
+        (
+            (parameter_requirements(parameters) => requirements)
+            ----------------------------- ("integer or boolean")
+            (wf_requirements(_decls, RigidTy { name: RigidName::ScalarId(_), parameters }) => requirements)
+        )
+
+        (
+            // Once the ADT-shaped input has been selected, a missing declaration is a real
+            // well-formedness error rather than an inapplicable normalization path.
+            (parameter_requirements(parameters) => parameter_wcs)!
+            (let adt = decls.program().adt_item_named(adt_id)?.to_adt())
+            (let adt = adt.binder.instantiate_with(parameters).unwrap())
+            ----------------------------- ("ADT")
+            (wf_requirements(decls, RigidTy { name: RigidName::AdtId(adt_id), parameters }) =>
+                (parameter_wcs, &adt.where_clauses))
+        )
+
+        (
+            ----------------------------- ("static lifetime")
+            (wf_requirements(_decls, LtData::Static) => ())
+        )
+
+        (
+            ----------------------------- ("scalar constant")
+            (wf_requirements(_decls, ConstData::Scalar(_)) => ())
+        )
+
+        (
+            (parameter_requirements(parameters) => parameter_requirements)
+            (let alias = AliasTy::new(name, parameters))
+            (let (trait_ref, associated_ty_conditions) =
+                decls.associated_ty_requirements(alias)?)
+            ----------------------------- ("alias")
+            (wf_requirements(decls, AliasTy { name, parameters }) =>
+                (parameter_requirements, trait_ref, associated_ty_conditions))
+        )
+    }
 }
 
-pub fn prove_wf_recursive(
-    program: impl Upcast<Program>,
-    env: impl Upcast<Env>,
-    assumptions: impl Upcast<Wcs>,
-    param: impl Upcast<Parameter>,
-) -> ProvenSet<Constraints> {
-    prove(program, env, assumptions, Relation::well_formed(param))
+judgment_fn! {
+    /// Require every parameter in a type constructor to be well formed.
+    fn parameter_requirements(
+        parameters: Parameters,
+    ) => Wcs {
+        debug(parameters)
+
+        (
+            ----------------------------- ("none")
+            (parameter_requirements(()) => ())
+        )
+
+        (
+            (parameter_requirements(rest) => rest_requirements)
+            ----------------------------- ("some")
+            (parameter_requirements(Cons(parameter, rest)) =>
+                (Relation::well_formed(parameter), rest_requirements))
+        )
+    }
 }
