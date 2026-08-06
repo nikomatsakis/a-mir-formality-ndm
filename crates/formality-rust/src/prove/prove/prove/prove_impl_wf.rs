@@ -32,7 +32,7 @@ judgment_fn! {
                 Env::default().instantiate_universally(&trait_impl.binder))
             (let trait_ref = impl_data.trait_ref())
             (let validation = Upto::supertraits(&trait_ref.trait_id))
-            (let provisional_impl_header = Wc::validate(validation, trait_ref).to_wcs())
+            (let provisional_impl_header = validation.apply(trait_ref).to_wcs())
             (let trait_def = program.trait_def(&trait_ref.trait_id))
             (trait_requirement(trait_def) => requirements)
             (for_all(requirement in requirements)
@@ -67,9 +67,9 @@ judgment_fn! {
             (let validation = Upto::supertraits(&trait_impl.trait_id))
             (let assumptions = (
                 provisional_impl_header,
-                trait_impl.where_clauses.to_wcs().validated(validation),
+                validation.apply_assumptions(trait_impl.where_clauses.to_wcs()),
             ).to_wcs())
-            (let goal = Wc::validate(validation, Wc::for_all(supertrait)))
+            (let goal = validation.apply(Wc::for_all(supertrait)))
             (prove(program, env, assumptions, goal) => c)
             ----------------------------- ("supertrait")
             (validate_impl_requirement(
@@ -85,9 +85,9 @@ judgment_fn! {
             (let validation = Upto::supertraits(&trait_impl.trait_id))
             (let assumptions = (
                 provisional_impl_header,
-                trait_impl.where_clauses.to_wcs().validated(validation),
+                validation.apply_assumptions(trait_impl.where_clauses.to_wcs()),
             ).to_wcs())
-            (let goal = Wc::validate(validation, Wc::for_all(outlives)))
+            (let goal = validation.apply(Wc::for_all(outlives)))
             (prove(program, env, assumptions, goal) => c)
             ----------------------------- ("outlives")
             (validate_impl_requirement(
@@ -148,17 +148,17 @@ judgment_fn! {
             // concrete value's WF and each promised bound.
             (let gat_bounds = Upto::gat_bounds(&trait_impl.trait_id))
             (let gat_bound_impl_header =
-                Wc::validate(gat_bounds, trait_impl.trait_ref()).to_wcs())
+                gat_bounds.apply(trait_impl.trait_ref()).to_wcs())
             (let validation_conditions =
-                (trait_impl.where_clauses.to_wcs(), trait_gat_wc.to_wcs())
-                    .to_wcs()
-                    .validated(gat_bounds))
+                gat_bounds.apply_assumptions(
+                    (trait_impl.where_clauses.to_wcs(), trait_gat_wc.to_wcs()).to_wcs(),
+                ))
             (let value_wf: Wc = Relation::well_formed(impl_ty).upcast())
             (let validation_goals: Wcs = std::iter::once(value_wf.clone())
                 .chain(gat_goals.iter())
                 .map(|goal| Wc::implies(
                     validation_conditions,
-                    Wc::validate(gat_bounds, goal),
+                    gat_bounds.apply(goal),
                 ))
                 .collect())
             (prove(program, env, gat_bound_impl_header, validation_goals) => c)

@@ -1,4 +1,4 @@
-use crate::grammar::{Predicate, Upto, WcData, Wcs};
+use crate::grammar::{AtomicPredicate, Predicate, Upto, WcData, Wcs};
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
@@ -23,7 +23,7 @@ judgment_fn! {
         debug(goal, via, assumptions, env)
 
         (
-            (prove_via_validate(
+            (prove_via_mode(
                 decls,
                 env,
                 assumptions,
@@ -32,13 +32,13 @@ judgment_fn! {
                 via,
                 goal,
             ) => c)
-            ----------------------------- ("validate")
+            ----------------------------- ("mode")
             (prove_via_assumption(
                 decls,
                 env,
                 assumptions,
-                WcData::Validate(via_validation, via),
-                WcData::Validate(goal_validation, goal),
+                WcData::Mode(via_validation, via),
+                WcData::Mode(goal_validation, goal),
             ) => c)
         )
 
@@ -50,7 +50,13 @@ judgment_fn! {
             (if skel_c == skel_g)!
             (prove_after(decls, env, assumptions, Wcs::all_eq(parameters_c, parameters_g)) => c)
             ----------------------------- ("predicate-congruence-axiom")
-            (prove_via_assumption(decls, env, assumptions, WcData::Predicate(pred_1), WcData::Predicate(pred_2)) => c)
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                WcData::Atomic(AtomicPredicate::Predicate(pred_1)),
+                WcData::Atomic(AtomicPredicate::Predicate(pred_2)),
+            ) => c)
         )
 
         (
@@ -59,7 +65,13 @@ judgment_fn! {
             (if skel_c == skel_g)
             (if parameters_c == parameters_g)! // for relations, we require 100% match
             ----------------------------- ("relation-axiom")
-            (prove_via_assumption(_decls, env, _assumptions, WcData::Relation(rel_1), WcData::Relation(rel_2)) => Constraints::none(env))
+            (prove_via_assumption(
+                _decls,
+                env,
+                _assumptions,
+                WcData::Atomic(AtomicPredicate::Relation(rel_1)),
+                WcData::Atomic(AtomicPredicate::Relation(rel_2)),
+            ) => Constraints::none(env))
         )
 
         // If you have `where for<'a> T: Trait<'a>` then you can prove `T: Trait<'b>` for any `'b`.
@@ -86,14 +98,14 @@ judgment_fn! {
 
 judgment_fn! {
     /// Use `via` to prove `goal` while preserving validation mode.
-    fn prove_via_validate(
+    fn prove_via_mode(
         _decls: Program,
         env: Env,
         assumptions: Wcs,
         via_validation: Upto,
         goal_validation: Upto,
-        via: WcData,
-        goal: WcData,
+        via: AtomicPredicate,
+        goal: AtomicPredicate,
     ) => Constraints {
         debug(goal_validation, goal, via_validation, via, assumptions, env)
 
@@ -112,18 +124,18 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                WcData::predicate(via_trait_ref),
-                WcData::predicate(goal_trait_ref),
+                Predicate::is_implemented(via_trait_ref),
+                Predicate::is_implemented(goal_trait_ref),
             ) => c)
             ----------------------------- ("trait predicate")
-            (prove_via_validate(
+            (prove_via_mode(
                 decls,
                 env,
                 assumptions,
                 via_validation,
                 goal_validation,
-                WcData::Predicate(Predicate::IsImplemented(via_trait_ref)),
-                WcData::Predicate(Predicate::IsImplemented(goal_trait_ref)),
+                AtomicPredicate::Predicate(Predicate::IsImplemented(via_trait_ref)),
+                AtomicPredicate::Predicate(Predicate::IsImplemented(goal_trait_ref)),
             ) => c)
         )
 
@@ -138,18 +150,18 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                WcData::predicate(via),
-                WcData::predicate(goal),
+                via,
+                goal,
             ) => c)
             ----------------------------- ("other predicate")
-            (prove_via_validate(
+            (prove_via_mode(
                 decls,
                 env,
                 assumptions,
                 via_validation,
                 goal_validation,
-                WcData::Predicate(via),
-                WcData::Predicate(goal),
+                AtomicPredicate::Predicate(via),
+                AtomicPredicate::Predicate(goal),
             ) => c)
         )
 
@@ -163,66 +175,18 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                WcData::relation(via),
-                WcData::relation(goal),
-            ) => c)
-            ----------------------------- ("atomic relation")
-            (prove_via_validate(
-                decls,
-                env,
-                assumptions,
-                via_validation,
-                goal_validation,
-                WcData::Relation(via),
-                WcData::Relation(goal),
-            ) => c)
-        )
-
-        (
-            (let (env, subst) = env.existential_substitution(binder))
-            (let via = binder.instantiate_with(subst).unwrap())
-            (prove_via_validate(
-                decls,
-                env,
-                assumptions,
-                via_validation,
-                goal_validation,
                 via,
                 goal,
             ) => c)
-            ----------------------------- ("forall")
-            (prove_via_validate(
+            ----------------------------- ("atomic relation")
+            (prove_via_mode(
                 decls,
                 env,
                 assumptions,
                 via_validation,
                 goal_validation,
-                WcData::ForAll(binder),
-                goal,
-            ) => c.pop_subst(subst))
-        )
-
-        (
-            (prove_via_validate(
-                decls,
-                env,
-                assumptions,
-                via_validation,
-                goal_validation,
-                consequence,
-                goal,
-            ) => c)
-            (let validated_conditions = conditions.validated(via_validation))
-            (prove_after(decls, c, assumptions, validated_conditions) => c)
-            ----------------------------- ("implies")
-            (prove_via_validate(
-                decls,
-                env,
-                assumptions,
-                via_validation,
-                goal_validation,
-                WcData::Implies(conditions, consequence),
-                goal,
+                AtomicPredicate::Relation(via),
+                AtomicPredicate::Relation(goal),
             ) => c)
         )
     }

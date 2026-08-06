@@ -54,22 +54,6 @@ impl Wcs {
     pub fn iter(&self) -> impl Iterator<Item = Wc> + use<'_> {
         self.into_iter()
     }
-
-    pub fn validate(validation: impl Upcast<Upto>, wcs: impl Upcast<Wcs>) -> Wcs {
-        let validation: Upto = validation.upcast();
-        let wcs: Wcs = wcs.upcast();
-        wcs.into_iter()
-            .map(|wc| Wc::validate(&validation, wc))
-            .collect()
-    }
-
-    /// Wrap each clause in `Validate` at the given dictionary-construction frontier.
-    pub fn validated(&self, validation: impl Upcast<Upto>) -> Self {
-        let validation: Upto = validation.upcast();
-        self.iter()
-            .map(|wc| Wc::validate(&validation, wc))
-            .collect()
-    }
 }
 
 impl<'w> IntoIterator for &'w Wcs {
@@ -161,7 +145,7 @@ impl DowncastTo<()> for Wcs {
     }
 }
 
-/// Part of the `Validate(Upto, P)` mode that describes how much of the
+/// Part of the `Mode(Upto, P)` judgment that describes how much of the
 /// proposition `P` must be (or has been, for assumptions) proven.
 ///
 /// Alternatively, it can be viewed as describing what parts of the dictionary
@@ -182,8 +166,70 @@ pub enum Upto {
     GatBounds(TraitId),
 }
 
+#[derive(Copy, Clone)]
+enum ModePosition {
+    Goal,
+    Assumption,
+}
+
+impl Upto {
+    /// Interpret `wc` as a goal at this dictionary-construction frontier.
+    ///
+    /// Modes attach only to atomic predicates. Quantifiers preserve the current polarity, while
+    /// the premise of an implication flips between goal and assumption position.
+    pub fn apply(&self, wc: impl Upcast<Wc>) -> Wc {
+        self.apply_at(wc.upcast(), ModePosition::Goal)
+    }
+
+    /// Interpret `wc` as an assumption at this dictionary-construction frontier.
+    pub fn apply_assumption(&self, wc: impl Upcast<Wc>) -> Wc {
+        self.apply_at(wc.upcast(), ModePosition::Assumption)
+    }
+
+    /// Interpret every clause in `wcs` as a goal at this frontier.
+    pub fn apply_goals(&self, wcs: impl Upcast<Wcs>) -> Wcs {
+        self.apply_wcs_at(wcs.upcast(), ModePosition::Goal)
+    }
+
+    /// Interpret every clause in `wcs` as an assumption at this frontier.
+    pub fn apply_assumptions(&self, wcs: impl Upcast<Wcs>) -> Wcs {
+        self.apply_wcs_at(wcs.upcast(), ModePosition::Assumption)
+    }
+
+    fn apply_wcs_at(&self, wcs: Wcs, position: ModePosition) -> Wcs {
+        wcs.into_iter()
+            .map(|wc| self.apply_at(wc, position))
+            .collect()
+    }
+
+    fn apply_at(&self, wc: Wc, position: ModePosition) -> Wc {
+        match wc {
+            Wc::Atomic(atomic) => Wc::Mode(self.clone(), atomic),
+
+            Wc::ForAll(binder) => Wc::for_all(binder.map(|wc| self.apply_at(wc, position))),
+
+            Wc::Implies(conditions, consequence) => match position {
+                ModePosition::Goal => Wc::implies(
+                    self.apply_wcs_at(conditions, ModePosition::Assumption),
+                    self.apply_at((*consequence).clone(), ModePosition::Goal),
+                ),
+
+                ModePosition::Assumption => Wc::implies(
+                    self.apply_wcs_at(conditions, ModePosition::Goal),
+                    self.apply_at((*consequence).clone(), ModePosition::Assumption),
+                ),
+            },
+
+            Wc::Mode(_, _) => {
+                panic!("cannot apply a mode to a where-clause that is already mode-qualified")
+            }
+        }
+    }
+}
+
+/// An atomic proposition to which a proof mode can be attached.
 #[term]
-pub enum Wc {
+pub enum AtomicPredicate {
     /// Means the built-in relation holds.
     #[cast]
     Relation(Relation),
@@ -191,6 +237,13 @@ pub enum Wc {
     /// Means the predicate holds.
     #[cast]
     Predicate(Predicate),
+}
+
+#[term]
+pub enum Wc {
+    /// An ordinary, unqualified atomic proposition.
+    #[cast]
+    Atomic(AtomicPredicate),
 
     // Equivalent to `for<'a>` except that it can also express `for<T>` and so forth:
     // means `$v0` is true for any value of the bound variables (e.g., `'a` or `T`).
@@ -200,11 +253,11 @@ pub enum Wc {
     #[grammar(if $v0 $v1)]
     Implies(Wcs, Arc<Wc>),
 
-    /// The "validate" mode indicates that only a subset of `$0` must be
-    /// (or has been, for assumptions) proven. See [`Upto`] for details.
+    /// Prove (or assume) an atomic proposition at one dictionary-construction frontier.
     ///
-    /// This wrapper is internal to Rust's well-formedness semantics.
-    Validate(Upto, Arc<Wc>),
+    /// This constructor is internal to Rust's well-formedness semantics. Use [`Upto::apply`] to
+    /// apply a frontier to a compound where-clause.
+    Mode(Upto, AtomicPredicate),
 }
 
 /// Temporary alias for migration -- allows `WcData::Variant` to still compile.
@@ -212,6 +265,9 @@ pub type WcData = Wc;
 
 // ---
 
+cast_impl!((Predicate) <: (AtomicPredicate) <: (Wc));
+cast_impl!((Relation) <: (AtomicPredicate) <: (Wc));
+cast_impl!((TraitRef) <: (Predicate) <: (AtomicPredicate));
 cast_impl!((TraitRef) <: (Predicate) <: (Wc));
 cast_impl!((Relation) <: (Wc) <: (Arc<Wc>));
 cast_impl!((Predicate) <: (Wc) <: (Arc<Wc>));
@@ -236,3 +292,56 @@ impl DowncastTo<Wc> for Wcs {
 cast_impl!((Relation) <: (Wc) <: (Wcs));
 cast_impl!((Predicate) <: (Wc) <: (Wcs));
 cast_impl!((TraitRef) <: (Wc) <: (Wcs));
+
+#[cfg(test)]
+mod tests {
+    use super::{TraitId, Upto, Wc};
+    use crate::rust::term;
+
+    #[test]
+    fn mode_application_distributes_through_implication() {
+        let mode = Upto::supertraits(TraitId::new("Root"));
+        let condition = term::<Wc>("Debug(u32)");
+        let consequence = term::<Wc>("Clone(u32)");
+        let implication = Wc::implies(&condition, &consequence);
+
+        assert_eq!(
+            mode.apply(implication),
+            Wc::implies(mode.apply_assumption(condition), mode.apply(consequence),),
+        );
+    }
+
+    #[test]
+    fn mode_application_to_an_assumption_flips_implication_positions() {
+        let mode = Upto::supertraits(TraitId::new("Root"));
+        let condition = term::<Wc>("Debug(u32)");
+        let consequence = term::<Wc>("Clone(u32)");
+        let implication = Wc::implies(&condition, &consequence);
+
+        assert_eq!(
+            mode.apply_assumption(implication),
+            Wc::implies(mode.apply(condition), mode.apply_assumption(consequence),),
+        );
+    }
+
+    #[test]
+    fn mode_application_distributes_through_binder() {
+        let mode = Upto::supertraits(TraitId::new("Root"));
+        let Wc::ForAll(binder) = term::<Wc>("for<'a> 'a : 'a") else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            mode.apply(Wc::for_all(&binder)),
+            Wc::for_all(binder.map(|goal| mode.apply(goal))),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot apply a mode")]
+    fn applying_a_mode_twice_is_rejected() {
+        let mode = Upto::supertraits(TraitId::new("Root"));
+        let once = mode.apply(term::<Wc>("Debug(u32)"));
+        mode.apply(once);
+    }
+}

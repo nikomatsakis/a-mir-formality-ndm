@@ -155,7 +155,7 @@ judgment_fn! {
             // handle is deliberately zero-capability: it can close an exact occurrence but cannot
             // expose requirements of the dictionary whose associated value we are selecting.
             (let recursive_assumption =
-                Wc::validate(Upto::Zero, requested_trait_ref))
+                Upto::Zero.apply(requested_trait_ref))
 
             (match_impl_candidate(
                 decls,
@@ -184,14 +184,12 @@ judgment_fn! {
             (let trait_impl = matched.trait_impl(c))
             (let gat_validation = Upto::gat_bounds(&trait_impl.trait_id))
             (let provisional_impl_header =
-                Wc::validate(Upto::supertraits(&trait_impl.trait_id), trait_impl.trait_ref()))
-            (let impl_where_clauses = trait_impl
-                .where_clauses
-                .to_wcs()
-                .validated(impl_validation))
+                Upto::supertraits(&trait_impl.trait_id).apply(trait_impl.trait_ref()))
+            (let impl_where_clauses =
+                impl_validation.apply_goals(trait_impl.where_clauses.to_wcs()))
             (let conditions = (
                 &impl_where_clauses,
-                gat_where_clauses.validated(gat_validation),
+                gat_validation.apply_goals(gat_where_clauses),
             ).to_wcs())
             (prove_after(
                 decls,

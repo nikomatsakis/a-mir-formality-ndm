@@ -1,4 +1,4 @@
-use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Upto, Wc, Wcs};
+use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Upto, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::prove::{match_impl_candidate, prove_after};
 use crate::prove::prove::{Constrained, Constraints, Env};
@@ -62,7 +62,7 @@ judgment_fn! {
             // residual obligations below receive the candidate's independently validated
             // `Supertraits` view instead.
             (let recursive_assumption =
-                Wc::validate(Upto::Zero, requested_trait_ref))
+                Upto::Zero.apply(requested_trait_ref))
             (match_impl_candidate(
                 decls,
                 env,
@@ -84,12 +84,12 @@ judgment_fn! {
             // "inputs" to the impl's implication.
             (let validation = Upto::supertraits(&trait_impl.trait_id))
             (let provisional_impl_header =
-                Wc::validate(validation.clone(), trait_impl.trait_ref()))
+                validation.apply(trait_impl.trait_ref()))
             (prove_after(
                 decls,
                 c,
                 (assumptions, provisional_impl_header),
-                Wcs::validate(validation, impl_where_clauses),
+                validation.apply_goals(impl_where_clauses),
             ) => c)
             ---------------------------------------------------- ("candidate")
             (prove_via_impl(

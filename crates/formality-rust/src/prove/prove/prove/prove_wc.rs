@@ -1,4 +1,4 @@
-use crate::grammar::{Predicate, Relation, Wc, WcData, Wcs};
+use crate::grammar::{AtomicPredicate, Predicate, Relation, Wc, WcData, Wcs};
 use crate::prove::ToWcs;
 use formality_core::judgment_fn;
 
@@ -28,21 +28,26 @@ fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, 
     if assumptions
         .iter()
         .any(|assumption| match (&assumption, goal) {
-            (
-                Wc::Validate(assumption_validation, assumption_goal),
-                Wc::Validate(goal_validation, goal),
-            ) if assumption_goal == goal => match assumption_goal.as_ref() {
-                Wc::Predicate(Predicate::IsImplemented(trait_ref)) => validation_evidence_suffices(
-                    decls,
-                    assumption_validation,
-                    goal_validation,
-                    &trait_ref.trait_id,
-                )
-                .is_proven(),
+            (Wc::Mode(assumption_validation, assumption_goal), Wc::Mode(goal_validation, goal))
+                if assumption_goal == goal =>
+            {
+                match assumption_goal {
+                    AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)) => {
+                        validation_evidence_suffices(
+                            decls,
+                            assumption_validation,
+                            goal_validation,
+                            &trait_ref.trait_id,
+                        )
+                        .is_proven()
+                    }
 
-                _ => validation_frontier_suffices(decls, assumption_validation, goal_validation)
-                    .is_proven(),
-            },
+                    _ => {
+                        validation_frontier_suffices(decls, assumption_validation, goal_validation)
+                            .is_proven()
+                    }
+                }
+            }
 
             _ => &assumption == goal,
         })
@@ -54,15 +59,11 @@ fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, 
 }
 
 fn is_ordinary_assumption_goal(goal: &Wc) -> bool {
-    matches!(goal, Wc::Predicate(_) | Wc::Relation(_))
+    matches!(goal, Wc::Atomic(_))
 }
 
 fn is_validation_assumption_goal(goal: &Wc) -> bool {
-    matches!(
-        goal,
-        Wc::Validate(_, goal)
-            if matches!(goal.as_ref(), Wc::Predicate(_) | Wc::Relation(_))
-    )
+    matches!(goal, Wc::Mode(_, _))
 }
 
 judgment_fn! {
@@ -111,12 +112,12 @@ judgment_fn! {
 
         (
             (prove_validate(decls, env, assumptions, validation, validate_goal) => c)
-            --- ("validate")
+            --- ("mode")
             (prove_wc(
                 decls,
                 env,
                 assumptions,
-                WcData::Validate(validation, validate_goal),
+                WcData::Mode(validation, validate_goal),
             ) => c)
         )
 
@@ -208,7 +209,7 @@ judgment_fn! {
         (
             (prove_sub(decls, env, assumptions, a, b) => c)
             ----------------------------- ("subtype")
-            (prove_wc(decls, env, assumptions, WcData::Relation(Relation::Sub(a, b))) => c)
+            (prove_wc(decls, env, assumptions, Relation::Sub(a, b)) => c)
         )
 
         // For example, `trait Foo<T> where T: Debug` means that the trait-ref `S: Foo<U>` is
@@ -288,8 +289,8 @@ mod tests {
     #[test]
     fn stronger_validation_assumption_uses_trivial_proof() {
         let inner: Wc = term("u32 = bool");
-        let assumption = Wc::validate(Upto::gat_bounds(TraitId::new("ValidationRoot")), &inner);
-        let goal = Wc::validate(Upto::supertraits(TraitId::new("ValidationRoot")), inner);
+        let assumption = Upto::gat_bounds(TraitId::new("ValidationRoot")).apply(&inner);
+        let goal = Upto::supertraits(TraitId::new("ValidationRoot")).apply(inner);
         let (_, proof) = prove_wc(Program::empty(), Env::default(), assumption, goal)
             .into_singleton()
             .unwrap();
@@ -311,14 +312,10 @@ mod tests {
 
     #[test]
     fn ranked_gat_bound_supertrait_assumption_elaborates() {
-        let assumption = Wc::validate(
-            Upto::gat_bounds(TraitId::new("ValidationRoot")),
-            term::<Wc>("Sub(u32)"),
-        );
-        let goal = Wc::validate(
-            Upto::supertraits(TraitId::new("ValidationRoot")),
-            term::<Wc>("Super(u32)"),
-        );
+        let assumption =
+            Upto::gat_bounds(TraitId::new("ValidationRoot")).apply(term::<Wc>("Sub(u32)"));
+        let goal =
+            Upto::supertraits(TraitId::new("ValidationRoot")).apply(term::<Wc>("Super(u32)"));
         let result = prove_wc(supertrait_program(), Env::default(), assumption, goal);
         assert!(result.is_proven(), "{result}");
     }

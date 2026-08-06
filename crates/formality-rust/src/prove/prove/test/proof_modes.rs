@@ -28,8 +28,7 @@ fn sub() -> Wc {
 }
 
 fn validated_at(upto: Upto, wc: impl Upcast<Wc>) -> Wc {
-    let wc: Wc = wc.upcast();
-    Wc::validate(upto, wc)
+    upto.apply(wc)
 }
 
 fn at_supertraits(wc: impl Upcast<Wc>) -> Wc {
@@ -38,6 +37,10 @@ fn at_supertraits(wc: impl Upcast<Wc>) -> Wc {
 
 fn at_gat_bounds(wc: impl Upcast<Wc>) -> Wc {
     validated_at(Upto::gat_bounds(TraitId::new("ValidationRoot")), wc)
+}
+
+fn assumed_at_supertraits(wc: impl Upcast<Wc>) -> Wc {
+    Upto::supertraits(TraitId::new("ValidationRoot")).apply_assumption(wc)
 }
 
 fn normalization_decls() -> Program {
@@ -184,18 +187,14 @@ fn value_only_normalization_is_not_used_for_well_formedness() {
         ])),
         ..Program::empty()
     };
-    let assumptions = Wc::validate(
-        Upto::supertraits(TraitId::new("Family")),
-        term::<Wc>("Family(Y)"),
-    );
+    let assumptions = Upto::supertraits(TraitId::new("Family")).apply(term::<Wc>("Family(Y)"));
     let alias = term::<AliasTy>("<X as Family>::Out");
 
     assert!(!prove_normalize(&program, (), &assumptions, &alias).is_proven());
 
-    let wf_value = Wc::validate(
-        Upto::supertraits(TraitId::new("Family")),
-        Relation::well_formed(term::<Parameter>("NeedsBound<Y>")),
-    );
+    let wf_value =
+        Upto::supertraits(TraitId::new("Family"))
+            .apply(Relation::well_formed(term::<Parameter>("NeedsBound<Y>")));
     assert!(!prove(program, (), assumptions, wf_value).is_proven());
 }
 
@@ -292,8 +291,8 @@ fn validation_evidence_is_not_ordinary_evidence() {
 
 #[test]
 fn observationally_zero_evidence_can_be_rebased() {
-    let source = Wc::validate(Upto::supertraits(TraitId::new("SourceRoot")), sub());
-    let goal = Wc::validate(Upto::supertraits(TraitId::new("GoalRoot")), sub());
+    let source = Upto::supertraits(TraitId::new("SourceRoot")).apply(sub());
+    let goal = Upto::supertraits(TraitId::new("GoalRoot")).apply(sub());
 
     let result = prove_after(decls(), Constraints::none(()), source, goal);
 
@@ -599,8 +598,8 @@ fn validation_implication_introduces_only_validation_antecedents() {
 fn validation_implication_applies_consequence_constraints_to_antecedents() {
     let quantified: Wc = term("for<T> if { T = bool } Sub(T)");
     let assumptions: Wcs = (
-        at_supertraits(quantified),
-        at_supertraits(term::<Wc>("u32 = bool")),
+        assumed_at_supertraits(quantified),
+        assumed_at_supertraits(term::<Wc>("u32 = bool")),
     )
         .upcast();
     let result = prove_after(

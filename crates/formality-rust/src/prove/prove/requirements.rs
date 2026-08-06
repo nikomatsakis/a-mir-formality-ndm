@@ -1,9 +1,9 @@
 //! Structured requirements declared by traits.
 
 use crate::grammar::{
-    AliasTy, AssociatedItemId, AssociatedTy, AssociatedTyBoundData, Binder, BoundVar, Parameter,
-    ParameterKind, Predicate, Relation, Trait, TraitBoundData, TraitItem, TraitRef, Ty, Wc, WcData,
-    Wcs,
+    AliasTy, AssociatedItemId, AssociatedTy, AssociatedTyBoundData, AtomicPredicate, Binder,
+    BoundVar, Parameter, ParameterKind, Predicate, Relation, Trait, TraitBoundData, TraitItem,
+    TraitRef, Ty, Wc, WcData, Wcs,
 };
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, set, Cons, Set, Upcast};
@@ -266,8 +266,8 @@ judgment_fn! {
     ///
     /// Only a direct predicate or outlives relation on `Self` is a selection-time requirement.
     /// Other surface where-clause forms are explicitly classified as input well-formedness
-    /// conditions. `Validate` has no rule because it is internal to the solver and cannot occur in
-    /// a trait declaration.
+    /// conditions. `Mode` has no rule because it is internal to the solver and cannot occur in a
+    /// trait declaration.
     pub fn trait_header_clause(
         self_parameter: Parameter,
         clause: Wc,
@@ -280,7 +280,7 @@ judgment_fn! {
             ----------------------------- ("supertrait")
             (trait_header_clause(
                 self_parameter,
-                WcData::Predicate(predicate),
+                WcData::Atomic(AtomicPredicate::Predicate(predicate)),
             ) => TraitHeaderClause::supertrait(Binder::<TraitRef>::dummy(trait_ref.upcast())))
         )
 
@@ -289,7 +289,7 @@ judgment_fn! {
             ----------------------------- ("outlives")
             (trait_header_clause(
                 self_parameter,
-                WcData::Relation(Relation::Outlives(source, target)),
+                WcData::Atomic(AtomicPredicate::Relation(Relation::Outlives(source, target))),
             ) => TraitHeaderClause::outlives(Binder::dummy(Relation::outlives(source, target))))
         )
 
@@ -314,8 +314,10 @@ judgment_fn! {
             ----------------------------- ("input predicate")
             (trait_header_clause(
                 self_parameter,
-                WcData::Predicate(predicate),
-            ) => TraitHeaderClause::input_well_formed(Wc::predicate(predicate)))
+                WcData::Atomic(AtomicPredicate::Predicate(predicate)),
+            ) => TraitHeaderClause::input_well_formed(Wc::Atomic(
+                AtomicPredicate::Predicate(predicate.clone()),
+            )))
         )
 
         (
@@ -326,8 +328,10 @@ judgment_fn! {
             ----------------------------- ("input relation")
             (trait_header_clause(
                 self_parameter,
-                WcData::Relation(relation),
-            ) => TraitHeaderClause::input_well_formed(Wc::relation(relation)))
+                WcData::Atomic(AtomicPredicate::Relation(relation)),
+            ) => TraitHeaderClause::input_well_formed(Wc::Atomic(
+                AtomicPredicate::Relation(relation.clone()),
+            )))
         )
 
         (

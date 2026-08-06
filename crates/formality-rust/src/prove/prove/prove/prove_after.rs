@@ -10,52 +10,76 @@ use super::{constraints::Constraints, env::Env, minimize::minimize, prove_wc_lis
 
 /// Measure the parts of a proof state whose structural growth can indicate divergence.
 ///
-/// Validation frontiers are administrative proof-search metadata. Wrapping an existing
-/// proposition in `Validate(Upto, _)` does not make the proposition itself structurally larger,
-/// so charging the wrapper against `max_size` makes otherwise finite nested impl selection hit
+/// Modes are administrative proof-search metadata. Qualifying an existing atomic proposition
+/// with `Mode(Upto, _)` does not make the proposition itself structurally larger, so charging the
+/// mode against `max_size` makes otherwise finite nested impl selection hit
 /// the overflow limit. We still count the wrapped proposition in full, except for opaque recursive
 /// assumptions as described below: recursive impls that grow from `T` to `Vec<T>` therefore
-/// continue to consume the budget as intended.
+/// continue to consume the budget as intended. `AtomicPredicate` is likewise a representational
+/// wrapper introduced by the mode refactoring, so it does not consume the budget either.
 fn proof_search_size(assumptions: &Wcs, goal: &Wcs) -> usize {
     (&assumptions, &goal).size()
-        - validation_metadata_size(assumptions)
-        - validation_metadata_size(goal)
+        - mode_metadata_size(assumptions)
+        - mode_metadata_size(goal)
+        - atomic_metadata_size(assumptions)
+        - atomic_metadata_size(goal)
         - opaque_assumption_payload_size(assumptions)
 }
 
 /// Return the logical size hidden behind opaque recursive handles in `assumptions`.
 ///
-/// `Validate(Zero, G)` is the handle introduced while constructing evidence for `G`. It can
+/// `Mode(Zero, G)` is the handle introduced while constructing evidence for atomic `G`. It can
 /// close that exact recursive occurrence, but no rule can inspect `G` through the handle. Its
 /// payload is also already represented by the active obligation that caused the handle to be
 /// introduced, so charging it a second time makes finite nested impl selection overflow merely
 /// because it carries its Löb hypothesis. This exemption applies only to assumptions: a zero-
-/// validated goal still has to pay for the proposition it asks us to prove.
+/// qualified goal still has to pay for the proposition it asks us to prove.
 fn opaque_assumption_payload_size(assumptions: &Wcs) -> usize {
     assumptions
         .iter()
         .map(|assumption| match assumption {
-            Wc::Validate(Upto::Zero, inner) => inner.size() - validation_metadata_size_wc(&inner),
+            // `atomic.size()` is the logical `Wc` node plus the atomic payload once the
+            // representational `AtomicPredicate` node has been discounted above.
+            Wc::Mode(Upto::Zero, atomic) => atomic.size(),
             _ => 0,
         })
         .sum()
 }
 
-fn validation_metadata_size(wcs: &Wcs) -> usize {
-    wcs.iter().map(|wc| validation_metadata_size_wc(&wc)).sum()
+/// Count the representational `AtomicPredicate` node added by the mode refactoring.
+///
+/// Discounting this node preserves the meaning of `max_size` for both ordinary and mode-qualified
+/// propositions: changing their representation must not cause previously finite searches to
+/// overflow one node earlier per proposition.
+fn atomic_metadata_size(wcs: &Wcs) -> usize {
+    wcs.iter().map(|wc| atomic_metadata_size_wc(&wc)).sum()
 }
 
-fn validation_metadata_size_wc(wc: &Wc) -> usize {
+fn atomic_metadata_size_wc(wc: &Wc) -> usize {
     match wc {
-        Wc::Relation(_) | Wc::Predicate(_) => 0,
-        Wc::ForAll(binder) => validation_metadata_size_wc(binder.peek()),
+        Wc::Atomic(_) | Wc::Mode(_, _) => 1,
+        Wc::ForAll(binder) => atomic_metadata_size_wc(binder.peek()),
         Wc::Implies(conditions, consequence) => {
-            validation_metadata_size(conditions) + validation_metadata_size_wc(consequence)
+            atomic_metadata_size(conditions) + atomic_metadata_size_wc(consequence)
         }
-        Wc::Validate(upto, inner) => {
-            // `Wc` contributes one node for the `Validate` variant, and `Upto` contributes its
-            // complete derived size. The inner proposition remains part of the search size.
-            1 + upto.size() + validation_metadata_size_wc(inner)
+    }
+}
+
+fn mode_metadata_size(wcs: &Wcs) -> usize {
+    wcs.iter().map(|wc| mode_metadata_size_wc(&wc)).sum()
+}
+
+fn mode_metadata_size_wc(wc: &Wc) -> usize {
+    match wc {
+        Wc::Atomic(_) => 0,
+        Wc::ForAll(binder) => mode_metadata_size_wc(binder.peek()),
+        Wc::Implies(conditions, consequence) => {
+            mode_metadata_size(conditions) + mode_metadata_size_wc(consequence)
+        }
+        Wc::Mode(upto, _) => {
+            // `Mode` replaces the ordinary `Atomic` `Wc` constructor, so only `Upto` is
+            // administrative metadata. The `Wc` and atomic proposition remain logical size.
+            upto.size()
         }
     }
 }
@@ -74,10 +98,11 @@ mod tests {
         let proposition = term::<Wc>("Debug(Vec<u32>)");
         let goal: Wcs = proposition.clone().upcast();
         let empty = Wcs::t();
-        let zero_assumption: Wcs = Wc::validate(Upto::Zero, &proposition).upcast();
-        let ranked_assumption: Wcs =
-            Wc::validate(Upto::supertraits(TraitId::new("Root")), &proposition).upcast();
-        let zero_goal: Wcs = Wc::validate(Upto::Zero, &proposition).upcast();
+        let zero_assumption: Wcs = Upto::Zero.apply(&proposition).upcast();
+        let ranked_assumption: Wcs = Upto::supertraits(TraitId::new("Root"))
+            .apply(&proposition)
+            .upcast();
+        let zero_goal: Wcs = Upto::Zero.apply(&proposition).upcast();
 
         let baseline = proof_search_size(&empty, &goal);
         assert_eq!(proof_search_size(&zero_assumption, &goal), baseline);
@@ -87,16 +112,9 @@ mod tests {
 
     #[test]
     fn overflow_size_still_observes_growth_inside_validation() {
-        let shallow: Wcs = Wc::validate(
-            Upto::supertraits(TraitId::new("Root")),
-            term::<Wc>("Debug(u32)"),
-        )
-        .upcast();
-        let deep: Wcs = Wc::validate(
-            Upto::supertraits(TraitId::new("Root")),
-            term::<Wc>("Debug(Vec<u32>)"),
-        )
-        .upcast();
+        let mode = Upto::supertraits(TraitId::new("Root"));
+        let shallow: Wcs = mode.apply(term::<Wc>("Debug(u32)")).upcast();
+        let deep: Wcs = mode.apply(term::<Wc>("Debug(Vec<u32>)")).upcast();
 
         assert!(proof_search_size(&Wcs::t(), &deep) > proof_search_size(&Wcs::t(), &shallow));
     }

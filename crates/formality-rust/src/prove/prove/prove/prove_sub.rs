@@ -122,10 +122,7 @@ mod test {
         let from_validation = prove_sub(
             &program,
             (),
-            Wc::validate(
-                Upto::supertraits(TraitId::new("Family")),
-                term::<Wc>("Marker(u32)"),
-            ),
+            Upto::supertraits(TraitId::new("Family")).apply(term::<Wc>("Marker(u32)")),
             &alias,
             &target,
         );
@@ -140,10 +137,7 @@ mod test {
         let result = prove_sub(
             continuation_decls(),
             (),
-            Wc::validate(
-                Upto::supertraits(TraitId::new("Family")),
-                term::<Wc>("u32 = bool"),
-            ),
+            Upto::supertraits(TraitId::new("Family")).apply(term::<Wc>("u32 = bool")),
             term::<Parameter>("<u32 as Family>::Output"),
             term::<Parameter>("bool"),
         );

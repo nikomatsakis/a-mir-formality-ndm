@@ -1,10 +1,10 @@
 use crate::grammar::{
-    AliasTy, AssociatedTyBoundData, Parameter, Predicate, Relation, Trait, TraitItem, TraitRef,
-    Upto, Wc, WcData, Wcs,
+    AliasTy, AssociatedTyBoundData, AtomicPredicate, Parameter, Predicate, Relation, Trait,
+    TraitItem, TraitRef, Upto, Wc, Wcs,
 };
 use crate::prove::prove::{
-    can_project_associated_bound, can_project_outlives, can_project_supertrait, prove,
-    trait_requirement, TraitRequirement, TraitRequirementBoundData,
+    can_project_associated_bound, can_project_outlives, can_project_supertrait, trait_requirement,
+    TraitRequirement, TraitRequirementBoundData,
 };
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Downcast};
@@ -36,50 +36,13 @@ judgment_fn! {
         env: Env,
         assumptions: Wcs,
         validation: Upto,
-        validate_goal: Wc,
+        validate_goal: AtomicPredicate,
     ) => Constraints {
         debug(validation, validate_goal, assumptions, env)
 
         (
-            (prove(
-                decls,
-                env,
-                assumptions,
-                Wc::for_all(binder.map(|goal| Wc::validate(validation, goal))),
-            ) => c)
-            --- ("forall")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation,
-                WcData::ForAll(binder),
-            ) => c)
-        )
-
-        (
-            (prove(
-                decls,
-                env,
-                assumptions,
-                Wc::implies(
-                    conditions.validated(validation),
-                    Wc::validate(validation, consequence),
-                ),
-            ) => c)
-            --- ("implies")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation,
-                WcData::Implies(conditions, consequence),
-            ) => c)
-        )
-
-        (
             (wf_requirements(decls, parameter) => requirements)
-            (let requirements = requirements.validated(validation))
+            (let requirements = validation.apply_goals(requirements))
             (prove_after(decls, env, assumptions, requirements) => c)
             --- ("well formed")
             (prove_validate(
@@ -87,7 +50,7 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                WcData::Relation(Relation::WellFormed(parameter)),
+                AtomicPredicate::Relation(Relation::WellFormed(parameter)),
             ) => c)
         )
 
@@ -111,7 +74,7 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                Wc::validate(validation, normalized_trait_ref),
+                validation.apply(normalized_trait_ref),
             ) => c)
             ----------------------------- ("normalize associated value")
             (prove_validate(
@@ -119,7 +82,7 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                Predicate::IsImplemented(trait_ref),
+                AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)),
             ) => c)
         )
 
@@ -145,7 +108,7 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                WcData::Predicate(Predicate::IsImplemented(trait_ref)),
+                AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)),
             ) => c)
         )
 
@@ -170,7 +133,7 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                WcData::Relation(Relation::Outlives(a, b)),
+                AtomicPredicate::Relation(Relation::Outlives(a, b)),
             ) => c)
         )
 
@@ -185,7 +148,7 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                WcData::Predicate(validate_goal),
+                AtomicPredicate::Predicate(validate_goal),
             ) => c)
         )
 
@@ -197,7 +160,7 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                WcData::Relation(validate_goal),
+                AtomicPredicate::Relation(validate_goal),
             ) => c)
         )
     }
@@ -213,7 +176,7 @@ judgment_fn! {
         validation: Upto,
         trait_def: Trait,
         requirement: TraitRequirement,
-        goal: Wc,
+        goal: AtomicPredicate,
     ) => Constraints {
         debug(validation, assumptions, trait_def, requirement, goal, env)
 
@@ -227,7 +190,7 @@ judgment_fn! {
         // requires both `Stronger < Impl` and `Super < Impl`; at the GAT-bound frontier the root
         // trait's own supertrait fields are available too.
         (
-            (if let WcData::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
+            (if let AtomicPredicate::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
             (can_project_supertrait(
                 decls,
                 validation,
@@ -250,10 +213,7 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                Wc::validate(
-                    validation,
-                    TraitRef::new(&trait_def.id, trait_subst),
-                ),
+                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
             ) => c)
             ----------------------------- ("supertrait")
             (prove_validate_via_trait_requirement(
@@ -272,7 +232,7 @@ judgment_fn! {
         // `<T as Family>::Item<U>: Bound`, provided that associated-bound field has already been
         // constructed at the current frontier.
         (
-            (if let WcData::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
+            (if let AtomicPredicate::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
             (can_project_associated_bound(
                 decls,
                 validation,
@@ -322,16 +282,13 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                where_clauses.to_wcs().validated(validation),
+                validation.apply_goals(where_clauses.to_wcs()),
             ) => c)
             (prove_after(
                 decls,
                 c,
                 assumptions,
-                Wc::validate(
-                    validation,
-                    TraitRef::new(&trait_def.id, trait_subst),
-                ),
+                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
             ) => c)
             (let c = c.pop_subst(associated_subst))
             ----------------------------- ("associated type")
@@ -350,7 +307,7 @@ judgment_fn! {
         // portion's construction frontier.
         (
             (can_project_outlives(decls, validation, &trait_def.id) => ())
-            (if let WcData::Relation(goal_relation) = goal)
+            (if let AtomicPredicate::Relation(goal_relation) = goal)
             (let (env, trait_subst) =
                 env.existential_substitution(&requirement.binder))
             (let requirement = requirement.binder.instantiate_with(trait_subst)?)
@@ -370,10 +327,7 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                Wc::validate(
-                    validation,
-                    TraitRef::new(&trait_def.id, trait_subst),
-                ),
+                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
             ) => c)
             (let c = c.pop_subst(outlives_subst))
             ----------------------------- ("outlives")

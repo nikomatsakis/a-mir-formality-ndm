@@ -1,5 +1,5 @@
 use crate::grammar::Wc;
-use crate::grammar::{LtData, Parameter, Relation, RigidTy, Wcs};
+use crate::grammar::{AtomicPredicate, LtData, Parameter, Relation, RigidTy, Wcs};
 use crate::prove::prove::{decls::Program, prove::prove_after::prove_after};
 use formality_core::{judgment_fn, Set, Upcast};
 
@@ -110,7 +110,7 @@ fn transitively_outlived_by(
     let outlives_assumptions: Vec<Relation> = assumptions
         .iter()
         .filter_map(|wc| {
-            if let Wc::Relation(Relation::Outlives(r1, r2)) = wc {
+            if let Wc::Atomic(AtomicPredicate::Relation(Relation::Outlives(r1, r2))) = wc {
                 return Some(Relation::Outlives(r1, r2));
             }
             None
