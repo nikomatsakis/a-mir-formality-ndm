@@ -1,5 +1,5 @@
 use expect_test::Expect;
-use formality_core::test_util::AnyhowResultTestExt;
+use formality_core::test_util::{AnyhowResultTestExt, ResultTestExt};
 use formality_core::ProvenSet;
 use formality_rust::prove::prove::Constraints;
 
@@ -21,6 +21,7 @@ enum BackendExpect {
 pub struct FormalityTest {
     input: String,
     rustc_override: Option<BackendExpect>,
+    codegen_error: Option<Expect>,
     skip_execute: bool,
     expected_output: Option<String>,
 }
@@ -30,6 +31,7 @@ impl FormalityTest {
         Self {
             input: input.into(),
             rustc_override: None,
+            codegen_error: None,
             skip_execute: false,
             expected_output: None,
         }
@@ -60,6 +62,14 @@ impl FormalityTest {
         self
     }
 
+    /// Require code generation to reject a program that type-checking accepts.
+    ///
+    /// A panic from code generation does not satisfy this expectation.
+    pub fn codegen_err(mut self, expect: Expect) -> Self {
+        self.codegen_error = Some(expect);
+        self
+    }
+
     /// Validate the source program and run an arbitrary solver query against it.
     ///
     /// The returned set retains the solver's exact constraints so tests can assert
@@ -84,6 +94,7 @@ impl FormalityTest {
         let Self {
             input,
             rustc_override,
+            codegen_error,
             skip_execute,
             expected_output,
         } = self;
@@ -91,7 +102,17 @@ impl FormalityTest {
         let proof_tree = test_program_ok(&input).expect("expected program to pass");
         formality_core::judgment::coverage::record_coverage(std::iter::once(&proof_tree));
 
-        if !skip_execute {
+        if let Some(expect) = codegen_error {
+            assert!(
+                !skip_execute,
+                "`codegen_err` cannot be combined with `skip_execute`"
+            );
+            assert!(
+                expected_output.is_none(),
+                "`codegen_err` cannot be combined with `expect_output`"
+            );
+            codegen_program(&input).assert_err(expect);
+        } else if !skip_execute {
             let stdout = execute_program(&input);
             if let Some(expected) = expected_output {
                 assert_eq!(stdout, expected, "program output mismatch");
@@ -112,10 +133,15 @@ impl FormalityTest {
         let Self {
             input,
             rustc_override,
+            codegen_error,
             skip_execute: _,
             expected_output: _,
         } = self;
 
+        assert!(
+            codegen_error.is_none(),
+            "`codegen_err` requires `.ok()` because the program must pass type checking"
+        );
         test_program_ok(&input).assert_err_leaves(expect);
 
         if let Some(rustc) = rustc_override {
@@ -163,6 +189,13 @@ fn execute_program(input: &str) -> String {
 
     let bytes = stdout_buf.lock().unwrap().clone();
     String::from_utf8(bytes).expect("stdout was not valid UTF-8")
+}
+
+#[track_caller]
+fn codegen_program(input: &str) -> anyhow::Result<minirust_rs::lang::Program> {
+    let crates: formality_rust::grammar::Crates =
+        formality_rust::rust::try_term(input).expect("failed to parse program");
+    formality_rust::codegen::codegen_program(&crates)
 }
 
 struct SharedWriter(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);

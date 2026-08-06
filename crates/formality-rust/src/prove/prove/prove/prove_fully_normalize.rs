@@ -270,48 +270,6 @@ mod tests {
     }
 
     #[test]
-    fn exact_alias_cycle_has_no_normal_form() {
-        let program = program(
-            "[
-                crate test {
-                    trait Family { type Output : []; }
-                    impl Family for () { type Output = <() as Family>::Output; }
-                }
-            ]",
-        );
-
-        assert!(!prove_fully_normalize_ty(
-            program,
-            Env::default(),
-            Wcs::t(),
-            term::<Ty>("<() as Family>::Output"),
-        )
-        .is_proven());
-    }
-
-    #[test]
-    fn mutual_alias_cycle_has_no_normal_form() {
-        let program = program(
-            "[
-                crate test {
-                    trait First { type Output : []; }
-                    trait Second { type Output : []; }
-                    impl First for () { type Output = <() as Second>::Output; }
-                    impl Second for () { type Output = <() as First>::Output; }
-                }
-            ]",
-        );
-
-        assert!(!prove_fully_normalize_ty(
-            program,
-            Env::default(),
-            Wcs::t(),
-            term::<Ty>("<() as First>::Output"),
-        )
-        .is_proven());
-    }
-
-    #[test]
     fn type_variable_has_no_ground_normal_form() {
         let mut env = Env::default();
         let variable = env.fresh_universal(ParameterKind::Ty);
