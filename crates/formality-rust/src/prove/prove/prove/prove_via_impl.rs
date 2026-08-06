@@ -1,6 +1,4 @@
-use crate::grammar::{
-    ExistentialVar, Parameter, TraitImpl, TraitRef, ValidationContext, ValidationState, Wc, Wcs,
-};
+use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Upto, Wc, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::prove::{match_impl_candidate, prove_after};
 use crate::prove::prove::{Constrained, Constraints, Env};
@@ -58,35 +56,39 @@ judgment_fn! {
         debug(requested_trait_ref, candidate, assumptions, env)
 
         (
-            // Header matching may need to normalize a projection through the candidate being
-            // selected, so make the requested trait ref available as a coinductive hypothesis
-            // while matching. This ordinary hypothesis is branch-local: no inferred substitution
-            // escapes until header equality and every residual obligation have succeeded, and the
-            // candidate's closed `ImplWF` premise has already been established. Fuzzing should
-            // continue to check that every accepted application can recover all impl arguments
-            // and monomorphize successfully.
+            // Löb induction begins with an opaque handle to the dictionary being constructed.
+            // Header matching may close an exact recursive occurrence with this handle, but it
+            // cannot project supertraits or associated-type bounds from it. After matching, the
+            // residual obligations below receive the candidate's independently validated
+            // `Supertraits` view instead.
+            (let recursive_assumption =
+                Wc::validate(Upto::Zero, requested_trait_ref))
             (match_impl_candidate(
                 decls,
                 env,
-                assumptions,
+                (assumptions, &recursive_assumption),
                 requested_trait_ref,
                 candidate,
             ) => Constrained(matched, c))!
             (let trait_impl = matched.trait_impl(c))
             (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
 
-            // The candidate's where-clauses are caller obligations. Keep the requested trait ref
-            // as an explicit provisional hypothesis while proving them. An exact recursive
-            // condition can use that hypothesis, but deriving another requirement from the root
-            // trait must pass the `trait_less_than` checks in the validation judgment.
-            (let validation = ValidationContext::new(
-                ValidationState::A,
-                &trait_impl.trait_id,
-            ))
+            // A well-formed impl is a dictionary constructor from validated inputs to ordinary,
+            // completed `Implemented` evidence. Selecting the impl fixes its associated-type
+            // values, so its header is available at the supertrait frontier within this branch.
+            // That view still cannot expose the root dictionary's own supertrait or associated-
+            // bound fields.
+            //
+            // FIXME(ndm): It seems to me that this logic can be "extracted and shared" somehow
+            // between impl WF checking and this code here. We are basically constructing the
+            // "inputs" to the impl's implication.
+            (let validation = Upto::supertraits(&trait_impl.trait_id))
+            (let provisional_impl_header =
+                Wc::validate(validation.clone(), trait_impl.trait_ref()))
             (prove_after(
                 decls,
                 c,
-                (assumptions, Wc::validate(validation, requested_trait_ref)),
+                (assumptions, provisional_impl_header),
                 Wcs::validate(validation, impl_where_clauses),
             ) => c)
             ---------------------------------------------------- ("candidate")

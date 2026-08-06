@@ -1,12 +1,9 @@
 use std::sync::Arc;
 
-use crate::grammar::{
-    AliasTy, Const, Parameter, Predicate, Relation, TraitId, Ty, ValidationContext,
-    ValidationState, Wc, Wcs,
-};
+use crate::grammar::{AliasTy, Const, Parameter, Predicate, Relation, TraitId, Ty, Upto, Wc, Wcs};
 use crate::prove::prove::{
     decls::Program,
-    prove::{Constraints, Env},
+    prove::{Constrained, Constraints, Env},
 };
 use crate::rust::term;
 use formality_core::{Downcast, Upcast};
@@ -30,20 +27,17 @@ fn sub() -> Wc {
     term("Sub(u32)")
 }
 
-fn validated_at(state: ValidationState, wc: impl Upcast<Wc>) -> Wc {
+fn validated_at(upto: Upto, wc: impl Upcast<Wc>) -> Wc {
     let wc: Wc = wc.upcast();
-    Wc::validate(
-        ValidationContext::new(state, TraitId::new("ValidationRoot")),
-        wc,
-    )
+    Wc::validate(upto, wc)
 }
 
-fn validated(wc: impl Upcast<Wc>) -> Wc {
-    validated_at(ValidationState::A, wc)
+fn at_supertraits(wc: impl Upcast<Wc>) -> Wc {
+    validated_at(Upto::supertraits(TraitId::new("ValidationRoot")), wc)
 }
 
-fn validated_b(wc: impl Upcast<Wc>) -> Wc {
-    validated_at(ValidationState::B, wc)
+fn at_gat_bounds(wc: impl Upcast<Wc>) -> Wc {
+    validated_at(Upto::gat_bounds(TraitId::new("ValidationRoot")), wc)
 }
 
 fn normalization_decls() -> Program {
@@ -52,6 +46,27 @@ fn normalization_decls() -> Program {
             term("trait Marker where {}"),
             term("trait Family where { type Output : []; }"),
             term("impl Family for u32 where u32 : Marker { type Output = bool; }"),
+        ])),
+        ..Program::empty()
+    }
+}
+
+fn deref_normalization_decls() -> Program {
+    Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Copy where {}"),
+            term("impl Copy for u32 {}"),
+            term("trait Derefable where { type Target : []; }"),
+            term(
+                "impl<'a, T> Derefable for &'a T where T : 'a {
+                    type Target = T;
+                }",
+            ),
+            term(
+                "impl<'a, T> Derefable for &mut 'a T where T : 'a {
+                    type Target = T;
+                }",
+            ),
         ])),
         ..Program::empty()
     }
@@ -131,16 +146,45 @@ fn associated_requirement_decls() -> Program {
 }
 
 #[test]
-fn normalizing_alias_uses_only_explicit_assumptions() {
+fn normalization_can_use_a_sufficient_validated_input() {
     let program = normalization_decls();
     let alias = term::<Parameter>("<u32 as Family>::Output");
 
-    let from_validation =
-        prove_normalize(&program, (), validated(term::<Wc>("Marker(u32)")), &alias);
-    assert!(!from_validation.is_proven());
+    let from_validation = prove_normalize(
+        &program,
+        (),
+        at_supertraits(term::<Wc>("Marker(u32)")),
+        &alias,
+    );
+    assert!(from_validation.is_proven());
 
     let from_ordinary = prove_normalize(&program, (), term::<Wc>("Marker(u32)"), alias);
     assert!(from_ordinary.is_proven());
+}
+
+#[test]
+fn normalization_ignores_an_incompatible_rigid_impl() {
+    let Wc::ForAll(binder) =
+        term::<Wc>("for<'a, 'b, 'c, 'd, 'e, 'f> Copy(<&mut 'a u32 as Derefable>::Target)")
+    else {
+        unreachable!()
+    };
+    let (env, variables) = Env::default().existential_substitution(&binder);
+    let goal = binder.instantiate_with(&variables).unwrap();
+    let env = env.with_allow_pending_outlives(true);
+    let assumptions: Wcs = variables
+        .iter()
+        .map(|variable| -> Wc { Relation::well_formed(variable).upcast() })
+        .collect();
+    let result = prove_after(
+        deref_normalization_decls(),
+        Constraints::none(&env),
+        assumptions,
+        goal,
+    );
+
+    let solutions = result.into_map().expect("projection should normalize");
+    assert!(solutions.keys().any(|constraints| constraints.known_true));
 }
 
 #[test]
@@ -152,7 +196,7 @@ fn equality_with_alias_stays_in_current_validation_context() {
     let result = prove_after(
         Program::empty(),
         Constraints::none(()),
-        validated(alias_eq),
+        at_supertraits(alias_eq),
         Relation::equals(
             term::<Parameter>("<u32 as Family>::Output"),
             term::<Parameter>("bool"),
@@ -163,11 +207,30 @@ fn equality_with_alias_stays_in_current_validation_context() {
 }
 
 #[test]
+fn associated_type_equality_normalizes_only_from_alias_to_value() {
+    let alias = term::<Parameter>("<u32 as Family>::Output")
+        .downcast::<AliasTy>()
+        .unwrap();
+    let alias_eq: Wc = Predicate::AliasEq(alias, term::<Ty>("bool")).upcast();
+
+    let forward = prove_normalize(
+        Program::empty(),
+        (),
+        &alias_eq,
+        term::<Parameter>("<u32 as Family>::Output"),
+    );
+    assert!(forward.is_proven());
+
+    let reverse = prove_normalize(Program::empty(), (), alias_eq, term::<Parameter>("bool"));
+    assert!(!reverse.is_proven());
+}
+
+#[test]
 fn normalizing_non_alias_uses_only_explicit_assumptions() {
     let result = prove_normalize(
         Program::empty(),
         (),
-        validated(term::<Wc>("u32 = bool")),
+        at_supertraits(term::<Wc>("u32 = bool")),
         term::<Parameter>("u32"),
     );
 
@@ -176,7 +239,7 @@ fn normalizing_non_alias_uses_only_explicit_assumptions() {
 
 #[test]
 fn validation_evidence_is_not_ordinary_evidence() {
-    let validated_sub = validated(sub());
+    let validated_sub = at_supertraits(sub());
 
     let validation_result = prove_after(
         decls(),
@@ -191,47 +254,45 @@ fn validation_evidence_is_not_ordinary_evidence() {
 }
 
 #[test]
-fn validation_evidence_is_scoped_to_one_impl_trait() {
-    let source = Wc::validate(
-        ValidationContext::new(ValidationState::A, TraitId::new("SourceRoot")),
-        sub(),
-    );
-    let goal = Wc::validate(
-        ValidationContext::new(ValidationState::A, TraitId::new("GoalRoot")),
-        sub(),
-    );
+fn observationally_zero_evidence_can_be_rebased() {
+    let source = Wc::validate(Upto::supertraits(TraitId::new("SourceRoot")), sub());
+    let goal = Wc::validate(Upto::supertraits(TraitId::new("GoalRoot")), sub());
 
     let result = prove_after(decls(), Constraints::none(()), source, goal);
 
-    assert!(!result.is_proven());
+    // `Sub` is unrelated to both roots, so neither frontier exposes any field of its dictionary.
+    // Both wrappers therefore denote the same observationally-zero evidence.
+    assert!(result.is_proven());
 }
 
 #[test]
-fn stage_b_validation_evidence_can_discharge_stage_a_goal() {
+fn gat_bound_frontier_can_discharge_supertrait_frontier() {
+    let root = term::<Wc>("ValidationRoot(u32)");
     let result = prove_after(
         decls(),
         Constraints::none(()),
-        validated_b(sub()),
-        validated(sub()),
+        at_gat_bounds(&root),
+        at_supertraits(root),
     );
 
     assert!(result.is_proven());
 }
 
 #[test]
-fn stage_a_validation_evidence_cannot_discharge_stage_b_goal() {
+fn supertrait_frontier_cannot_discharge_gat_bound_frontier() {
+    let root = term::<Wc>("ValidationRoot(u32)");
     let result = prove_after(
         decls(),
         Constraints::none(()),
-        validated(sub()),
-        validated_b(sub()),
+        at_supertraits(&root),
+        at_gat_bounds(root),
     );
 
     assert!(!result.is_proven());
 }
 
 #[test]
-fn completed_impl_can_construct_stage_b_validation_evidence() {
+fn completed_impl_can_construct_evidence_at_either_frontier() {
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Prerequisite where {}"),
@@ -242,33 +303,33 @@ fn completed_impl_can_construct_stage_b_validation_evidence() {
         ..Program::empty()
     };
 
-    let stage_a = prove_after(
+    let supertrait_result = prove_after(
         &program,
         Constraints::none(()),
         (),
-        validated(term::<Wc>("Marker(u32)")),
+        at_supertraits(term::<Wc>("Marker(u32)")),
     );
-    assert!(stage_a.is_proven());
+    assert!(supertrait_result.is_proven());
 
-    let stage_b = prove_after(
+    let gat_bound_result = prove_after(
         &program,
         Constraints::none(()),
         (),
-        validated_b(term::<Wc>("Marker(u32)")),
+        at_gat_bounds(term::<Wc>("Marker(u32)")),
     );
-    assert!(stage_b.is_proven());
+    assert!(gat_bound_result.is_proven());
 
     let unsatisfied = prove_after(
         program,
         Constraints::none(()),
         (),
-        validated_b(term::<Wc>("Marker(bool)")),
+        at_gat_bounds(term::<Wc>("Marker(bool)")),
     );
     assert!(!unsatisfied.is_proven());
 }
 
 #[test]
-fn stage_b_impl_inherits_only_completed_evidence() {
+fn opaque_validated_input_can_construct_an_opaque_result() {
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Prerequisite where {}"),
@@ -282,65 +343,70 @@ fn stage_b_impl_inherits_only_completed_evidence() {
         &program,
         Constraints::none(()),
         term::<Wc>("Prerequisite(u32)"),
-        validated_b(term::<Wc>("Marker(u32)")),
+        at_gat_bounds(term::<Wc>("Marker(u32)")),
     );
     assert!(from_ordinary.is_proven());
 
-    let from_stage_a = prove_after(
+    let from_validated = prove_after(
         program,
         Constraints::none(()),
-        validated(term::<Wc>("Prerequisite(u32)")),
-        validated_b(term::<Wc>("Marker(u32)")),
+        at_supertraits(term::<Wc>("Prerequisite(u32)")),
+        at_gat_bounds(term::<Wc>("Marker(u32)")),
     );
-    assert!(!from_stage_a.is_proven());
+    assert!(from_validated.is_proven());
 }
 
 #[test]
-fn ordinary_evidence_can_discharge_stage_b_goal() {
-    let result = prove_after(decls(), Constraints::none(()), sub(), validated_b(sub()));
+fn ordinary_evidence_can_discharge_gat_bound_goal() {
+    let result = prove_after(decls(), Constraints::none(()), sub(), at_gat_bounds(sub()));
 
     assert!(result.is_proven());
 }
 
 #[test]
-fn ranked_stage_b_validation_evidence_elaborates_supertrait() {
+fn ranked_gat_bound_evidence_elaborates_supertrait() {
     let result = prove_after(
         decls(),
         Constraints::none(()),
-        validated_b(sub()),
-        validated(term::<Wc>("Super(u32)")),
+        at_gat_bounds(sub()),
+        at_supertraits(term::<Wc>("Super(u32)")),
     );
 
     assert!(result.is_proven());
 }
 
 #[test]
-fn stage_b_validation_preserves_stage_through_implication() {
+fn gat_bound_validation_preserves_frontier_through_implication() {
     let implication = Wc::implies(sub(), term::<Wc>("Super(u32)"));
-    let result = prove_after(decls(), Constraints::none(()), (), validated_b(implication));
+    let result = prove_after(
+        decls(),
+        Constraints::none(()),
+        (),
+        at_gat_bounds(implication),
+    );
 
     assert!(result.is_proven());
 }
 
 #[test]
-fn ranked_stage_b_validation_evidence_elaborates_transitive_supertrait() {
+fn ranked_gat_bound_evidence_elaborates_transitive_supertrait() {
     let result = prove_after(
         transitive_supertrait_decls(),
         Constraints::none(()),
-        validated_b(sub()),
-        validated(term::<Wc>("Super(u32)")),
+        at_gat_bounds(sub()),
+        at_supertraits(term::<Wc>("Super(u32)")),
     );
 
     assert!(result.is_proven());
 }
 
 #[test]
-fn ranked_stage_b_validation_evidence_elaborates_higher_ranked_supertrait() {
+fn ranked_gat_bound_evidence_elaborates_higher_ranked_supertrait() {
     let result = prove_after(
         higher_ranked_supertrait_decls(),
         Constraints::none(()),
-        validated_b(sub()),
-        validated(term::<Wc>("for<'a> Super(u32, 'a)")),
+        at_gat_bounds(sub()),
+        at_supertraits(term::<Wc>("for<'a> Super(u32, 'a)")),
     );
 
     assert!(result.is_proven());
@@ -360,7 +426,12 @@ fn ordinary_evidence_can_validate_an_atomic_clause() {
         Relation::outlives(term::<Parameter>("u32"), term::<Parameter>("'static")).upcast();
 
     for clause in [sub(), alias_eq, const_has_type, equality, outlives] {
-        let result = prove_after(decls(), Constraints::none(()), &clause, validated(&clause));
+        let result = prove_after(
+            decls(),
+            Constraints::none(()),
+            &clause,
+            at_supertraits(&clause),
+        );
         assert!(result.is_proven(), "failed to validate {clause:?}");
     }
 }
@@ -376,7 +447,7 @@ fn every_atomic_relation_has_an_ordinary_validation_fallback() {
         Program::empty(),
         Constraints::none(()),
         (),
-        validated(subtype),
+        at_supertraits(subtype),
     );
     assert!(validation_result.is_proven());
 }
@@ -387,7 +458,7 @@ fn validated_relation_is_exact_and_not_ordinary_evidence() {
         Relation::equals(term::<Parameter>("u32"), term::<Parameter>("bool")).upcast();
     let reverse_equality: Wc =
         Relation::equals(term::<Parameter>("bool"), term::<Parameter>("u32")).upcast();
-    let validated_equality = validated(&equality);
+    let validated_equality = at_supertraits(&equality);
 
     let exact_result = prove_after(
         Program::empty(),
@@ -401,7 +472,7 @@ fn validated_relation_is_exact_and_not_ordinary_evidence() {
         Program::empty(),
         Constraints::none(()),
         &validated_equality,
-        validated(reverse_equality),
+        at_supertraits(reverse_equality),
     );
     assert!(!reverse_result.is_proven());
 
@@ -421,7 +492,7 @@ fn validated_outlives_is_not_ordinary_evidence() {
     };
     let (env, substitution) = Env::default().universal_substitution(&binder);
     let outlives = binder.instantiate_with(substitution).unwrap();
-    let validated_outlives = validated(&outlives);
+    let validated_outlives = at_supertraits(&outlives);
 
     let validation_result = prove_after(
         Program::empty(),
@@ -442,12 +513,16 @@ fn validated_outlives_is_not_ordinary_evidence() {
 
 #[test]
 fn validation_preserves_predicate_congruence() {
-    let assumptions: Wcs = (validated(term::<Wc>("Sub(u32)")), term::<Wc>("u32 = bool")).upcast();
+    let assumptions: Wcs = (
+        at_supertraits(term::<Wc>("Sub(u32)")),
+        term::<Wc>("u32 = bool"),
+    )
+        .upcast();
     let result = prove_after(
         decls(),
         Constraints::none(()),
         assumptions,
-        validated(term::<Wc>("Sub(bool)")),
+        at_supertraits(term::<Wc>("Sub(bool)")),
     );
 
     assert!(result.is_proven());
@@ -456,7 +531,12 @@ fn validation_preserves_predicate_congruence() {
 #[test]
 fn ranked_validation_elaborates_supertrait_through_implication() {
     let implication = Wc::implies(sub(), term::<Wc>("Super(u32)"));
-    let result = prove_after(decls(), Constraints::none(()), (), validated(implication));
+    let result = prove_after(
+        decls(),
+        Constraints::none(()),
+        (),
+        at_supertraits(implication),
+    );
 
     assert!(result.is_proven());
 }
@@ -472,7 +552,7 @@ fn validation_implication_introduces_only_validation_antecedents() {
         implication_validation_decls(),
         Constraints::none(()),
         (),
-        validated(implication),
+        at_supertraits(implication),
     );
 
     assert!(!result.is_proven());
@@ -481,12 +561,16 @@ fn validation_implication_introduces_only_validation_antecedents() {
 #[test]
 fn validation_implication_applies_consequence_constraints_to_antecedents() {
     let quantified: Wc = term("for<T> if { T = bool } Sub(T)");
-    let assumptions: Wcs = (validated(quantified), validated(term::<Wc>("u32 = bool"))).upcast();
+    let assumptions: Wcs = (
+        at_supertraits(quantified),
+        at_supertraits(term::<Wc>("u32 = bool")),
+    )
+        .upcast();
     let result = prove_after(
         decls(),
         Constraints::none(()),
         assumptions,
-        validated(sub()),
+        at_supertraits(sub()),
     );
 
     assert!(result.is_proven());
@@ -515,10 +599,10 @@ fn ordinary_associated_bound_requires_originating_trait_and_gat_conditions() {
 }
 
 #[test]
-fn validation_preserves_mode_through_well_formedness() {
-    let validated_sub = validated(sub());
+fn validation_preserves_frontier_through_well_formedness() {
+    let validated_sub = at_supertraits(sub());
     let wf: Wc = Relation::well_formed(term::<Parameter>("NeedsSub<u32>")).upcast();
-    let validated_wf = validated(&wf);
+    let validated_wf = at_supertraits(&wf);
 
     let validation_result =
         prove_after(decls(), Constraints::none(()), &validated_sub, validated_wf);
@@ -555,6 +639,44 @@ fn failed_impl_candidate_validation_assumptions_do_not_leak() {
 }
 
 #[test]
+fn failed_normalization_candidate_does_not_leak_its_provisional_alias_equality() {
+    // The first `Family(X)` candidate temporarily fixes `Family::Output` to `Bad`, but its
+    // `Missing: Required` residual fails. The second candidate could satisfy its recursive
+    // `Family::Output: Marker` residual only if that first candidate's provisional equation
+    // escaped into the sibling branch. Its own provisional equation fixes the output to `Good`,
+    // which deliberately does not implement `Marker`.
+    let program = Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Required where {}"),
+            term("trait Marker where {}"),
+            term("trait Family where { type Output : []; }"),
+            term("struct Missing {}"),
+            term("struct X {}"),
+            term("struct Bad {}"),
+            term("struct Good {}"),
+            term("impl Marker for Bad {}"),
+            term(
+                "impl Family for X where Missing : Required {
+                    type Output = Bad;
+                }",
+            ),
+            term(
+                "impl Family for X where <X as Family>::Output : Marker {
+                    type Output = Good;
+                }",
+            ),
+        ])),
+        ..Program::empty()
+    };
+
+    let result = prove_normalize(program, (), (), term::<Parameter>("<X as Family>::Output"));
+
+    assert!(result
+        .iter()
+        .all(|(Constrained(_, constraints), _)| !constraints.known_true));
+}
+
+#[test]
 fn impl_validation_preserves_outlives_requirement() {
     let goal: Wc = term("for<'a, T> if {T : 'a} Lives(T, 'a)");
     let result = prove_after(outlives_decls(), Constraints::none(()), (), goal);
@@ -579,7 +701,7 @@ fn validation_without_rank_does_not_elaborate_outlives_through_implication() {
         outlives_decls(),
         Constraints::none(()),
         (),
-        validated(implication),
+        at_supertraits(implication),
     );
 
     assert!(!result.is_proven());
@@ -592,7 +714,7 @@ fn ranked_validation_elaborates_outlives_through_implication() {
         ranked_outlives_decls(),
         Constraints::none(()),
         (),
-        validated(implication),
+        at_supertraits(implication),
     );
 
     assert!(result.is_proven());

@@ -1,8 +1,8 @@
-use crate::grammar::{ValidationContext, WcData, Wcs};
-use crate::prove::prove::trait_order::validation_less_than_or_equals;
+use crate::grammar::{Predicate, Upto, WcData, Wcs};
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
+    validation_evidence_suffices, validation_frontier_suffices,
 };
 use formality_core::judgment_fn;
 
@@ -23,7 +23,6 @@ judgment_fn! {
         debug(goal, via, assumptions, env)
 
         (
-            (validation_less_than_or_equals(decls, goal_validation, via_validation) => ())
             (prove_via_validate(
                 decls,
                 env,
@@ -91,14 +90,50 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
-        via_validation: ValidationContext,
-        goal_validation: ValidationContext,
+        via_validation: Upto,
+        goal_validation: Upto,
         via: WcData,
         goal: WcData,
     ) => Constraints {
         debug(goal_validation, goal, via_validation, via, assumptions, env)
 
+        // Validation strength is indexed by the trait inside the proposition. In particular,
+        // `Valid(Zero, P)` can establish a seemingly nonzero view when that frontier exposes no
+        // fields of `P` (for example, when `P` is unrelated to the frontier's root trait).
         (
+            (if via_trait_ref.trait_id == goal_trait_ref.trait_id)
+            (validation_evidence_suffices(
+                decls,
+                via_validation,
+                goal_validation,
+                &via_trait_ref.trait_id,
+            ) => ())
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                WcData::predicate(via_trait_ref),
+                WcData::predicate(goal_trait_ref),
+            ) => c)
+            ----------------------------- ("trait predicate")
+            (prove_via_validate(
+                decls,
+                env,
+                assumptions,
+                via_validation,
+                goal_validation,
+                WcData::Predicate(Predicate::IsImplemented(via_trait_ref)),
+                WcData::Predicate(Predicate::IsImplemented(goal_trait_ref)),
+            ) => c)
+        )
+
+        (
+            (if !matches!(via, Predicate::IsImplemented(_)))!
+            (validation_frontier_suffices(
+                decls,
+                via_validation,
+                goal_validation,
+            ) => ())
             (prove_via_assumption(
                 decls,
                 env,
@@ -106,7 +141,7 @@ judgment_fn! {
                 WcData::predicate(via),
                 WcData::predicate(goal),
             ) => c)
-            ----------------------------- ("atomic predicate")
+            ----------------------------- ("other predicate")
             (prove_via_validate(
                 decls,
                 env,
@@ -119,6 +154,11 @@ judgment_fn! {
         )
 
         (
+            (validation_frontier_suffices(
+                decls,
+                via_validation,
+                goal_validation,
+            ) => ())
             (prove_via_assumption(
                 decls,
                 env,

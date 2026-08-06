@@ -102,7 +102,7 @@ fn drop_impl_extra_where_clause() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:7:1: no applicable rules for prove_via_assumption { goal: Clone(!ty_0), via: validate(validation_context(a, Drop), Drop(MyStruct<!ty_0>)), assumptions: {validate(validation_context(a, Drop), Drop(MyStruct<!ty_0>))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Clone(!ty_0), via: validate(supertraits(Drop), Drop(MyStruct<!ty_0>)), assumptions: {validate(supertraits(Drop), Drop(MyStruct<!ty_0>))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 /// Drop impl for a concrete instantiation (not generic enough).
@@ -121,7 +121,7 @@ fn drop_impl_concrete_type_param() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:50:1: no applicable rules for prove_via_impl { _requested_trait_ref: Drop(MyStruct<!ty_0>), _candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Drop for MyStruct<u32> { } }, _assumptions: {}, _env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Drop(MyStruct<!ty_0>), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Drop for MyStruct<u32> { } }, assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 /// Drop impl for a non-ADT type (e.g., u32).

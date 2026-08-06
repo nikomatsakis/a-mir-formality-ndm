@@ -1,9 +1,10 @@
 use crate::grammar::{
-    AliasTy, AssociatedTyBoundData, Predicate, Relation, Trait, TraitItem, TraitRef,
-    ValidationContext, Wc, WcData, Wcs,
+    AliasTy, AssociatedTyBoundData, Predicate, Relation, Trait, TraitItem, TraitRef, Upto, Wc,
+    WcData, Wcs,
 };
 use crate::prove::prove::{
-    prove, trait_less_than, trait_requirement, TraitRequirement, TraitRequirementBoundData,
+    can_project_associated_bound, can_project_outlives, can_project_supertrait, prove,
+    trait_requirement, TraitRequirement, TraitRequirementBoundData,
 };
 use crate::prove::ToWcs;
 use formality_core::judgment_fn;
@@ -15,12 +16,12 @@ use super::{
 use crate::prove::prove::Program;
 
 judgment_fn! {
-    /// Prove that `validate_goal` holds in the validation context for one impl.
+    /// Prove that `validate_goal` is available at one dictionary-construction frontier.
     pub(super) fn prove_validate(
         decls: Program,
         env: Env,
         assumptions: Wcs,
-        validation: ValidationContext,
+        validation: Upto,
         validate_goal: Wc,
     ) => Constraints {
         debug(validation, validate_goal, assumptions, env)
@@ -76,10 +77,9 @@ judgment_fn! {
             ) => c)
         )
 
-        // Provisional evidence may expose a declared requirement only when both the source and
-        // the result are strictly below the trait whose impl is being validated. Exact evidence
-        // is handled by the assumption rule before reaching this rule, and a complete ordinary
-        // proof is handled by the fallback rules below.
+        // Provisional evidence may expose only fields already constructed at `validation`.
+        // Exact evidence is handled by the assumption rule before reaching this rule, and a
+        // complete ordinary proof is handled by the fallback rules below.
         (
             (trait_def in decls.traits())
             (trait_requirement(trait_def) => requirements)
@@ -164,7 +164,7 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
-        validation: ValidationContext,
+        validation: Upto,
         trait_def: Trait,
         requirement: TraitRequirement,
         goal: Wc,
@@ -177,14 +177,16 @@ judgment_fn! {
         //     --------------------------------
         //     verify(S, Impl, T: Super)
         //
-        // only when both `Stronger < Impl` and `Super < Impl`.
+        // only when that supertrait field is available at `S`. At the supertrait frontier this
+        // requires both `Stronger < Impl` and `Super < Impl`; at the GAT-bound frontier the root
+        // trait's own supertrait fields are available too.
         (
             (if let WcData::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
-            (trait_less_than(decls, &trait_def.id, &validation.trait_id) => ())
-            (trait_less_than(
+            (can_project_supertrait(
                 decls,
+                validation,
+                &trait_def.id,
                 &goal_trait_ref.trait_id,
-                &validation.trait_id,
             ) => ())
 
             (let (env, trait_subst) =
@@ -221,15 +223,15 @@ judgment_fn! {
 
         // Associated type bounds are implied requirements too. For example, from verified
         // `T: Family` and the verified GAT conditions this rule can derive a verified
-        // `<T as Family>::Item<U>: Bound`, subject to the same strict ordering on the owner and
-        // result traits.
+        // `<T as Family>::Item<U>: Bound`, provided that associated-bound field has already been
+        // constructed at the current frontier.
         (
             (if let WcData::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
-            (trait_less_than(decls, &trait_def.id, &validation.trait_id) => ())
-            (trait_less_than(
+            (can_project_associated_bound(
                 decls,
+                validation,
+                &trait_def.id,
                 &goal_trait_ref.trait_id,
-                &validation.trait_id,
             ) => ())
 
             (let (env, trait_subst) =
@@ -298,10 +300,10 @@ judgment_fn! {
             ) => c.pop_subst(trait_subst))
         )
 
-        // Outlives requirements have no target trait to rank. The trait supplying the
-        // requirement must nevertheless be strictly below the impl under validation.
+        // Outlives requirements occupy the supertrait portion of a dictionary and follow that
+        // portion's construction frontier.
         (
-            (trait_less_than(decls, &trait_def.id, &validation.trait_id) => ())
+            (can_project_outlives(decls, validation, &trait_def.id) => ())
             (if let WcData::Relation(goal_relation) = goal)
             (let (env, trait_subst) =
                 env.existential_substitution(&requirement.binder))

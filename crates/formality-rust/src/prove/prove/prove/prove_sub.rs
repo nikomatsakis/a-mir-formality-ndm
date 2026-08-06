@@ -85,7 +85,7 @@ judgment_fn! {
 mod test {
     use std::sync::Arc;
 
-    use crate::grammar::{Parameter, TraitId, ValidationContext, ValidationState, Wc};
+    use crate::grammar::{Parameter, TraitId, Upto, Wc};
     use crate::prove::prove::decls::Program;
     use crate::rust::term;
     use formality_macros::test;
@@ -114,7 +114,7 @@ mod test {
     }
 
     #[test]
-    fn subtyping_alias_uses_only_explicit_assumptions() {
+    fn subtyping_alias_can_use_a_sufficient_validated_input() {
         let program = normalization_decls();
         let alias = term::<Parameter>("<u32 as Family>::Output");
         let target = term::<Parameter>("bool");
@@ -123,13 +123,13 @@ mod test {
             &program,
             (),
             Wc::validate(
-                ValidationContext::new(ValidationState::A, TraitId::new("Family")),
+                Upto::supertraits(TraitId::new("Family")),
                 term::<Wc>("Marker(u32)"),
             ),
             &alias,
             &target,
         );
-        assert!(!from_validation.is_proven());
+        assert!(from_validation.is_proven());
 
         let from_ordinary = prove_sub(program, (), term::<Wc>("Marker(u32)"), alias, target);
         assert!(from_ordinary.is_proven());
@@ -141,7 +141,7 @@ mod test {
             continuation_decls(),
             (),
             Wc::validate(
-                ValidationContext::new(ValidationState::A, TraitId::new("Family")),
+                Upto::supertraits(TraitId::new("Family")),
                 term::<Wc>("u32 = bool"),
             ),
             term::<Parameter>("<u32 as Family>::Output"),

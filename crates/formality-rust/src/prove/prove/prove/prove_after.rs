@@ -1,4 +1,4 @@
-use crate::grammar::Wcs;
+use crate::grammar::{Upto, Wc, Wcs};
 use formality_core::judgment::{EachProof, FailedRule, FailureLocation, ProofTree};
 use formality_core::visit::CoreVisit;
 use formality_core::{judgment_fn, map, set, ProvenSet, Upcast};
@@ -7,6 +7,100 @@ use tracing::Level;
 use crate::prove::prove::decls::Program;
 
 use super::{constraints::Constraints, env::Env, minimize::minimize, prove_wc_list::prove_wc_list};
+
+/// Measure the parts of a proof state whose structural growth can indicate divergence.
+///
+/// Validation frontiers are administrative proof-search metadata. Wrapping an existing
+/// proposition in `Validate(Upto, _)` does not make the proposition itself structurally larger,
+/// so charging the wrapper against `max_size` makes otherwise finite nested impl selection hit
+/// the overflow limit. We still count the wrapped proposition in full, except for opaque recursive
+/// assumptions as described below: recursive impls that grow from `T` to `Vec<T>` therefore
+/// continue to consume the budget as intended.
+fn proof_search_size(assumptions: &Wcs, goal: &Wcs) -> usize {
+    (&assumptions, &goal).size()
+        - validation_metadata_size(assumptions)
+        - validation_metadata_size(goal)
+        - opaque_assumption_payload_size(assumptions)
+}
+
+/// Return the logical size hidden behind opaque recursive handles in `assumptions`.
+///
+/// `Validate(Zero, G)` is the handle introduced while constructing evidence for `G`. It can
+/// close that exact recursive occurrence, but no rule can inspect `G` through the handle. Its
+/// payload is also already represented by the active obligation that caused the handle to be
+/// introduced, so charging it a second time makes finite nested impl selection overflow merely
+/// because it carries its Löb hypothesis. This exemption applies only to assumptions: a zero-
+/// validated goal still has to pay for the proposition it asks us to prove.
+fn opaque_assumption_payload_size(assumptions: &Wcs) -> usize {
+    assumptions
+        .iter()
+        .map(|assumption| match assumption {
+            Wc::Validate(Upto::Zero, inner) => inner.size() - validation_metadata_size_wc(&inner),
+            _ => 0,
+        })
+        .sum()
+}
+
+fn validation_metadata_size(wcs: &Wcs) -> usize {
+    wcs.iter().map(|wc| validation_metadata_size_wc(&wc)).sum()
+}
+
+fn validation_metadata_size_wc(wc: &Wc) -> usize {
+    match wc {
+        Wc::Relation(_) | Wc::Predicate(_) => 0,
+        Wc::ForAll(binder) => validation_metadata_size_wc(binder.peek()),
+        Wc::Implies(conditions, consequence) => {
+            validation_metadata_size(conditions) + validation_metadata_size_wc(consequence)
+        }
+        Wc::Validate(upto, inner) => {
+            // `Wc` contributes one node for the `Validate` variant, and `Upto` contributes its
+            // complete derived size. The inner proposition remains part of the search size.
+            1 + upto.size() + validation_metadata_size_wc(inner)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::proof_search_size;
+    use crate::{
+        grammar::{TraitId, Upto, Wc, Wcs},
+        rust::term,
+    };
+    use formality_core::Upcast;
+
+    #[test]
+    fn overflow_size_treats_zero_assumptions_as_opaque() {
+        let proposition = term::<Wc>("Debug(Vec<u32>)");
+        let goal: Wcs = proposition.clone().upcast();
+        let empty = Wcs::t();
+        let zero_assumption: Wcs = Wc::validate(Upto::Zero, &proposition).upcast();
+        let ranked_assumption: Wcs =
+            Wc::validate(Upto::supertraits(TraitId::new("Root")), &proposition).upcast();
+        let zero_goal: Wcs = Wc::validate(Upto::Zero, &proposition).upcast();
+
+        let baseline = proof_search_size(&empty, &goal);
+        assert_eq!(proof_search_size(&zero_assumption, &goal), baseline);
+        assert_eq!(proof_search_size(&empty, &zero_goal), baseline);
+        assert!(proof_search_size(&ranked_assumption, &goal) > baseline);
+    }
+
+    #[test]
+    fn overflow_size_still_observes_growth_inside_validation() {
+        let shallow: Wcs = Wc::validate(
+            Upto::supertraits(TraitId::new("Root")),
+            term::<Wc>("Debug(u32)"),
+        )
+        .upcast();
+        let deep: Wcs = Wc::validate(
+            Upto::supertraits(TraitId::new("Root")),
+            term::<Wc>("Debug(Vec<u32>)"),
+        )
+        .upcast();
+
+        assert!(proof_search_size(&Wcs::t(), &deep) > proof_search_size(&Wcs::t(), &shallow));
+    }
+}
 
 judgment_fn! {
     pub fn prove_after(
@@ -54,10 +148,11 @@ fn prove_substituted(
     // In the compiler we use recursion depth instead. We avoid recursion depth because it requires
     // knowing the context in which the proof occurs.
     let term_in = (&assumptions, &goal);
-    if term_in.size() > decls.max_size {
+    let proof_search_size = proof_search_size(&assumptions, &goal);
+    if proof_search_size > decls.max_size {
         tracing::debug!(
             "term has size {} which exceeds max size of {}",
-            term_in.size(),
+            proof_search_size,
             decls.max_size
         );
         let constraints = min.reconstitute(Constraints::none(env).ambiguous());

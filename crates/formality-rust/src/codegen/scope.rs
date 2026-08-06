@@ -10,7 +10,6 @@ use crate::prove::prove::{Constrained, Env, Program};
 use formality_core::Upcast;
 use libspecr::prelude::Map;
 use minirust_rs::lang;
-use std::sync::Arc;
 
 use super::code_block::CodeBlock;
 use super::minirust::*;
@@ -278,10 +277,7 @@ fn is_normalized_const(constant: &Const) -> bool {
 impl CodegenFn {
     /// Create per-function state for compiling a function with the given return type.
     pub(super) fn new(crates: &Crates, output_ty: &Ty) -> Self {
-        let program = Program {
-            crates: Arc::new(crates.clone()),
-            max_size: Program::DEFAULT_MAX_SIZE,
-        };
+        let program = crates.to_prove_decls();
         let typeck_env = TypeckEnv::for_fn_body(Env::default(), &program, output_ty);
         CodegenFn {
             crates: crates.clone(),

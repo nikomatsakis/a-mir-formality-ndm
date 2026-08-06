@@ -6,7 +6,7 @@
 //! but `A` cannot reach `B`.
 
 use crate::grammar::{
-    CrateItem, Trait, TraitId, TraitItem, Ty, ValidationContext, Variable, WhereBound, WhereClause,
+    CrateItem, Trait, TraitId, TraitItem, Ty, Upto, Variable, WhereBound, WhereClause,
 };
 use crate::prove::prove::{trait_header_clause, Program, TraitHeaderClause};
 use crate::prove::ToWcs;
@@ -84,6 +84,99 @@ judgment_fn! {
 }
 
 judgment_fn! {
+    /// A provisional `source` dictionary may expose its `result` supertrait at `upto`.
+    pub(crate) fn can_project_supertrait(
+        program: Program,
+        upto: Upto,
+        source: TraitId,
+        result: TraitId,
+    ) => () {
+        debug(program, upto, source, result)
+
+        (
+            (if let Upto::Supertraits(root) = upto)
+            (trait_less_than(program, source, root.clone()) => ())
+            (trait_less_than(program, result, root) => ())
+            -------------------------------------------- ("lower trait")
+            (can_project_supertrait(program, upto, source, result) => ())
+        )
+
+        (
+            (if let Upto::GatBounds(root) = upto)
+            (if source == root)!
+            (trait_less_than(program, result, root) => ())
+            -------------------------------------------- ("root after supertraits")
+            (can_project_supertrait(program, upto, source, result) => ())
+        )
+
+        (
+            (if let Upto::GatBounds(root) = upto)
+            (trait_less_than(program, source, root.clone()) => ())
+            (trait_less_than(program, result, root) => ())
+            -------------------------------------------- ("completed lower trait")
+            (can_project_supertrait(program, upto, source, result) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// A provisional dictionary may expose an associated-type-bound dictionary at `upto`.
+    /// The owner must be strictly earlier: the root's own bound dictionaries are being built.
+    pub(crate) fn can_project_associated_bound(
+        program: Program,
+        upto: Upto,
+        owner: TraitId,
+        result: TraitId,
+    ) => () {
+        debug(program, upto, owner, result)
+
+        (
+            (if matches!(upto, Upto::Supertraits(_) | Upto::GatBounds(_)))
+            (let root = match upto {
+                Upto::Supertraits(root) | Upto::GatBounds(root) => root,
+                Upto::Zero => unreachable!(),
+            })
+            (trait_less_than(program, owner, root) => ())
+            (trait_less_than(program, result, root) => ())
+            -------------------------------------------- ("completed lower trait")
+            (can_project_associated_bound(program, upto, owner, result) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// An outlives field follows the same construction frontier as a supertrait field.
+    pub(crate) fn can_project_outlives(
+        program: Program,
+        upto: Upto,
+        owner: TraitId,
+    ) => () {
+        debug(program, upto, owner)
+
+        (
+            (if let Upto::Supertraits(root) = upto)
+            (trait_less_than(program, owner, root) => ())
+            -------------------------------------------- ("lower trait")
+            (can_project_outlives(program, upto, owner) => ())
+        )
+
+        (
+            (if let Upto::GatBounds(root) = upto)
+            (if owner == root)!
+            -------------------------------------------- ("root after supertraits")
+            (can_project_outlives(program, upto, owner) => ())
+        )
+
+        (
+            (if let Upto::GatBounds(root) = upto)
+            (trait_less_than(program, owner, root) => ())
+            -------------------------------------------- ("completed lower trait")
+            (can_project_outlives(program, upto, owner) => ())
+        )
+    }
+}
+
+judgment_fn! {
     /// Traits transitively reachable by one or more dependency edges.
     pub(crate) fn trait_reachable(
         program: Program,
@@ -106,44 +199,139 @@ judgment_fn! {
     }
 }
 
+/// The logical fields of one trait dictionary that are observable at a validation frontier.
+///
+/// This is intentionally proposition-indexed. For example, a `Bar` dictionary has an empty view
+/// at `Supertraits(Foo)` when `Bar` and `Foo` are unrelated, even though that same frontier has a
+/// nonempty view of a `Foo` dictionary.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct ValidationView {
+    associated_type_values: bool,
+    supertrait_requirements: bool,
+    associated_type_bounds: bool,
+}
+
+impl ValidationView {
+    fn is_subset_of(&self, available: &Self) -> bool {
+        (!self.associated_type_values || available.associated_type_values)
+            && (!self.supertrait_requirements || available.supertrait_requirements)
+            && (!self.associated_type_bounds || available.associated_type_bounds)
+    }
+}
+
+/// Compute the observable portion of a `subject` dictionary at `upto`.
+fn validation_view(program: &Program, upto: &Upto, subject: &TraitId) -> ValidationView {
+    let fields = trait_validation_fields(program, subject);
+
+    match upto {
+        Upto::Zero => ValidationView::default(),
+
+        Upto::Supertraits(root) if root == subject => ValidationView {
+            associated_type_values: fields.associated_type_values,
+            ..ValidationView::default()
+        },
+
+        Upto::GatBounds(root) if root == subject => ValidationView {
+            associated_type_values: fields.associated_type_values,
+            supertrait_requirements: fields.supertrait_requirements,
+            associated_type_bounds: false,
+        },
+
+        // FIXME(ndm): It is surprising to me that Supertraits(root) and GatBounds(root)
+        // are equivalent. I'd expect supertraits to set `associated_type_bounds: false`.
+        Upto::Supertraits(root) | Upto::GatBounds(root)
+            if is_trait_less_than(program, subject, root) =>
+        {
+            fields
+        }
+
+        Upto::Supertraits(_) | Upto::GatBounds(_) => ValidationView::default(),
+    }
+}
+
+fn trait_validation_fields(program: &Program, trait_id: &TraitId) -> ValidationView {
+    let Some(trait_def) = trait_def(program, trait_id) else {
+        // Unknown/builtin traits are conservatively treated as having every kind of field.
+        return ValidationView {
+            associated_type_values: true,
+            supertrait_requirements: true,
+            associated_type_bounds: true,
+        };
+    };
+
+    // FIXME(ndm): It's interesting that we use the actual contents of the trait here.
+    // Is this...necessary/important? If so, that has semver implications that make me a bit
+    // nervous. Do we have tests around this?
+    let trait_data = trait_def.binder.explicit_binder.peek();
+    ValidationView {
+        associated_type_values: trait_data
+            .trait_items
+            .iter()
+            .any(|item| matches!(item, TraitItem::AssociatedTy(_))),
+        // Trait-header clauses on `Self` produce the supertrait/outlives portion of the
+        // dictionary. Treating other header clauses as fields is conservative: it can reject an
+        // otherwise harmless recursive view but cannot expose provisional evidence too early.
+        supertrait_requirements: !trait_data.where_clauses.is_empty(),
+        associated_type_bounds: trait_data.trait_items.iter().any(|item| {
+            matches!(
+                item,
+                TraitItem::AssociatedTy(associated)
+                    if !associated.binder.peek().ensures.is_empty()
+            )
+        }),
+    }
+}
+
+fn is_trait_less_than(program: &Program, lower: &TraitId, upper: &TraitId) -> bool {
+    trait_less_than(program, lower, upper).is_proven()
+}
+
 judgment_fn! {
-    /// The strict partial order induced by asymmetric graph reachability.
-    ///
-    ///
-    /// `lower < upper` when `upper` transitively depends on `lower`, but
-    /// `lower` does not transitively depend on `upper`. For example,
-    /// `trait Sub: Super` has an edge `Sub -> Super` and therefore
-    /// `Super < Sub`.
-    ///
-    /// Traits in the same dependency cycle are therefore incomparable.
-    ///
-    /// The negative premise is stratified: `trait_reachable` depends only
-    /// on the finite, immutable edge graph and has no dependency back
-    /// on this judgment.
-    pub(crate) fn validation_less_than_or_equals(
+    /// Evidence for `subject` at `available` contains every field required at `required`.
+    pub(crate) fn validation_evidence_suffices(
         program: Program,
-        lower: ValidationContext,
-        upper: ValidationContext,
+        available: Upto,
+        required: Upto,
+        subject: TraitId,
     ) => () {
-        debug(program, lower, upper)
+        debug(program, available, required, subject)
 
         (
-            (if lower == upper)!
+            (let available_view = validation_view(program, available, subject))
+            (let required_view = validation_view(program, required, subject))
+            (if required_view.is_subset_of(available_view))!
+            -------------------------------------------- ("observable fields")
+            (validation_evidence_suffices(program, available, required, subject) => ())
+        )
+    }
+}
+
+judgment_fn! {
+    /// Conservative frontier comparison for validated propositions with no subject trait.
+    ///
+    /// Unlike trait evidence, these propositions have no dictionary whose observable fields can
+    /// be compared. Keep them rooted at the frontier where they were established: identical
+    /// frontiers are interchangeable, and a same-root `GatBounds` fact can satisfy an earlier
+    /// `Supertraits` goal. This is intentionally incomplete for facts that might happen to be
+    /// observationally fieldless (such as equality across unrelated roots), but it cannot expose
+    /// evidence at a stronger or unrelated construction frontier.
+    pub(crate) fn validation_frontier_suffices(
+        _program: Program,
+        available: Upto,
+        required: Upto,
+    ) => () {
+        debug(available, required)
+
+        (
+            (if available == required)!
             -------------------------------------------- ("equal")
-            (validation_less_than_or_equals(program, lower, upper) => ())
+            (validation_frontier_suffices(_program, available, required) => ())
         )
 
         (
-            (if lower.state < upper.state)
-            -------------------------------------------- ("states")
-            (validation_less_than_or_equals(program, lower, upper) => ())
-        )
-
-        (
-            (if lower.state == upper.state)!
-            (trait_less_than(program, &lower.trait_id, &upper.trait_id) => ())
-            -------------------------------------------- ("traits less than")
-            (validation_less_than_or_equals(program, lower, upper) => ())
+            (if available_trait == required_trait)!
+            -------------------------------------------- ("later frontier")
+            (validation_frontier_suffices(_program, Upto::GatBounds(available_trait), Upto::Supertraits(required_trait)) => ())
         )
     }
 }
@@ -241,8 +429,8 @@ fn is_reachable(program: &Program, source: &TraitId, target: &TraitId) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{trait_edge, trait_less_than};
-    use crate::grammar::{Crates, TraitId};
+    use super::{trait_edge, trait_less_than, validation_evidence_suffices};
+    use crate::grammar::{Crates, TraitId, Upto};
     use crate::prove::prove::Program;
     use crate::rust::term;
 
@@ -259,6 +447,74 @@ mod tests {
 
     fn less_than(program: &Program, lower: &str, upper: &str) -> bool {
         trait_less_than(program, TraitId::new(lower), TraitId::new(upper)).is_proven()
+    }
+
+    fn evidence_suffices(
+        program: &Program,
+        available: &Upto,
+        required: &Upto,
+        subject: &str,
+    ) -> bool {
+        validation_evidence_suffices(program, available, required, TraitId::new(subject))
+            .is_proven()
+    }
+
+    #[test]
+    fn frontier_strength_is_indexed_by_the_subject_trait() {
+        let program = program(
+            "[
+                crate test {
+                    trait Bound {}
+                    trait Super {}
+
+                    trait Lower where Self: Super {
+                        type Item: [Bound];
+                    }
+
+                    trait Root where Self: Lower {
+                        type Own: [];
+                    }
+
+                    trait Unrelated {}
+                }
+            ]",
+        );
+        let zero = Upto::Zero;
+        let supertraits = Upto::supertraits(TraitId::new("Root"));
+        let gat_bounds = Upto::gat_bounds(TraitId::new("Root"));
+
+        // No field of an unrelated dictionary is visible at Root's frontier.
+        assert!(evidence_suffices(
+            &program,
+            &zero,
+            &supertraits,
+            "Unrelated",
+        ));
+
+        // Root's associated value is visible at its supertrait frontier, and its supertrait
+        // dictionary becomes visible at its GAT-bound frontier.
+        assert!(!evidence_suffices(&program, &zero, &supertraits, "Root",));
+        assert!(!evidence_suffices(
+            &program,
+            &supertraits,
+            &gat_bounds,
+            "Root",
+        ));
+        assert!(evidence_suffices(
+            &program,
+            &gat_bounds,
+            &supertraits,
+            "Root",
+        ));
+
+        // Lower < Root, so Lower's dictionary is complete at either Root frontier.
+        assert!(evidence_suffices(
+            &program,
+            &supertraits,
+            &gat_bounds,
+            "Lower",
+        ));
+        assert!(!evidence_suffices(&program, &zero, &supertraits, "Lower",));
     }
 
     #[test]

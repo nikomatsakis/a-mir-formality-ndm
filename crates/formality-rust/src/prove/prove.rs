@@ -27,7 +27,10 @@ pub(crate) use prove::{prove_via_impl, ImplApplication};
 pub use prove::{Bias, Env, MaxUniverse, Universe};
 pub use prove::{Constrained, Constraints};
 pub use requirements::*;
-pub(crate) use trait_order::trait_less_than;
+pub(crate) use trait_order::{
+    can_project_associated_bound, can_project_outlives, can_project_supertrait,
+    validation_evidence_suffices, validation_frontier_suffices,
+};
 
 #[cfg(test)]
 mod test;

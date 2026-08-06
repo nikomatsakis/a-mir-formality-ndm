@@ -1,8 +1,7 @@
 use crate::{
     grammar::{
-        AliasName, AliasTy, AssociatedItemId, ExistentialVar, Fallible, Parameter, Relation,
-        RigidTy, TraitRef, Ty, TyData, ValidationContext, ValidationState, Variable, Wc, WcData,
-        Wcs,
+        AliasName, AliasTy, AssociatedItemId, ExistentialVar, Fallible, Parameter, Predicate,
+        Relation, RigidTy, TraitRef, Ty, TyData, Upto, Variable, Wc, WcData, Wcs,
     },
     prove::prove::Constrained,
 };
@@ -85,43 +84,62 @@ judgment_fn! {
                 associated_ty_parts(decls, a)?)
             (candidate in decls.raw_trait_impls_for(&requested_trait_ref.trait_id))
 
+            // Normalizing through an impl is itself a coinductive application. The recursive
+            // handle is deliberately zero-capability: it can close an exact occurrence but cannot
+            // expose requirements of the dictionary whose associated value we are selecting.
+            (let recursive_assumption =
+                Wc::validate(Upto::Zero, requested_trait_ref))
+
             (match_impl_candidate(
                 decls,
                 env,
-                assumptions,
+                (assumptions, &recursive_assumption),
                 requested_trait_ref,
                 candidate,
             ) => Constrained(matched, c))
 
-            // Establish the matched impl's residual conditions with the same stage-A semantics
-            // as ordinary impl application, together with the GAT's declaration-side conditions.
+            // The selected impl fixes its associated value before any dictionaries witnessing
+            // that value's bounds exist. Make that equation available only inside this candidate
+            // branch, then commit it only after every residual obligation below succeeds.
+            (let provisional_ty = associated_ty_value(matched, c, item_id, gat_parameters)?)
+            (let provisional_alias_eq =
+                Predicate::AliasEq(a.clone(), provisional_ty.clone()))
+
+            // Establish the matched impl's residual conditions with the same supertrait-frontier
+            // semantics as ordinary impl application. Declaration-side GAT conditions are checked
+            // at the GAT-bound frontier.
             (let trait_impl = matched.trait_impl(c))
-            (let validation = ValidationContext::new(
-                ValidationState::A,
-                &trait_impl.trait_id,
-            ))
-            (let current_impl = Wc::validate(validation, requested_trait_ref))
+            (let validation = Upto::supertraits(&trait_impl.trait_id))
+            (let gat_validation = Upto::gat_bounds(&trait_impl.trait_id))
+            (let provisional_impl_header =
+                Wc::validate(validation.clone(), trait_impl.trait_ref()))
             (let impl_where_clauses = trait_impl
                 .where_clauses
                 .to_wcs()
                 .validated(validation))
             (let conditions = (
                 &impl_where_clauses,
-                &gat_where_clauses,
+                gat_where_clauses.validated(gat_validation),
             ).to_wcs())
             (prove_after(
                 decls,
                 c,
-                assumptions,
+                (
+                    assumptions,
+                    provisional_impl_header,
+                    provisional_alias_eq,
+                ),
                 conditions,
             ) => c)
 
             // Where-clauses may have inferred impl parameters absent from the header, so apply the
             // latest substitution before selecting and instantiating the associated value.
-            (let ty = associated_ty_value(matched, c, item_id, gat_parameters)?)
-            (let ty = c.substitution().apply(ty))
+            (let ty = c.substitution().apply(provisional_ty))
             (let c = matched.pop_constraints(c))
-            (assert c.env().encloses(ty))
+            // An ambiguous, nonmatching candidate can leave one of its local variables in the
+            // provisional value. Such a value cannot escape the candidate binder; discard that
+            // path while retaining ambiguous paths whose result is well scoped.
+            (if c.env().encloses(ty))!
             ----------------------------- ("normalize-via-impl")
             (prove_normalize(decls, env, assumptions, TyData::AliasTy(a)) => Constrained(ty, c))
         )
@@ -137,6 +155,33 @@ judgment_fn! {
         goal: Parameter,
     ) => Constrained<Parameter> {
         debug(goal, via, assumptions, env)
+
+        // An associated-type equality is an oriented normalization witness. Unlike a general
+        // equality, it may rewrite only its alias (the left-hand side) to the selected value. In
+        // particular, it cannot rewrite that value back to the alias or use an existential in the
+        // value as a pattern for an unrelated normalization goal.
+        (
+            (prove_syntactically_eq(
+                decls,
+                env,
+                assumptions,
+                TyData::AliasTy(via_alias.clone()),
+                TyData::AliasTy(goal_alias.clone()),
+            ) => c)
+            (let ty = c.substitution().apply(via_ty))
+            (let goal = c
+                .substitution()
+                .apply(TyData::AliasTy(goal_alias.clone())))
+            (if goal != ty)!
+            ----------------------------- ("alias-eq")
+            (prove_normalize_via(
+                decls,
+                env,
+                assumptions,
+                Predicate::AliasEq(via_alias, via_ty),
+                TyData::AliasTy(goal_alias),
+            ) => Constrained(ty, c))
+        )
 
         // The following 2 rules handle normalization of existential variables. We look specifically for
         // the case of a assumption `?X = Y`, which lets us normalize `?X` to `Y`, and ignore

@@ -19,18 +19,30 @@ use crate::prove::prove::{
         prove_wf::prove_wf,
     },
     requirements::{prove_via_trait_requirement, trait_requirement},
+    validation_evidence_suffices, validation_frontier_suffices,
 };
 
 use super::constraints::{Constrained, Constraints};
 
-fn has_unconditional_proof_from_assumptions(assumptions: &Wcs, goal: &Wc) -> bool {
+fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, goal: &Wc) -> bool {
     if assumptions
         .iter()
         .any(|assumption| match (&assumption, goal) {
             (
                 Wc::Validate(assumption_validation, assumption_goal),
                 Wc::Validate(goal_validation, goal),
-            ) => assumption_validation.can_prove(goal_validation) && assumption_goal == goal,
+            ) if assumption_goal == goal => match assumption_goal.as_ref() {
+                Wc::Predicate(Predicate::IsImplemented(trait_ref)) => validation_evidence_suffices(
+                    decls,
+                    assumption_validation,
+                    goal_validation,
+                    &trait_ref.trait_id,
+                )
+                .is_proven(),
+
+                _ => validation_frontier_suffices(decls, assumption_validation, goal_validation)
+                    .is_proven(),
+            },
 
             _ => &assumption == goal,
         })
@@ -65,8 +77,8 @@ judgment_fn! {
         debug(goal, assumptions, env)
 
         // Prefer an assumption that proves the goal directly before exploring derived proofs.
-        // Validation evidence can directly prove an identical goal at the same or a weaker
-        // validation stage. This cut is important when validating requirements of the form
+        // Validation evidence can directly prove an identical goal whose observable dictionary
+        // view is no stronger. This cut is important when validating requirements of the form
         // `forall<T> conditions => goal`: opening the binder creates a fresh universal and adds
         // the conditions to the assumptions. Even when one of those assumptions proves the goal,
         // exhaustive search would otherwise also explore the impl rule, which can recursively
@@ -79,7 +91,7 @@ judgment_fn! {
         // derivation can improve it. This cut would not be valid if the result were more
         // restrictive.
         trivial(
-            has_unconditional_proof_from_assumptions(&assumptions, &goal)
+            has_unconditional_proof_from_assumptions(&decls, &assumptions, &goal)
             => Constraints::none(env)
         )
 
@@ -246,7 +258,7 @@ judgment_fn! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grammar::{Crates, TraitId, ValidationContext, ValidationState};
+    use crate::grammar::{Crates, TraitId, Upto};
     use crate::rust::term;
 
     fn supertrait_program() -> Program {
@@ -276,14 +288,8 @@ mod tests {
     #[test]
     fn stronger_validation_assumption_uses_trivial_proof() {
         let inner: Wc = term("u32 = bool");
-        let assumption = Wc::validate(
-            ValidationContext::new(ValidationState::B, TraitId::new("ValidationRoot")),
-            &inner,
-        );
-        let goal = Wc::validate(
-            ValidationContext::new(ValidationState::A, TraitId::new("ValidationRoot")),
-            inner,
-        );
+        let assumption = Wc::validate(Upto::gat_bounds(TraitId::new("ValidationRoot")), &inner);
+        let goal = Wc::validate(Upto::supertraits(TraitId::new("ValidationRoot")), inner);
         let (_, proof) = prove_wc(Program::empty(), Env::default(), assumption, goal)
             .into_singleton()
             .unwrap();
@@ -304,13 +310,13 @@ mod tests {
     }
 
     #[test]
-    fn ranked_stage_b_supertrait_assumption_elaborates() {
+    fn ranked_gat_bound_supertrait_assumption_elaborates() {
         let assumption = Wc::validate(
-            ValidationContext::new(ValidationState::B, TraitId::new("ValidationRoot")),
+            Upto::gat_bounds(TraitId::new("ValidationRoot")),
             term::<Wc>("Sub(u32)"),
         );
         let goal = Wc::validate(
-            ValidationContext::new(ValidationState::A, TraitId::new("ValidationRoot")),
+            Upto::supertraits(TraitId::new("ValidationRoot")),
             term::<Wc>("Super(u32)"),
         );
         let result = prove_wc(supertrait_program(), Env::default(), assumption, goal);

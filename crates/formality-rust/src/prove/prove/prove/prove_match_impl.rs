@@ -18,7 +18,7 @@ pub(crate) struct MatchedImpl {
 
 formality_core::cast_impl!(MatchedImpl);
 
-/// Remove provisional validation evidence from an ordinary proof context.
+// Operations on an opened, candidate-local impl.
 
 impl MatchedImpl {
     fn new(impl_variables: &[ExistentialVar], trait_impl: &TraitImplBoundData) -> Self {
@@ -46,11 +46,12 @@ judgment_fn! {
     /// Open `candidate` with fresh existential variables and match its header against
     /// `requested_trait_ref`.
     ///
-    /// `mode` controls only how header equality is proven. The caller supplies the exact
-    /// assumptions for matching and remains responsible for proving the returned impl's
-    /// where-clauses in the appropriate context. The returned [`Constrained`] value carries both
-    /// the environment extended with the impl variables and the substitution learned by matching;
-    /// [`MatchedImpl`] carries the opened impl body those constraints apply to.
+    /// The caller supplies the exact assumptions for matching, including any zero-capability
+    /// recursive handle, and remains responsible for proving the returned impl's where-clauses in
+    /// the appropriate context. This judgment never promotes the requested trait-ref into an
+    /// ordinary assumption. The returned [`Constrained`] value carries both the environment
+    /// extended with the impl variables and the substitution learned by matching; [`MatchedImpl`]
+    /// carries the opened impl body those constraints apply to.
     pub(crate) fn match_impl_candidate(
         _decls: Program,
         env: Env,
@@ -73,7 +74,7 @@ judgment_fn! {
                 &requested_trait_ref.parameters,
                 &trait_impl.trait_ref().parameters
             ))
-            (prove(decls, env, (assumptions, requested_trait_ref), equality) => c)
+            (prove(decls, env, assumptions, equality) => c)
             (let trait_impl = c.substitution().apply(trait_impl))
             ----------------------------- ("match impl candidate")
             (match_impl_candidate(

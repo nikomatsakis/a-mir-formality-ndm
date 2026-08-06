@@ -55,17 +55,17 @@ impl Wcs {
         self.into_iter()
     }
 
-    pub fn validate(validation: impl Upcast<ValidationContext>, wcs: impl Upcast<Wcs>) -> Wcs {
-        let validation: ValidationContext = validation.upcast();
+    pub fn validate(validation: impl Upcast<Upto>, wcs: impl Upcast<Wcs>) -> Wcs {
+        let validation: Upto = validation.upcast();
         let wcs: Wcs = wcs.upcast();
         wcs.into_iter()
             .map(|wc| Wc::validate(&validation, wc))
             .collect()
     }
 
-    /// Wrap each clause in `Validate` for the given impl-validation context.
-    pub fn validated(&self, validation: impl Upcast<ValidationContext>) -> Self {
-        let validation: ValidationContext = validation.upcast();
+    /// Wrap each clause in `Validate` at the given dictionary-construction frontier.
+    pub fn validated(&self, validation: impl Upcast<Upto>) -> Self {
+        let validation: Upto = validation.upcast();
         self.iter()
             .map(|wc| Wc::validate(&validation, wc))
             .collect()
@@ -161,52 +161,25 @@ impl DowncastTo<()> for Wcs {
     }
 }
 
-/// The strength of evidence available while validating an impl.
+/// Part of the `Validate(Upto, P)` mode that describes how much of the
+/// proposition `P` must be (or has been, for assumptions) proven.
 ///
-/// Stage A is constructor evidence: while applying an impl, the solver uses stage-A evidence for
-/// the impl header and its where-clauses to establish that the resulting trait is `Implemented`.
-/// This evidence may therefore participate in the recursive dictionary knot being constructed.
-///
-/// Stage B is associated-type evidence: while checking a particular impl-provided associated type
-/// or GAT, the solver uses stage-B evidence for the completed impl header and the relevant impl/GAT
-/// conditions to establish that the associated value is well formed and satisfies its promised
-/// bounds. These are hypothetical inputs to the associated type's contract, not ordinary trait
-/// evidence.
-///
-/// Stage B can discharge an otherwise identical stage-A goal, but not conversely. Eligibility to
-/// expose an implied trait requirement is independent of this state and is governed by the trait
-/// order carried in [`ValidationContext`].
+/// Alternatively, it can be viewed as describing what parts of the dictionary
+/// for `P` are initialized/accessible.
 #[term]
-pub enum ValidationState {
-    A,
-    B,
-}
+pub enum Upto {
+    /// No implications of `P` are available.
+    /// An uninitialized dictionary.
+    Zero,
 
-/// The context in which provisional evidence is being used to validate an impl.
-///
-/// The implemented trait is part of the evidence: rules that elaborate provisional trait
-/// evidence can compare their dependencies with this trait without promoting the evidence into
-/// the ordinary solver.
-#[term]
-pub struct ValidationContext {
-    pub state: ValidationState,
-    pub trait_id: TraitId,
-}
+    /// Supertrait bounds `Tr1: Tr2` implied by the proposition
+    /// are available if `Tr1 < $0` and `Tr2 < $0`.
+    Supertraits(TraitId),
 
-impl ValidationContext {
-    /// True if evidence at `self` is strong enough to establish `goal`.
-    pub(crate) fn can_prove(&self, goal: &Self) -> bool {
-        if self.trait_id != goal.trait_id {
-            return false;
-        }
-
-        match (&self.state, &goal.state) {
-            (ValidationState::A, ValidationState::A)
-            | (ValidationState::B, ValidationState::A)
-            | (ValidationState::B, ValidationState::B) => true,
-            (ValidationState::A, ValidationState::B) => false,
-        }
-    }
+    /// All supertrait bounds implied by the proposition are available.
+    /// GAT bounds implied by the proposition are available if
+    /// they are declared on a trait `Tr < $0`.
+    GatBounds(TraitId),
 }
 
 #[term]
@@ -227,11 +200,11 @@ pub enum Wc {
     #[grammar(if $v0 $v1)]
     Implies(Wcs, Arc<Wc>),
 
-    /// Evidence that must be established at a particular stage while validating an impl.
+    /// The "validate" mode indicates that only a subset of `$0` must be
+    /// (or has been, for assumptions) proven. See [`Upto`] for details.
     ///
-    /// This wrapper is internal to the solver. It is deliberately not part of Rust's surface
-    /// where-clause grammar and cannot be eliminated during an ordinary proof.
-    Validate(ValidationContext, Arc<Wc>),
+    /// This wrapper is internal to Rust's well-formedness semantics.
+    Validate(Upto, Arc<Wc>),
 }
 
 /// Temporary alias for migration -- allows `WcData::Variant` to still compile.

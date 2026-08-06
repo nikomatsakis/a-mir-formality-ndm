@@ -40,7 +40,7 @@ judgment_fn! {
             (check_all_required_items_present(trait_items, impl_items) => ())
 
             // Impl well-formedness is closed to caller assumptions. `prove_impl_wf` introduces
-            // the header locally at the validation stage appropriate to each requirement, but
+            // the header locally at the construction frontier appropriate to each requirement, but
             // never as an ordinary trait assumption; the impl's where-clauses are likewise
             // available only in validated form.
             (prove_impl_wf(program, trait_impl) => ())

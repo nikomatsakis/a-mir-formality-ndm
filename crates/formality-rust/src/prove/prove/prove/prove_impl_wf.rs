@@ -1,6 +1,6 @@
 use crate::grammar::{
     AssociatedTyBoundData, AssociatedTyValueBoundData, Relation, TraitImpl, TraitImplBoundData,
-    TraitItem, ValidationContext, ValidationState, Wc, Wcs,
+    TraitItem, Upto, Wc, Wcs,
 };
 use crate::prove::prove::decls::Program;
 use crate::prove::prove::prove::prove;
@@ -14,11 +14,12 @@ judgment_fn! {
     /// Prove that an impl declaration satisfies every requirement imposed by its trait.
     ///
     /// This is a closed judgment: its caller supplies neither an environment nor assumptions.
-    /// The impl binder is instantiated universally. The impl header is available inside the
-    /// derivation as stage-A evidence for constructor requirements and stage-B evidence for
-    /// associated-type guarantees; it never becomes an ordinary trait assumption. Program
-    /// checking establishes this judgment for every impl. Selection and projection normalization
-    /// repeat it defensively because lower-level solver entry points can be invoked on an unchecked
+    /// The impl binder is instantiated universally. While checking the dictionary's supertrait
+    /// fields, the impl header is available at `Supertraits(ImplTrait)`. While checking an
+    /// associated value and its promised dictionaries, it is available at
+    /// `GatBounds(ImplTrait)`. It never becomes an ordinary trait assumption. Program checking
+    /// establishes this judgment for every impl. Selection and projection normalization repeat it
+    /// defensively because lower-level solver entry points can be invoked on an unchecked
     /// `Program`.
     pub(crate) fn prove_impl_wf(
         program: Program,
@@ -30,10 +31,7 @@ judgment_fn! {
             (let (env, impl_data) =
                 Env::default().instantiate_universally(&trait_impl.binder))
             (let trait_ref = impl_data.trait_ref())
-            (let validation = ValidationContext::new(
-                ValidationState::A,
-                &trait_ref.trait_id,
-            ))
+            (let validation = Upto::supertraits(&trait_ref.trait_id))
             (let provisional_impl_header = Wc::validate(validation, trait_ref).to_wcs())
             (let trait_def = program.trait_def(&trait_ref.trait_id))
             (trait_requirement(trait_def) => requirements)
@@ -66,10 +64,7 @@ judgment_fn! {
         debug(provisional_impl_header, trait_impl, requirement, env, program)
 
         (
-            (let validation = ValidationContext::new(
-                ValidationState::A,
-                &trait_impl.trait_id,
-            ))
+            (let validation = Upto::supertraits(&trait_impl.trait_id))
             (let assumptions = (
                 provisional_impl_header,
                 trait_impl.where_clauses.to_wcs().validated(validation),
@@ -87,10 +82,7 @@ judgment_fn! {
         )
 
         (
-            (let validation = ValidationContext::new(
-                ValidationState::A,
-                &trait_impl.trait_id,
-            ))
+            (let validation = Upto::supertraits(&trait_impl.trait_id))
             (let assumptions = (
                 provisional_impl_header,
                 trait_impl.where_clauses.to_wcs().validated(validation),
@@ -150,28 +142,26 @@ judgment_fn! {
                 where_clauses: trait_gat_wc,
             } = trait_associated_ty.binder.instantiate_with(gat_subst)?)
 
-            // The impl header and the impl/GAT conditions are completed inputs at the point
-            // callers rely on an associated type guarantee. The concrete value's WF and every
-            // promised bound must therefore be established as completed conclusions too.
-            (let completed = ValidationContext::new(
-                ValidationState::B,
-                &trait_impl.trait_id,
-            ))
-            (let completed_impl_header =
-                Wc::validate(completed, trait_impl.trait_ref()).to_wcs())
+            // Associated values and supertrait fields are already available while constructing
+            // the dictionaries promised by an associated type. The impl header and the impl/GAT
+            // conditions are therefore viewed at `GatBounds(ImplTrait)` while checking both the
+            // concrete value's WF and each promised bound.
+            (let gat_bounds = Upto::gat_bounds(&trait_impl.trait_id))
+            (let gat_bound_impl_header =
+                Wc::validate(gat_bounds, trait_impl.trait_ref()).to_wcs())
             (let validation_conditions =
                 (trait_impl.where_clauses.to_wcs(), trait_gat_wc.to_wcs())
                     .to_wcs()
-                    .validated(completed))
+                    .validated(gat_bounds))
             (let value_wf: Wc = Relation::well_formed(impl_ty).upcast())
             (let validation_goals: Wcs = std::iter::once(value_wf.clone())
                 .chain(gat_goals.iter())
                 .map(|goal| Wc::implies(
                     validation_conditions,
-                    Wc::validate(completed, goal),
+                    Wc::validate(gat_bounds, goal),
                 ))
                 .collect())
-            (prove(program, env, completed_impl_header, validation_goals) => c)
+            (prove(program, env, gat_bound_impl_header, validation_goals) => c)
             ----------------------------- ("associated type")
             (validate_impl_requirement(
                 program,
@@ -373,7 +363,7 @@ mod tests {
     }
 
     #[test]
-    fn associated_bound_cannot_be_projected_within_an_scc() {
+    fn associated_value_can_be_selected_without_projecting_its_bound() {
         let program = program(
             "[
                 crate test {
@@ -407,15 +397,17 @@ mod tests {
             ]",
         );
 
-        // The concrete `Good: Bound` proof makes the `Family` impl independently WF. The two
-        // blanket conditions nevertheless put `Family` and `Root` in one SCC, so the `Root` impl
-        // cannot project `Bound` from its provisional `Family` input.
+        // `Family` and `Root` are incomparable because their blanket conditions put them in one
+        // SCC. The `Root` impl therefore cannot project `Bound` from provisional `Family`
+        // evidence. It can nevertheless select `Family::Item = Good`: associated values are
+        // visible before their promised dictionaries, and the independent `Good: Bound` impl
+        // finishes the proof.
         assert!(impl_wf(&program, "Family"));
-        assert!(!impl_wf(&program, "Root"));
+        assert!(impl_wf(&program, "Root"));
     }
 
     #[test]
-    fn completed_impl_header_verifies_an_associated_bound() {
+    fn gat_bound_frontier_verifies_an_associated_bound() {
         let program = program(
             "[
                 crate test {
@@ -430,9 +422,9 @@ mod tests {
             ]",
         );
 
-        // The completed header is local stage-B evidence while checking this associated-type
-        // guarantee, so it can satisfy the exact completed `u32: Foo` bound without becoming an
-        // ordinary trait assumption.
+        // The header is local `GatBounds(Foo)` evidence while checking this associated-type
+        // guarantee, so it can satisfy the exact `u32: Foo` bound without becoming an ordinary
+        // trait assumption.
         assert!(impl_wf(&program, "Foo"));
     }
 
