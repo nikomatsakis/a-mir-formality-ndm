@@ -12,6 +12,7 @@
   - [Judgment functions and inference rules](./formality_core/judgment_fn.md)
   - [FAQ and troubleshooting](./formality_core/faq.md)
 - [`formality_rust`: the Rust model](./formality_rust.md)
+  - [Trait solving and cyclic evidence](./formality_rust/trait_solving.md)
   - [Borrow checking](./formality_rust/borrow_check.md)
   - [Coherence checking](./formality_rust/coherence.md)
   - [Code generation](./formality_rust/codegen.md)

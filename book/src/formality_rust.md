@@ -32,6 +32,10 @@ The `prove` module answers Rust-specific goals such as where-clauses, equality, 
 
 {judgment}`prove_wc`
 
+Trait impls may be mutually recursive. [Trait solving and cyclic evidence](./formality_rust/trait_solving.md)
+describes how the model checks impls as dictionary constructors and controls which fields of a
+partly constructed dictionary can be observed.
+
 ## Pipeline
 
 At a high level, checking a Rust program looks like this:
