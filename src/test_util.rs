@@ -1,7 +1,9 @@
 use expect_test::Expect;
 use formality_core::test_util::AnyhowResultTestExt;
+use formality_core::ProvenSet;
+use formality_rust::prove::prove::Constraints;
 
-use crate::{run_rustc, test_program_ok};
+use crate::{run_rustc, test_program_ok, test_where_clause, test_where_clause_with_max_size};
 
 /// Stringify a list of crate declarations and wrap them in the `[ ... ]`
 /// brackets that the Crates grammar expects.
@@ -56,6 +58,22 @@ impl FormalityTest {
     pub fn rustc_err(mut self, expect: Expect) -> Self {
         self.rustc_override = Some(BackendExpect::Err(expect));
         self
+    }
+
+    /// Validate the source program and run an arbitrary solver query against it.
+    ///
+    /// The returned set retains the solver's exact constraints so tests can assert
+    /// inferred substitutions, ambiguous answers, and detailed proof failures.
+    #[track_caller]
+    pub fn prove(self, assertion: &str) -> ProvenSet<Constraints> {
+        test_where_clause(&self.input, assertion)
+    }
+
+    /// Validate the source program, then run a solver query with a specific
+    /// search-size limit without changing the limit used for validation.
+    #[track_caller]
+    pub fn prove_with_max_size(self, assertion: &str, max_size: usize) -> ProvenSet<Constraints> {
+        test_where_clause_with_max_size(&self.input, assertion, Some(max_size))
     }
 
     /// Assert formality accepts the program. After type-checking passes,

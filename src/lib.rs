@@ -51,11 +51,22 @@ pub fn test_program_ok(input: &str) -> anyhow::Result<ProofTree> {
 }
 
 pub fn test_where_clause(program: &str, assertion: &str) -> formality_core::ProvenSet<Constraints> {
+    test_where_clause_with_max_size(program, assertion, None)
+}
+
+fn test_where_clause_with_max_size(
+    program: &str,
+    assertion: &str,
+    max_size: Option<usize>,
+) -> formality_core::ProvenSet<Constraints> {
     formality_core::with_tracing_logs(|| {
         let program: Crates = try_term(program).unwrap();
         let _proof_tree = check_all_crates(&program).check_proven().unwrap();
         let assertion: Arc<TestAssertion> = try_term(assertion).unwrap();
-        let decls = program.to_prove_decls();
+        let mut decls = program.to_prove_decls();
+        if let Some(max_size) = max_size {
+            decls.max_size = max_size;
+        }
         formality_rust::prove::prove::test_util::test_prove(decls, assertion)
     })
 }
