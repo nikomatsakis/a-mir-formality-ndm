@@ -4,7 +4,7 @@ use formality_core::test;
 #[test]
 fn early_normalization_reveals_value_inside_validation() {
     // While checking `Family for Z`, its where-clause supplies only a
-    // `Supertraits(Family)` view of `Family(Y)`. That is enough to select the conditional
+    // `Supertraits[Family]` view of `Y: Family`. That is enough to select the conditional
     // `Family for X` impl and learn the value of `Family::Out`; learning the value does not
     // require the stronger dictionaries promised by `Family`'s GAT-bound frontier.
     //
@@ -13,7 +13,7 @@ fn early_normalization_reveals_value_inside_validation() {
     // `Base for Z` makes its projection-bearing condition well formed.
     //
     // The value-only normalization rule accepts this program without exposing any associated-
-    // bound evidence; ordinary normalization continues to require `GatBounds(Family)` inputs.
+    // bound evidence; ordinary normalization continues to require `GatBounds[Family]` inputs.
     FormalityTest::new(crates![crate test {
         trait Marker {}
 
@@ -107,10 +107,11 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
     // This program ought to be rejected because nothing proves `Bad: Ord`. While checking the
     // `Foo for X` impl, the ordinary trait-requirement rule could otherwise use
     //
-    //     Foo(T) => Ord(<T as Foo>::Bar)
+    //     T: Foo => <T as Foo>::Bar: Ord
     //
-    // to prove `Bad: Ord` from the very impl being validated. During validation, `Foo(X)` is
-    // available only as `Mode(Foo(X))`, so its implied associated-type bound is not available.
+    // to prove `Bad: Ord` from the very impl being validated. During validation, `X: Foo` is
+    // available only as `GatBounds[Foo](X: Foo)`, so its implied associated-type bound is not
+    // available.
     // The call in `main` exhibits how accepting the impl would expose that false proof to outside
     // code.
     FormalityTest::new(crates![crate test {
@@ -140,7 +141,7 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: mode(gat_bounds(Foo), Foo(X)), assumptions: {mode(gat_bounds(Foo), Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: GatBounds[Foo](X: Foo), assumptions: {GatBounds[Foo](X: Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -148,7 +149,7 @@ fn conditional_associated_type_bound_cannot_validate_its_own_impl() {
     // This is the conditional form of the same exploit. If `MyTrait for X` were accepted, its
     // own `X: MyTrait` condition could be used to obtain the associated-type requirement
     //
-    //     Ord(<X as MyTrait>::Gat)
+    //     <X as MyTrait>::Gat: Ord
     //
     // and hence prove the otherwise false `Bad: Ord` obligation in `main`.
     FormalityTest::new(crates![crate test {
@@ -182,12 +183,12 @@ fn conditional_associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ord(Bad), via: mode(gat_bounds(MyTrait), MyTrait(X)), assumptions: {mode(gat_bounds(MyTrait), MyTrait(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: GatBounds[MyTrait](X: MyTrait), assumptions: {GatBounds[MyTrait](X: MyTrait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
 fn recursive_associated_type_bound_is_valid() {
-    // Closed `ImplWF` locally assumes the impl header at the `GatBounds(Foo)` frontier while
+    // Closed `ImplWF` locally assumes the impl header at the `GatBounds[Foo]` frontier while
     // checking associated-type guarantees. Therefore the exact `u32: Foo` requirement on
     // `Bar = u32` is valid. The assumption remains wrapped, so it cannot be used as an ordinary
     // `Foo` implementation or expose `Foo`'s own associated-bound dictionaries.
@@ -265,21 +266,21 @@ fn impl_wf_is_checked_for_every_header_substitution() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<!ty_0>), via: mode(gat_bounds(Family), Family((), !ty_0)), assumptions: {mode(gat_bounds(Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<!ty_0>), via: GatBounds[Family]((): Family<!ty_0>), assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Required(!ty_0), via: mode(gat_bounds(Family), Family((), !ty_0)), assumptions: {mode(gat_bounds(Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Required, via: GatBounds[Family]((): Family<!ty_0>), assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Required(!ty_0), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {mode(gat_bounds(Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Required(!ty_0), via: mode(gat_bounds(Family), Family((), !ty_0)), assumptions: {mode(gat_bounds(Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Required, via: GatBounds[Family]((): Family<!ty_0>), assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Required(!ty_0), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {mode(gat_bounds(Family), Family((), !ty_0))}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
 fn associated_type_value_wf_may_use_verified_impl_header() {
-    // The associated value is checked with the impl header available at `GatBounds(Foo)`. This
-    // establishes the exact `Foo(u32)` requirement embedded in `NeedsFoo<u32>`.
+    // The associated value is checked with the impl header available at `GatBounds[Foo]`. This
+    // establishes the exact `u32: Foo` requirement embedded in `NeedsFoo<u32>`.
     FormalityTest::new(crates![crate test {
         trait Foo {
             type Bar : [];
@@ -338,11 +339,11 @@ fn associated_type_value_must_be_well_formed() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: mode(gat_bounds(Foo), Foo(())), assumptions: {mode(gat_bounds(Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: GatBounds[Foo]((): Foo), assumptions: {GatBounds[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: mode(gat_bounds(Foo), Foo(())), assumptions: {mode(gat_bounds(Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Required, via: GatBounds[Foo]((): Foo), assumptions: {GatBounds[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Required(Ground), via: mode(gat_bounds(Foo), Foo(())), assumptions: {mode(gat_bounds(Foo), Foo(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Required, via: GatBounds[Foo]((): Foo), assumptions: {GatBounds[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -361,7 +362,7 @@ fn unused_invalid_associated_type_impl_is_rejected() {
             type Output = Bad;
         }
     }])
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: mode(gat_bounds(Family), Family(())), assumptions: {mode(gat_bounds(Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: GatBounds[Family]((): Family), assumptions: {GatBounds[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -394,7 +395,7 @@ fn associated_type_projection_requires_a_valid_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: mode(gat_bounds(Foo), Foo(X)), assumptions: {mode(gat_bounds(Foo), Foo(X))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: GatBounds[Foo](X: Foo), assumptions: {GatBounds[Foo](X: Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -505,7 +506,7 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: mode(gat_bounds(Family), Family(())), assumptions: {mode(gat_bounds(Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: GatBounds[Family]((): Family), assumptions: {GatBounds[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -547,7 +548,7 @@ fn validation_antecedent_does_not_leak_to_impl_where_clause() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Required(Bad), via: mode(supertraits(Family), Family(())), assumptions: {mode(supertraits(Family), Family(()))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Supertraits[Family]((): Family), assumptions: {Supertraits[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -692,7 +693,7 @@ fn assumption_preserving_alias_normalization_still_checks_the_normalized_type() 
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Target(Bar, X), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Bar: Target<X>, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 6 }, trait_impl: impl <ty> Target <^ty0_0> for <^ty0_0 as Family>::Out where ^ty0_0 : Family { } }, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -763,7 +764,7 @@ fn gat_value_may_project_from_validation_argument_bound() {
 
 #[test]
 fn gat_value_bound_may_normalize_using_validation_argument_bound() {
-    // Checking `Family::Assoc<T>: IsU32` starts with `GatBounds(Family)` evidence for
+    // Checking `Family::Assoc<T>: IsU32` starts with `GatBounds[Family]` evidence for
     // `T: Marker`. Since `Marker` is observationally opaque at the `HasOut` frontier, that input
     // can validate the `HasOut for T` impl and expose `<T as HasOut>::Out = u32`.
     FormalityTest::new(crates![crate test {

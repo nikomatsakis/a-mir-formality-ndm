@@ -122,13 +122,13 @@ mod test {
         let from_validation = prove_sub(
             &program,
             (),
-            Upto::supertraits(TraitId::new("Family")).apply(term::<Wc>("Marker(u32)")),
+            Upto::supertraits(TraitId::new("Family")).apply(term::<Wc>("u32: Marker")),
             &alias,
             &target,
         );
         assert!(from_validation.is_proven());
 
-        let from_ordinary = prove_sub(program, (), term::<Wc>("Marker(u32)"), alias, target);
+        let from_ordinary = prove_sub(program, (), term::<Wc>("u32: Marker"), alias, target);
         assert!(from_ordinary.is_proven());
     }
 

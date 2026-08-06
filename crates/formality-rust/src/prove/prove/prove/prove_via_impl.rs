@@ -155,7 +155,7 @@ mod tests {
         assert!(apply_candidate(
             &program,
             Env::default(),
-            term::<TraitRef>("Foo(u32)"),
+            term::<TraitRef>("u32: Foo"),
             &candidates[0],
         )
         .is_some());
@@ -169,7 +169,7 @@ mod tests {
         assert!(apply_candidate(
             &program,
             Env::default(),
-            term::<TraitRef>("Foo(u32)"),
+            term::<TraitRef>("u32: Foo"),
             &candidates[1],
         )
         .is_none());
@@ -189,7 +189,7 @@ mod tests {
         let candidates = program.raw_trait_impls_for(&term("Bar"));
 
         assert!(
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0],).is_none()
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0],).is_none()
         );
     }
 
@@ -210,9 +210,9 @@ mod tests {
         assert_ne!(candidates[0].id, candidates[1].id);
 
         let (first, _) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
         let (second, _) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[1]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[1]).unwrap();
         assert_ne!(first.impl_id, second.impl_id);
     }
 
@@ -230,7 +230,7 @@ mod tests {
         let candidates = program.raw_trait_impls_for(&term("Foo"));
 
         assert!(
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0],).is_none()
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0],).is_none()
         );
     }
 
@@ -249,7 +249,7 @@ mod tests {
         let (application, constraints) = apply_candidate(
             &program,
             Env::default(),
-            term("Pair(Wrapper<u32, i32>, i32)"),
+            term("Wrapper<u32, i32>: Pair<i32>"),
             &candidates[0],
         )
         .unwrap();
@@ -274,7 +274,7 @@ mod tests {
         let (application, constraints) = apply_candidate(
             &program,
             Env::default(),
-            term("Project(u32, i32)"),
+            term("u32: Project<i32>"),
             &candidates[0],
         )
         .unwrap();
@@ -299,7 +299,7 @@ mod tests {
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
         let (application, constraints) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
 
         assert_eq!(
             application.inferred_impl_arguments(&constraints),
@@ -319,7 +319,7 @@ mod tests {
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
         let (application, constraints) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
 
         assert_ne!(constraints.env(), &Env::default());
         assert_eq!(
@@ -369,7 +369,7 @@ mod tests {
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
         let (application, constraints) =
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0]).unwrap();
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
         let arguments = application.inferred_impl_arguments(&constraints);
 
         assert_eq!(arguments.len(), 1);
@@ -389,7 +389,7 @@ mod tests {
         let candidates = program.raw_trait_impls_for(&term("Foo"));
 
         assert!(
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0],).is_some()
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0],).is_some()
         );
     }
 
@@ -408,7 +408,7 @@ mod tests {
         let candidates = program.raw_trait_impls_for(&term("Foo"));
 
         assert!(
-            apply_candidate(&program, Env::default(), term("Foo(u32)"), &candidates[0],).is_some()
+            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0],).is_some()
         );
     }
 }

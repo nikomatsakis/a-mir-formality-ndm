@@ -173,13 +173,13 @@ judgment_fn! {
                 Predicate::AliasEq(a.clone(), provisional_ty.clone()))
 
             // Selecting the impl makes its header available at the supertrait frontier. Ordinary
-            // normalization passes `GatBounds(ImplTrait)` as `impl_validation`, matching the
+            // normalization passes `GatBounds[ImplTrait]` as `impl_validation`, matching the
             // stronger inputs assumed by the GAT contract checked in `ImplWF`. Value-only
-            // normalization passes `Supertraits(ImplTrait)` instead, but its result remains
+            // normalization passes `Supertraits[ImplTrait]` instead, but its result remains
             // confined to the surrounding validation proof.
             //
             // FIXME: Value-only normalization still requires declaration-side GAT conditions at
-            // `GatBounds(ImplTrait)`. Determine whether selecting the value should require those
+            // `GatBounds[ImplTrait]`. Determine whether selecting the value should require those
             // conditions only at an earlier frontier too.
             (let trait_impl = matched.trait_impl(c))
             (let gat_validation = Upto::gat_bounds(&trait_impl.trait_id))

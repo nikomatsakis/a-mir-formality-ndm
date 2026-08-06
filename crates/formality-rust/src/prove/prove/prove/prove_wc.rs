@@ -179,10 +179,10 @@ judgment_fn! {
         )
 
         // The Rust declaration `trait Eq: PartialEq` gives rise to the requirement template
-        // `forall<T> Eq(T) => PartialEq(T)`. Apply that requirement by backward chaining: for
-        // the goal `PartialEq(U)`, instantiate `T` with an inference variable, match the
+        // `forall<T> T: Eq => T: PartialEq`. Apply that requirement by backward chaining: for
+        // the goal `U: PartialEq`, instantiate `T` with an inference variable, match the
         // requirement's `required` clause against the goal, and then prove its `source`
-        // (`Eq(U)`). This lazily elaborates implied bounds rather than adding all of their
+        // (`U: Eq`). This lazily elaborates implied bounds rather than adding all of their
         // consequences to the assumptions eagerly.
         (
             (trait_def in decls.traits())
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn exact_assumption_uses_trivial_proof() {
-        let goal: Wc = term("Exact(u32)");
+        let goal: Wc = term("u32: Exact");
         let (_, proof) = prove_wc(Program::empty(), Env::default(), &goal, &goal)
             .into_singleton()
             .unwrap();
@@ -303,8 +303,8 @@ mod tests {
         let result = prove_wc(
             supertrait_program(),
             Env::default(),
-            term::<Wc>("Sub(u32)"),
-            term::<Wc>("Super(u32)"),
+            term::<Wc>("u32: Sub"),
+            term::<Wc>("u32: Super"),
         );
 
         assert!(result.is_proven(), "{result}");
@@ -313,9 +313,9 @@ mod tests {
     #[test]
     fn ranked_gat_bound_supertrait_assumption_elaborates() {
         let assumption =
-            Upto::gat_bounds(TraitId::new("ValidationRoot")).apply(term::<Wc>("Sub(u32)"));
+            Upto::gat_bounds(TraitId::new("ValidationRoot")).apply(term::<Wc>("u32: Sub"));
         let goal =
-            Upto::supertraits(TraitId::new("ValidationRoot")).apply(term::<Wc>("Super(u32)"));
+            Upto::supertraits(TraitId::new("ValidationRoot")).apply(term::<Wc>("u32: Super"));
         let result = prove_wc(supertrait_program(), Env::default(), assumption, goal);
         assert!(result.is_proven(), "{result}");
     }

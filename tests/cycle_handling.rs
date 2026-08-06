@@ -237,15 +237,16 @@ fn rooted_validation_cycle_cannot_invent_impl_for_ground_type() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Trait(Ground), via: mode(supertraits(Trait), Trait(Wrapper<Ground>)), assumptions: {mode(supertraits(Trait), Trait(Wrapper<Ground>))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Trait, via: Supertraits[Trait](Wrapper<Ground>: Trait), assumptions: {Supertraits[Trait](Wrapper<Ground>: Trait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Trait(Ground), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> Trait for Wrapper<^ty0_0> where ^ty0_0 : Trait { } }, assumptions: {mode(supertraits(Trait), Trait(Wrapper<Ground>))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Ground: Trait, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> Trait for Wrapper<^ty0_0> where ^ty0_0 : Trait { } }, assumptions: {Supertraits[Trait](Wrapper<Ground>: Trait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
 fn candidate_cannot_validate_its_own_missing_supertrait() {
     // `Ground: Sub` is not a valid dictionary because constructing it requires a `Ground: Super`
-    // dictionary, and no such impl exists. In particular, the provisional `Mode(Sub(Ground))`
+    // dictionary, and no such impl exists. In particular, the provisional
+    // `Supertraits[Sub](Ground: Sub)`
     // assumption must not use the `Sub => Super` trait requirement to validate that very
     // supertrait obligation. If it could, `main` would observe the nonexistent `Super` dictionary.
     FormalityTest::new(crates![crate test {
@@ -272,18 +273,18 @@ fn candidate_cannot_validate_its_own_missing_supertrait() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Super(Ground), via: mode(supertraits(Sub), Sub(Ground)), assumptions: {mode(supertraits(Sub), Sub(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Super, via: Supertraits[Sub](Ground: Sub), assumptions: {Supertraits[Sub](Ground: Sub)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
 fn impl_where_clause_cannot_justify_its_matching_supertrait() {
-    // Constructing `Magic(Ground)` requires `Prerequisite(Ground)`, and no such impl exists.
+    // Constructing `Ground: Magic` requires `Ground: Prerequisite`, and no such impl exists.
     // Validation must not treat the impl prerequisite as provisional evidence for the matching
     // supertrait:
     //
-    //     Mode(Prerequisite(Ground) => Prerequisite(Ground))
+    //     Supertraits[Magic](Ground: Prerequisite => Ground: Prerequisite)
     //
-    // combined with unrestricted `Magic(Ground) => Prerequisite(Ground)` implied-bound
+    // combined with unrestricted `Ground: Magic => Ground: Prerequisite` implied-bound
     // elaboration would let the prerequisite and supertrait justify one another.
     FormalityTest::new(crates![crate test {
         trait Prerequisite {}
@@ -316,7 +317,7 @@ fn impl_where_clause_cannot_justify_its_matching_supertrait() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Prerequisite(Ground), via: mode(supertraits(Magic), Magic(Ground)), assumptions: {mode(supertraits(Magic), Magic(Ground))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Prerequisite, via: Supertraits[Magic](Ground: Magic), assumptions: {Supertraits[Magic](Ground: Magic)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 macro_rules! grounded_supertrait_chain_program {
@@ -380,13 +381,13 @@ fn grounded_supertrait_chain_rejects_type_without_debug_impl() {
             the rule "assumption" at (prove_wc.rs) failed because
               expression evaluated to an empty collection: `assumptions`
 
-            crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: B(Bar), via: mode(supertraits(A), A(Bar)), assumptions: {mode(supertraits(A), A(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bar: B, via: Supertraits[A](Bar: A), assumptions: {Supertraits[A](Bar: A)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Debug(Bar), via: mode(supertraits(A), A(Bar)), assumptions: {mode(supertraits(A), A(Bar)), mode(supertraits(B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bar: Debug, via: Supertraits[A](Bar: A), assumptions: {Supertraits[A](Bar: A), Supertraits[B](Bar: B)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Debug(Bar), via: mode(supertraits(B), B(Bar)), assumptions: {mode(supertraits(A), A(Bar)), mode(supertraits(B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bar: Debug, via: Supertraits[B](Bar: B), assumptions: {Supertraits[A](Bar: A), Supertraits[B](Bar: B)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Debug(Bar), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, assumptions: {mode(supertraits(A), A(Bar)), mode(supertraits(B), B(Bar))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+            crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Bar: Debug, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 9 }, trait_impl: impl Debug for Foo { } }, assumptions: {Supertraits[A](Bar: A), Supertraits[B](Bar: B)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -448,9 +449,9 @@ fn infinitely_recursive_associated_type_value_is_currently_accepted() {
 
 #[test]
 fn associated_type_ensures_cycle_never_produces_unmonomorphizable_evidence() {
-    // The `Ord for Bad` candidate has only a `Supertraits(Ord)` view while checking its
+    // The `Ord for Bad` candidate has only a `Supertraits[Ord]` view while checking its
     // `PartialOrd` field. Its associated-type where-clause must not turn that provisional evidence
-    // into the missing `PartialOrd(Bad)` dictionary. Rejecting this program is fine; if proof
+    // into the missing `Bad: PartialOrd` dictionary. Rejecting this program is fine; if proof
     // search accepts it, codegen must be able to select concrete evidence for the call.
     assert_monomorphizes_if_accepted(crates![crate test {
         trait PartialOrd {

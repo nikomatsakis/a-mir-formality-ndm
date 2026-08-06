@@ -145,7 +145,7 @@ impl DowncastTo<()> for Wcs {
     }
 }
 
-/// Part of the `Mode(Upto, P)` judgment that describes how much of the
+/// The index in a modal `Upto(P)` judgment that describes how much of the
 /// proposition `P` must be (or has been, for assumptions) proven.
 ///
 /// Alternatively, it can be viewed as describing what parts of the dictionary
@@ -154,15 +154,18 @@ impl DowncastTo<()> for Wcs {
 pub enum Upto {
     /// No implications of `P` are available.
     /// An uninitialized dictionary.
+    #[grammar(Zero)]
     Zero,
 
     /// Supertrait bounds `Tr1: Tr2` implied by the proposition
     /// are available if `Tr1 < $0` and `Tr2 < $0`.
+    #[grammar(Supertraits[$v0])]
     Supertraits(TraitId),
 
     /// All supertrait bounds implied by the proposition are available.
     /// GAT bounds implied by the proposition are available if
     /// they are declared on a trait `Tr < $0`.
+    #[grammar(GatBounds[$v0])]
     GatBounds(TraitId),
 }
 
@@ -257,6 +260,7 @@ pub enum Wc {
     ///
     /// This constructor is internal to Rust's well-formedness semantics. Use [`Upto::apply`] to
     /// apply a frontier to a compound where-clause.
+    #[grammar($v0($v1))]
     Mode(Upto, AtomicPredicate),
 }
 
@@ -299,10 +303,32 @@ mod tests {
     use crate::rust::term;
 
     #[test]
+    fn modes_use_constructor_notation() {
+        let atom = term::<Wc>("u32: Debug");
+        let cases = [
+            ("Zero(u32: Debug)", Upto::Zero.apply(&atom)),
+            (
+                "Supertraits[Root](u32: Debug)",
+                Upto::supertraits(TraitId::new("Root")).apply(&atom),
+            ),
+            (
+                "GatBounds[Root](u32: Debug)",
+                Upto::gat_bounds(TraitId::new("Root")).apply(&atom),
+            ),
+        ];
+
+        for (text, expected) in cases {
+            let parsed = term::<Wc>(text);
+            assert_eq!(parsed, expected);
+            assert_eq!(format!("{parsed:?}"), text);
+        }
+    }
+
+    #[test]
     fn mode_application_distributes_through_implication() {
         let mode = Upto::supertraits(TraitId::new("Root"));
-        let condition = term::<Wc>("Debug(u32)");
-        let consequence = term::<Wc>("Clone(u32)");
+        let condition = term::<Wc>("u32: Debug");
+        let consequence = term::<Wc>("u32: Clone");
         let implication = Wc::implies(&condition, &consequence);
 
         assert_eq!(
@@ -314,8 +340,8 @@ mod tests {
     #[test]
     fn mode_application_to_an_assumption_flips_implication_positions() {
         let mode = Upto::supertraits(TraitId::new("Root"));
-        let condition = term::<Wc>("Debug(u32)");
-        let consequence = term::<Wc>("Clone(u32)");
+        let condition = term::<Wc>("u32: Debug");
+        let consequence = term::<Wc>("u32: Clone");
         let implication = Wc::implies(&condition, &consequence);
 
         assert_eq!(
@@ -341,7 +367,7 @@ mod tests {
     #[should_panic(expected = "cannot apply a mode")]
     fn applying_a_mode_twice_is_rejected() {
         let mode = Upto::supertraits(TraitId::new("Root"));
-        let once = mode.apply(term::<Wc>("Debug(u32)"));
+        let once = mode.apply(term::<Wc>("u32: Debug"));
         mode.apply(once);
     }
 }

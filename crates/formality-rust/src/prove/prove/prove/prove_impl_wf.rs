@@ -15,9 +15,9 @@ judgment_fn! {
     ///
     /// This is a closed judgment: its caller supplies neither an environment nor assumptions.
     /// The impl binder is instantiated universally. While checking the dictionary's supertrait
-    /// fields, the impl header is available at `Supertraits(ImplTrait)`. While checking an
+    /// fields, the impl header is available at `Supertraits[ImplTrait]`. While checking an
     /// associated value and its promised dictionaries, it is available at
-    /// `GatBounds(ImplTrait)`. It never becomes an ordinary trait assumption. Program checking
+    /// `GatBounds[ImplTrait]`. It never becomes an ordinary trait assumption. Program checking
     /// establishes this judgment for every impl. Selection and projection normalization repeat it
     /// defensively because lower-level solver entry points can be invoked on an unchecked
     /// `Program`.
@@ -144,7 +144,7 @@ judgment_fn! {
 
             // Associated values and supertrait fields are already available while constructing
             // the dictionaries promised by an associated type. The impl header and the impl/GAT
-            // conditions are therefore viewed at `GatBounds(ImplTrait)` while checking both the
+            // conditions are therefore viewed at `GatBounds[ImplTrait]` while checking both the
             // concrete value's WF and each promised bound.
             (let gat_bounds = Upto::gat_bounds(&trait_impl.trait_id))
             (let gat_bound_impl_header =
@@ -422,7 +422,7 @@ mod tests {
             ]",
         );
 
-        // The header is local `GatBounds(Foo)` evidence while checking this associated-type
+        // The header is local `GatBounds[Foo]` evidence while checking this associated-type
         // guarantee, so it can satisfy the exact `u32: Foo` bound without becoming an ordinary
         // trait assumption.
         assert!(impl_wf(&program, "Foo"));

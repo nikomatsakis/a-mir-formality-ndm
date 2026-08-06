@@ -175,8 +175,8 @@ fn T_where_Foo_not_u32_impls() {
                 impl<T> Foo for T where T: Foo {}
                 impl !Foo for u32 {}
             }]).err(expect_test::expect![[r#"
-            the rule "check_trait_impl" at (impls.rs) failed because
-              failed to prove {! Foo(!ty_1)} given {Foo(!ty_1)}, got [Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: false, substitution: {} }]"#]])
+                the rule "check_trait_impl" at (impls.rs) failed because
+                  failed to prove {! !ty_1: Foo} given {!ty_1: Foo}, got [Constraints { env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: false, substitution: {} }]"#]])
 }
 
 #[test]

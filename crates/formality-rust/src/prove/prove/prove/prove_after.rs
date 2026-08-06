@@ -11,7 +11,7 @@ use super::{constraints::Constraints, env::Env, minimize::minimize, prove_wc_lis
 /// Measure the parts of a proof state whose structural growth can indicate divergence.
 ///
 /// Modes are administrative proof-search metadata. Qualifying an existing atomic proposition
-/// with `Mode(Upto, _)` does not make the proposition itself structurally larger, so charging the
+/// as `Upto(P)` does not make the proposition itself structurally larger, so charging the
 /// mode against `max_size` makes otherwise finite nested impl selection hit
 /// the overflow limit. We still count the wrapped proposition in full, except for opaque recursive
 /// assumptions as described below: recursive impls that grow from `T` to `Vec<T>` therefore
@@ -28,7 +28,7 @@ fn proof_search_size(assumptions: &Wcs, goal: &Wcs) -> usize {
 
 /// Return the logical size hidden behind opaque recursive handles in `assumptions`.
 ///
-/// `Mode(Zero, G)` is the handle introduced while constructing evidence for atomic `G`. It can
+/// `Zero(G)` is the handle introduced while constructing evidence for atomic `G`. It can
 /// close that exact recursive occurrence, but no rule can inspect `G` through the handle. Its
 /// payload is also already represented by the active obligation that caused the handle to be
 /// introduced, so charging it a second time makes finite nested impl selection overflow merely
@@ -95,7 +95,7 @@ mod tests {
 
     #[test]
     fn overflow_size_treats_zero_assumptions_as_opaque() {
-        let proposition = term::<Wc>("Debug(Vec<u32>)");
+        let proposition = term::<Wc>("Vec<u32>: Debug");
         let goal: Wcs = proposition.clone().upcast();
         let empty = Wcs::t();
         let zero_assumption: Wcs = Upto::Zero.apply(&proposition).upcast();
@@ -113,8 +113,8 @@ mod tests {
     #[test]
     fn overflow_size_still_observes_growth_inside_validation() {
         let mode = Upto::supertraits(TraitId::new("Root"));
-        let shallow: Wcs = mode.apply(term::<Wc>("Debug(u32)")).upcast();
-        let deep: Wcs = mode.apply(term::<Wc>("Debug(Vec<u32>)")).upcast();
+        let shallow: Wcs = mode.apply(term::<Wc>("u32: Debug")).upcast();
+        let deep: Wcs = mode.apply(term::<Wc>("Vec<u32>: Debug")).upcast();
 
         assert!(proof_search_size(&Wcs::t(), &deep) > proof_search_size(&Wcs::t(), &shallow));
     }

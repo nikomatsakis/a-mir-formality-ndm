@@ -202,7 +202,7 @@ judgment_fn! {
 /// The logical fields of one trait dictionary that are observable at a validation frontier.
 ///
 /// This is intentionally proposition-indexed. For example, a `Bar` dictionary has an empty view
-/// at `Supertraits(Foo)` when `Bar` and `Foo` are unrelated, even though that same frontier has a
+/// at `Supertraits[Foo]` when `Bar` and `Foo` are unrelated, even though that same frontier has a
 /// nonempty view of a `Foo` dictionary.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct ValidationView {
@@ -237,7 +237,7 @@ fn validation_view(program: &Program, upto: &Upto, subject: &TraitId) -> Validat
             associated_type_bounds: false,
         },
 
-        // FIXME(ndm): It is surprising to me that Supertraits(root) and GatBounds(root)
+        // FIXME(ndm): It is surprising to me that `Supertraits[root]` and `GatBounds[root]`
         // are equivalent. I'd expect supertraits to set `associated_type_bounds: false`.
         Upto::Supertraits(root) | Upto::GatBounds(root)
             if is_trait_less_than(program, subject, root) =>

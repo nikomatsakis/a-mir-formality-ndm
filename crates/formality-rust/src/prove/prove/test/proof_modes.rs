@@ -24,7 +24,7 @@ fn decls() -> Program {
 }
 
 fn sub() -> Wc {
-    term("Sub(u32)")
+    term("u32: Sub")
 }
 
 fn validated_at(upto: Upto, wc: impl Upcast<Wc>) -> Wc {
@@ -156,20 +156,20 @@ fn normalization_can_use_a_sufficient_validated_input() {
     let from_validation = prove_normalize(
         &program,
         (),
-        at_supertraits(term::<Wc>("Marker(u32)")),
+        at_supertraits(term::<Wc>("u32: Marker")),
         &alias,
     );
     assert!(from_validation.is_proven());
 
-    let from_ordinary = prove_normalize(&program, (), term::<Wc>("Marker(u32)"), alias);
+    let from_ordinary = prove_normalize(&program, (), term::<Wc>("u32: Marker"), alias);
     assert!(from_ordinary.is_proven());
 }
 
 #[test]
 fn value_only_normalization_is_not_used_for_well_formedness() {
     // `Family for X` may define `Out = NeedsBound<Y>` because its `Y: Family` input is
-    // available at `GatBounds(Family)` during `ImplWF`, where `Family`'s `Bound(Y)` supertrait
-    // field is visible. At the earlier `Supertraits(Family)` frontier, selecting the impl still
+    // available at `GatBounds[Family]` during `ImplWF`, where `Family`'s `Y: Bound` supertrait
+    // field is visible. At the earlier `Supertraits[Family]` frontier, selecting the impl still
     // reveals the associated value, but it must not make `NeedsBound<Y>` well formed.
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
@@ -187,7 +187,7 @@ fn value_only_normalization_is_not_used_for_well_formedness() {
         ])),
         ..Program::empty()
     };
-    let assumptions = Upto::supertraits(TraitId::new("Family")).apply(term::<Wc>("Family(Y)"));
+    let assumptions = Upto::supertraits(TraitId::new("Family")).apply(term::<Wc>("Y: Family"));
     let alias = term::<AliasTy>("<X as Family>::Out");
 
     assert!(!prove_normalize(&program, (), &assumptions, &alias).is_proven());
@@ -201,7 +201,7 @@ fn value_only_normalization_is_not_used_for_well_formedness() {
 #[test]
 fn normalization_ignores_an_incompatible_rigid_impl() {
     let Wc::ForAll(binder) =
-        term::<Wc>("for<'a, 'b, 'c, 'd, 'e, 'f> Copy(<&mut 'a u32 as Derefable>::Target)")
+        term::<Wc>("for<'a, 'b, 'c, 'd, 'e, 'f> <&mut 'a u32 as Derefable>::Target: Copy")
     else {
         unreachable!()
     };
@@ -303,7 +303,7 @@ fn observationally_zero_evidence_can_be_rebased() {
 
 #[test]
 fn gat_bound_frontier_can_discharge_supertrait_frontier() {
-    let root = term::<Wc>("ValidationRoot(u32)");
+    let root = term::<Wc>("u32: ValidationRoot");
     let result = prove_after(
         decls(),
         Constraints::none(()),
@@ -316,7 +316,7 @@ fn gat_bound_frontier_can_discharge_supertrait_frontier() {
 
 #[test]
 fn supertrait_frontier_cannot_discharge_gat_bound_frontier() {
-    let root = term::<Wc>("ValidationRoot(u32)");
+    let root = term::<Wc>("u32: ValidationRoot");
     let result = prove_after(
         decls(),
         Constraints::none(()),
@@ -343,7 +343,7 @@ fn completed_impl_can_construct_evidence_at_either_frontier() {
         &program,
         Constraints::none(()),
         (),
-        at_supertraits(term::<Wc>("Marker(u32)")),
+        at_supertraits(term::<Wc>("u32: Marker")),
     );
     assert!(supertrait_result.is_proven());
 
@@ -351,7 +351,7 @@ fn completed_impl_can_construct_evidence_at_either_frontier() {
         &program,
         Constraints::none(()),
         (),
-        at_gat_bounds(term::<Wc>("Marker(u32)")),
+        at_gat_bounds(term::<Wc>("u32: Marker")),
     );
     assert!(gat_bound_result.is_proven());
 
@@ -359,7 +359,7 @@ fn completed_impl_can_construct_evidence_at_either_frontier() {
         program,
         Constraints::none(()),
         (),
-        at_gat_bounds(term::<Wc>("Marker(bool)")),
+        at_gat_bounds(term::<Wc>("bool: Marker")),
     );
     assert!(!unsatisfied.is_proven());
 }
@@ -378,16 +378,16 @@ fn opaque_validated_input_can_construct_an_opaque_result() {
     let from_ordinary = prove_after(
         &program,
         Constraints::none(()),
-        term::<Wc>("Prerequisite(u32)"),
-        at_gat_bounds(term::<Wc>("Marker(u32)")),
+        term::<Wc>("u32: Prerequisite"),
+        at_gat_bounds(term::<Wc>("u32: Marker")),
     );
     assert!(from_ordinary.is_proven());
 
     let from_validated = prove_after(
         program,
         Constraints::none(()),
-        at_supertraits(term::<Wc>("Prerequisite(u32)")),
-        at_gat_bounds(term::<Wc>("Marker(u32)")),
+        at_supertraits(term::<Wc>("u32: Prerequisite")),
+        at_gat_bounds(term::<Wc>("u32: Marker")),
     );
     assert!(from_validated.is_proven());
 }
@@ -405,7 +405,7 @@ fn ranked_gat_bound_evidence_elaborates_supertrait() {
         decls(),
         Constraints::none(()),
         at_gat_bounds(sub()),
-        at_supertraits(term::<Wc>("Super(u32)")),
+        at_supertraits(term::<Wc>("u32: Super")),
     );
 
     assert!(result.is_proven());
@@ -413,7 +413,7 @@ fn ranked_gat_bound_evidence_elaborates_supertrait() {
 
 #[test]
 fn gat_bound_validation_preserves_frontier_through_implication() {
-    let implication = Wc::implies(sub(), term::<Wc>("Super(u32)"));
+    let implication = Wc::implies(sub(), term::<Wc>("u32: Super"));
     let result = prove_after(
         decls(),
         Constraints::none(()),
@@ -430,7 +430,7 @@ fn ranked_gat_bound_evidence_elaborates_transitive_supertrait() {
         transitive_supertrait_decls(),
         Constraints::none(()),
         at_gat_bounds(sub()),
-        at_supertraits(term::<Wc>("Super(u32)")),
+        at_supertraits(term::<Wc>("u32: Super")),
     );
 
     assert!(result.is_proven());
@@ -442,7 +442,7 @@ fn ranked_gat_bound_evidence_elaborates_higher_ranked_supertrait() {
         higher_ranked_supertrait_decls(),
         Constraints::none(()),
         at_gat_bounds(sub()),
-        at_supertraits(term::<Wc>("for<'a> Super(u32, 'a)")),
+        at_supertraits(term::<Wc>("for<'a> u32: Super<'a>")),
     );
 
     assert!(result.is_proven());
@@ -550,7 +550,7 @@ fn validated_outlives_is_not_ordinary_evidence() {
 #[test]
 fn validation_preserves_predicate_congruence() {
     let assumptions: Wcs = (
-        at_supertraits(term::<Wc>("Sub(u32)")),
+        at_supertraits(term::<Wc>("u32: Sub")),
         term::<Wc>("u32 = bool"),
     )
         .upcast();
@@ -558,7 +558,7 @@ fn validation_preserves_predicate_congruence() {
         decls(),
         Constraints::none(()),
         assumptions,
-        at_supertraits(term::<Wc>("Sub(bool)")),
+        at_supertraits(term::<Wc>("bool: Sub")),
     );
 
     assert!(result.is_proven());
@@ -566,7 +566,7 @@ fn validation_preserves_predicate_congruence() {
 
 #[test]
 fn ranked_validation_elaborates_supertrait_through_implication() {
-    let implication = Wc::implies(sub(), term::<Wc>("Super(u32)"));
+    let implication = Wc::implies(sub(), term::<Wc>("u32: Super"));
     let result = prove_after(
         decls(),
         Constraints::none(()),
@@ -579,11 +579,11 @@ fn ranked_validation_elaborates_supertrait_through_implication() {
 
 #[test]
 fn validation_implication_introduces_only_validation_antecedents() {
-    // The implication introduces `Family(u32)` only as evidence rooted at `ValidationRoot`.
+    // The implication introduces `u32: Family` only as evidence rooted at `ValidationRoot`.
     // Neither `Family` nor `Super` is below that root, so ranked associated-bound elaboration
     // cannot use it. If the antecedent leaked into the ordinary assumptions, unrestricted
     // ordinary elaboration would incorrectly prove the projected `Super` bound.
-    let implication: Wc = term("if { Family(u32) } Super(<u32 as Family>::Item)");
+    let implication: Wc = term("if { u32: Family } <u32 as Family>::Item: Super");
     let result = prove_after(
         implication_validation_decls(),
         Constraints::none(()),
@@ -596,7 +596,7 @@ fn validation_implication_introduces_only_validation_antecedents() {
 
 #[test]
 fn validation_implication_applies_consequence_constraints_to_antecedents() {
-    let quantified: Wc = term("for<T> if { T = bool } Sub(T)");
+    let quantified: Wc = term("for<T> if { T = bool } T: Sub");
     let assumptions: Wcs = (
         assumed_at_supertraits(quantified),
         assumed_at_supertraits(term::<Wc>("u32 = bool")),
@@ -614,7 +614,7 @@ fn validation_implication_applies_consequence_constraints_to_antecedents() {
 
 #[test]
 fn ordinary_associated_bound_requires_originating_trait_and_gat_conditions() {
-    let sufficient: Wc = term("for<T, U> if { Family(T), Copy(U) } Super(<T as Family>::Item<U>)");
+    let sufficient: Wc = term("for<T, U> if { T: Family, U: Copy } <T as Family>::Item<U>: Super");
     let sufficient_result = prove_after(
         associated_requirement_decls(),
         Constraints::none(()),
@@ -624,7 +624,7 @@ fn ordinary_associated_bound_requires_originating_trait_and_gat_conditions() {
     assert!(sufficient_result.is_proven());
 
     let missing_gat_condition: Wc =
-        term("for<T, U> if { Family(T) } Super(<T as Family>::Item<U>)");
+        term("for<T, U> if { T: Family } <T as Family>::Item<U>: Super");
     let missing_result = prove_after(
         associated_requirement_decls(),
         Constraints::none(()),
@@ -669,14 +669,14 @@ fn failed_impl_candidate_validation_assumptions_do_not_leak() {
         ..Program::empty()
     };
 
-    let result = prove_after(program, Constraints::none(()), (), term::<Wc>("Target(X)"));
+    let result = prove_after(program, Constraints::none(()), (), term::<Wc>("X: Target"));
 
     assert!(!result.is_proven());
 }
 
 #[test]
 fn failed_normalization_candidate_does_not_leak_its_provisional_alias_equality() {
-    // The first `Family(X)` candidate temporarily fixes `Family::Output` to `Bad`, but its
+    // The first `X: Family` candidate temporarily fixes `Family::Output` to `Bad`, but its
     // `Missing: Required` residual fails. The second candidate could satisfy its recursive
     // `Family::Output: Marker` residual only if that first candidate's provisional equation
     // escaped into the sibling branch. Its own provisional equation fixes the output to `Good`,
@@ -714,7 +714,7 @@ fn failed_normalization_candidate_does_not_leak_its_provisional_alias_equality()
 
 #[test]
 fn impl_validation_preserves_outlives_requirement() {
-    let goal: Wc = term("for<'a, T> if {T : 'a} Lives(T, 'a)");
+    let goal: Wc = term("for<'a, T> if {T : 'a} T: Lives<'a>");
     let result = prove_after(outlives_decls(), Constraints::none(()), (), goal);
 
     assert!(result.is_proven());
@@ -722,7 +722,7 @@ fn impl_validation_preserves_outlives_requirement() {
 
 #[test]
 fn ordinary_trait_evidence_does_not_imply_outlives() {
-    let goal: Wc = term("for<'a, T> if {Lives(T, 'a)} T : 'a");
+    let goal: Wc = term("for<'a, T> if {T: Lives<'a>} T : 'a");
     let result = prove_after(outlives_decls(), Constraints::none(()), (), goal);
 
     assert!(!result.is_proven());
@@ -732,7 +732,7 @@ fn ordinary_trait_evidence_does_not_imply_outlives() {
 fn validation_without_rank_does_not_elaborate_outlives_through_implication() {
     // `Lives` is not below `ValidationRoot`, so its provisional evidence cannot expose the
     // declaration-side outlives requirement.
-    let implication: Wc = term("for<'a, T> if {Lives(T, 'a)} T : 'a");
+    let implication: Wc = term("for<'a, T> if {T: Lives<'a>} T : 'a");
     let result = prove_after(
         outlives_decls(),
         Constraints::none(()),
@@ -745,7 +745,7 @@ fn validation_without_rank_does_not_elaborate_outlives_through_implication() {
 
 #[test]
 fn ranked_validation_elaborates_outlives_through_implication() {
-    let implication: Wc = term("for<'a, T> if {Lives(T, 'a)} T : 'a");
+    let implication: Wc = term("for<'a, T> if {T: Lives<'a>} T : 'a");
     let result = prove_after(
         ranked_outlives_decls(),
         Constraints::none(()),
@@ -758,7 +758,7 @@ fn ranked_validation_elaborates_outlives_through_implication() {
 
 #[test]
 fn impl_validation_preserves_higher_ranked_supertrait_binder() {
-    let goal: Wc = term("for<T> if {for<'a> Super(T, 'a)} Sub(T)");
+    let goal: Wc = term("for<T> if {for<'a> T: Super<'a>} T: Sub");
     let result = prove_after(
         higher_ranked_supertrait_decls(),
         Constraints::none(()),

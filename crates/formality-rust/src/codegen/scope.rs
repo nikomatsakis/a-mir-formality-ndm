@@ -446,14 +446,14 @@ mod tests {
         let global = CodegenGlobal::new(&normalization_program());
         let (i32_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
-                term::<TraitRef>("Convert((), i32)"),
+                term::<TraitRef>("(): Convert<i32>"),
                 term::<ValueId>("convert"),
                 (),
             ))
             .unwrap();
         let (u32_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
-                term::<TraitRef>("Convert((), u32)"),
+                term::<TraitRef>("(): Convert<u32>"),
                 term::<ValueId>("convert"),
                 (),
             ))
@@ -466,7 +466,7 @@ mod tests {
     #[test]
     fn method_arguments_are_part_of_trait_method_identity() {
         let global = CodegenGlobal::new(&normalization_program());
-        let trait_ref: TraitRef = term("Identity(())");
+        let trait_ref: TraitRef = term("(): Identity");
         let (i32_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
                 &trait_ref,
@@ -491,14 +491,14 @@ mod tests {
         let global = CodegenGlobal::new(&normalization_program());
         let (alias_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
-                term::<TraitRef>("Identity(<() as Family>::Output)"),
+                term::<TraitRef>("<() as Family>::Output: Identity"),
                 term::<ValueId>("identity"),
                 (),
             ))
             .unwrap();
         let (rigid_name, global) = global
             .ensure_monomorphized_fn(MonoKey::trait_method(
-                term::<TraitRef>("Identity(i32)"),
+                term::<TraitRef>("i32: Identity"),
                 term::<ValueId>("identity"),
                 (),
             ))
