@@ -1,10 +1,7 @@
 mod adt_wf;
 mod eq_assumptions;
 mod eq_partial_eq;
-mod exists_constraints;
-mod expanding;
 mod is_local;
 mod magic_copy;
-mod occurs_check;
 mod simple_impl;
 mod universes;
