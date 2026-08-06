@@ -2,7 +2,7 @@ use crate::{
     grammar::{
         AliasName, AliasTy, AssociatedItemId, AssociatedTyName, ExistentialVar, Fallible,
         Parameter, Predicate, Relation, RigidTy, TraitImplBoundData, TraitRef, Ty, TyData, Upto,
-        Variable, Wc, WcData, Wcs,
+        Wc, WcData, Wcs,
     },
     prove::prove::Constrained,
 };
@@ -329,9 +329,9 @@ judgment_fn! {
                 _decls,
                 env,
                 _assumptions,
-                Variable::ExistentialVar(left_var),
+                left_var @ ExistentialVar { .. },
                 right,
-                Variable::ExistentialVar(goal_var),
+                goal_var @ ExistentialVar { .. },
             ) => Constrained::none(env, right))
         )
 
@@ -343,8 +343,8 @@ judgment_fn! {
                 env,
                 _assumptions,
                 left,
-                Variable::ExistentialVar(right_var),
-                Variable::ExistentialVar(goal_var),
+                right_var @ ExistentialVar { .. },
+                goal_var @ ExistentialVar { .. },
             ) => Constrained::none(env, left))
         )
 
@@ -443,7 +443,7 @@ judgment_fn! {
         (
             (prove_existential_var_eq(decls, env, assumptions, v, t) => c)
             ----------------------------- ("existential-nonvar")
-            (prove_syntactically_eq(decls, env, assumptions, Variable::ExistentialVar(v), t) => c)
+            (prove_syntactically_eq(decls, env, assumptions, v @ ExistentialVar { .. }, t) => c)
         )
     }
 }

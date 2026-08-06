@@ -70,7 +70,7 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                AtomicPredicate::Relation(Relation::WellFormed(parameter)),
+                Relation::WellFormed(parameter),
             ) => c)
         )
 
@@ -100,12 +100,10 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                AtomicPredicate::Predicate(Predicate::IsImplemented(
-                    trait_ref @ TraitRef {
-                        trait_id: _,
-                        parameters,
-                    },
-                )),
+                trait_ref @ TraitRef {
+                    trait_id: _,
+                    parameters,
+                },
             ) => c)
         )
 
@@ -258,12 +256,10 @@ judgment_fn! {
                     parameters: _,
                 },
                 TraitRequirementBoundData::Supertrait(supertrait),
-                AtomicPredicate::Predicate(Predicate::IsImplemented(
-                    goal_trait_ref @ TraitRef {
-                        trait_id: goal_trait_id,
-                        parameters: _,
-                    },
-                )),
+                goal_trait_ref @ TraitRef {
+                    trait_id: goal_trait_id,
+                    parameters: _,
+                },
             ) => c)
         )
 
@@ -337,18 +333,14 @@ judgment_fn! {
                     trait_id: source_trait_id,
                     parameters: source_parameters,
                 },
-                TraitRequirementBoundData::AssociatedTyRequirement(
-                    AssociatedTyRequirement {
-                        id: associated_id,
-                        binder: associated_binder,
-                    },
-                ),
-                AtomicPredicate::Predicate(Predicate::IsImplemented(
-                    goal_trait_ref @ TraitRef {
-                        trait_id: goal_trait_id,
-                        parameters: _,
-                    },
-                )),
+                AssociatedTyRequirement {
+                    id: associated_id,
+                    binder: associated_binder,
+                },
+                goal_trait_ref @ TraitRef {
+                    trait_id: goal_trait_id,
+                    parameters: _,
+                },
             ) => c)
         )
 
@@ -386,7 +378,7 @@ judgment_fn! {
                     parameters: _,
                 },
                 TraitRequirementBoundData::Outlives(outlives),
-                AtomicPredicate::Relation(Relation::Outlives(goal_source, goal_target)),
+                Relation::Outlives(goal_source, goal_target),
             ) => c)
         )
     }
