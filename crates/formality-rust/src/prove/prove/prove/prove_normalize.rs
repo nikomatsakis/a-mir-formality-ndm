@@ -105,18 +105,18 @@ judgment_fn! {
             (let provisional_alias_eq =
                 Predicate::AliasEq(a.clone(), provisional_ty.clone()))
 
-            // Establish the matched impl's residual conditions with the same supertrait-frontier
-            // semantics as ordinary impl application. Declaration-side GAT conditions are checked
-            // at the GAT-bound frontier.
+            // Selecting the impl makes its header available at the supertrait frontier, but
+            // invoking its associated-type definition requires the stronger inputs assumed by
+            // the GAT contract checked in `ImplWF`: both the impl where-clauses and the
+            // declaration-side GAT conditions must hold at the GAT-bound frontier.
             (let trait_impl = matched.trait_impl(c))
-            (let validation = Upto::supertraits(&trait_impl.trait_id))
             (let gat_validation = Upto::gat_bounds(&trait_impl.trait_id))
             (let provisional_impl_header =
-                Wc::validate(validation.clone(), trait_impl.trait_ref()))
+                Wc::validate(Upto::supertraits(&trait_impl.trait_id), trait_impl.trait_ref()))
             (let impl_where_clauses = trait_impl
                 .where_clauses
                 .to_wcs()
-                .validated(validation))
+                .validated(gat_validation.clone()))
             (let conditions = (
                 &impl_where_clauses,
                 gat_where_clauses.validated(gat_validation),

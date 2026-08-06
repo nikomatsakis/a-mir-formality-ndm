@@ -2,6 +2,82 @@ use a_mir_formality::{crates, FormalityTest};
 use formality_core::test;
 
 #[test]
+fn early_normalization_value_only_rule_not_yet_supported() {
+    // While checking `Family for Z`, its where-clause supplies only a
+    // `Supertraits(Family)` view of `Family(Y)`. That is enough to select the conditional
+    // `Family for X` impl and learn the value of `Family::Out`; learning the value does not
+    // require the stronger dictionaries promised by `Family`'s GAT-bound frontier.
+    //
+    // There is deliberately no impl of `Family for Y`: a completed dictionary cannot hide the
+    // distinction between the two validation frontiers. The explicit `X: Family` condition on
+    // `Base for Z` makes its projection-bearing condition well formed.
+    //
+    // Requiring every normalization condition at `GatBounds(Family)` rejects this sound program.
+    // A future value-only normalization rule should accept it without exposing any associated-
+    // bound evidence.
+    FormalityTest::new(crates![crate test {
+        trait Marker {}
+
+        trait Base {}
+
+        trait Family
+        where
+            Self: Base,
+        {
+            type Out: [];
+        }
+
+        struct X {}
+        struct Y {}
+        struct Z {}
+        struct Rigid {}
+
+        impl Marker for Rigid {}
+
+        impl Base for X {}
+
+        impl Family for X
+        where
+            Y: Family,
+        {
+            type Out = Rigid;
+        }
+
+        impl Base for Z
+        where
+            X: Family,
+            <X as Family>::Out: Marker,
+        {}
+
+        impl Family for Z
+        where
+            Y: Family,
+        {
+            type Out = Rigid;
+        }
+
+        test where Y: Family {
+            Z: Family
+        }
+    }])
+    .skip_execute()
+    .err(expect_test::expect![[r#"
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Base(Z), via: validate(supertraits(Family), Family(Y)), assumptions: {validate(supertraits(Family), Family(Y)), validate(supertraits(Family), Family(Z))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Base(Z), via: validate(supertraits(Family), Family(Z)), assumptions: {validate(supertraits(Family), Family(Y)), validate(supertraits(Family), Family(Z))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Marker(<X as Family>::Out), via: validate(supertraits(Base), Base(Z)), assumptions: {validate(supertraits(Base), Base(Z)), validate(supertraits(Family), Family(Y)), validate(supertraits(Family), Family(Z))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Marker(<X as Family>::Out), via: validate(supertraits(Family), Family(Y)), assumptions: {validate(supertraits(Base), Base(Z)), validate(supertraits(Family), Family(Y)), validate(supertraits(Family), Family(Z))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Marker(<X as Family>::Out), via: validate(supertraits(Family), Family(Z)), assumptions: {validate(supertraits(Base), Base(Z)), validate(supertraits(Family), Family(Y)), validate(supertraits(Family), Family(Z))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Marker(<X as Family>::Out), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 7 }, trait_impl: impl Marker for Rigid { } }, assumptions: {validate(supertraits(Base), Base(Z)), validate(supertraits(Family), Family(Y)), validate(supertraits(Family), Family(Z))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: Base(Z), candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 8 }, trait_impl: impl Base for X { } }, assumptions: {validate(supertraits(Family), Family(Y)), validate(supertraits(Family), Family(Z))}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+}
+
+#[test]
 fn associated_type_bound_is_implied_by_trait_assumption() {
     FormalityTest::new(crates![crate test {
         #![formality(max_size = 222)]
