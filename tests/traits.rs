@@ -27,6 +27,39 @@ fn trait_with_valid_associated_type() {
 }
 
 #[test]
+#[should_panic(expected = "but no impl provides that trait-ref")]
+fn bare_test_trait_ref_requires_an_impl_application() {
+    FormalityTest::new(crates![crate test {
+        trait Foo {}
+
+        test<T>
+        where
+            T: Foo,
+        {
+            T: Foo
+        }
+    }])
+    .skip_execute()
+    .ok();
+}
+
+#[test]
+fn prove_test_goal_does_not_require_an_impl_application() {
+    FormalityTest::new(crates![crate test {
+        trait Foo {}
+
+        test<T>
+        where
+            T: Foo,
+        {
+            prove(T: Foo)
+        }
+    }])
+    .skip_execute()
+    .ok();
+}
+
+#[test]
 #[ignore = "ensures bounds WF check not yet implemented, see FIXME(#228)"]
 fn trait_with_ill_formed_where_clause() {
     FormalityTest::new(crates![
@@ -39,6 +72,6 @@ fn trait_with_ill_formed_where_clause() {
         }
     ])
     .err(expect_test::expect![[r#"
-            the rule "trait implied bound" at (prove_wc.rs) failed because
-              expression evaluated to an empty collection: `decls.trait_invariants()`"#]]);
+            the rule "trait requirement" at (prove_wc.rs) failed because
+              expression evaluated to an empty collection: `decls.trait_requirements()`"#]]);
 }

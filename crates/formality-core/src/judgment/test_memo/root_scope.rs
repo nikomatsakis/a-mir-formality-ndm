@@ -85,3 +85,17 @@ fn completed_descendant_does_not_survive_its_root() {
 
     assert_eq!(SHARED_CHILD_EXECUTIONS.get(), 2);
 }
+
+#[test]
+fn failed_root_has_no_values_and_is_recomputed() {
+    FAILED_CHILD_EXECUTIONS.set(0);
+
+    let first = failed_child();
+    let second = failed_child();
+
+    assert!(!first.is_proven());
+    assert!(!second.is_proven());
+    assert_eq!(first.iter().count(), 0);
+    assert_eq!(first.to_string(), second.to_string());
+    assert_eq!(FAILED_CHILD_EXECUTIONS.get(), 2);
+}

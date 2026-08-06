@@ -21,35 +21,22 @@ fn decls() -> Program {
 }
 
 #[test]
-fn all_t_not_magic() {
-    test_prove(decls(), term("{} => {for<T> Magic(T)}")).assert_err(
-    expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0 = u32, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+fn all_t_is_not_magic_without_copy_for_all_t() {
+    // The recursive `T: Magic` prerequisite cannot validate the missing `T: Copy` supertrait.
+    test_prove(decls(), term("{} => {for<T> T: Magic}")).assert_err(expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: u32, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Magic(!ty_0), via: Copy(?ty_1), assumptions: {}, env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Magic(!ty_1), via: Copy(?ty_2), assumptions: {}, env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_1: Magic, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 2 }, trait_impl: impl <ty> Magic for ^ty0_0 where ^ty0_0 : Magic { } }, assumptions: {}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
-fn all_t_not_copy() {
-    test_prove(decls(), term("{} => {for<T> Copy(T)}")).assert_err(
-    expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0 = u32, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+fn invalid_magic_impl_does_not_imply_copy_for_all_t() {
+    // In particular, the invalid recursive `Magic` impl must not expose its unproven `Copy`
+    // supertrait to ordinary implied-bound reasoning.
+    test_prove(decls(), term("{} => {for<T> T: Copy}")).assert_err(expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: u32, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0 = u32, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: u32, via: Copy(!ty_0), assumptions: {Copy(!ty_0)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Magic(!ty_0), via: Copy(?ty_1), assumptions: {}, env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_1: Copy, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 3 }, trait_impl: impl Copy for u32 { } }, assumptions: {}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }

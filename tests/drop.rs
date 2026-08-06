@@ -55,10 +55,7 @@ fn drop_impl_generic_no_where_clauses() {
 }
 
 /// Drop impl with fewer where-clauses than the struct.
-/// FIXME: This should be invalid because the struct requires the bounds for
-/// well-formedness, but without a `fn drop` method in the trait, the WF check
-/// on `MyStruct<T>` is not triggered. This will be caught once we model the
-/// drop method signature.
+/// This is invalid because the struct requires the bounds for well-formedness.
 #[test]
 fn drop_impl_subset_where_clauses() {
     FormalityTest::new(crates![
@@ -75,7 +72,12 @@ fn drop_impl_subset_where_clauses() {
         }
     ])
     .skip_execute()
-    .ok()
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
+
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]])
 }
 
 // ===================================================================
@@ -97,13 +99,10 @@ fn drop_impl_extra_where_clause() {
         }
     ])
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Clone(!ty_0), via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
 
-        the rule "trait implied bound" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `decls.trait_invariants()`
-
-        the rule "trait implied bound" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Clone, via: Supertraits[Drop](MyStruct<!ty_0>: Drop), assumptions: {Supertraits[Drop](MyStruct<!ty_0>: Drop)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 /// Drop impl for a concrete instantiation (not generic enough).
@@ -119,26 +118,10 @@ fn drop_impl_concrete_type_param() {
         }
     ])
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: MyStruct<!ty_0> = MyStruct<u32>, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: MyStruct<!ty_0>, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0 = u32, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: u32, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: MyStruct<u32>, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: u32 = !ty_0, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: u32, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:55:1: no applicable rules for prove_normalize_via { goal: !ty_0, via: Drop(MyStruct<!ty_0>), assumptions: {Drop(MyStruct<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        the rule "trait implied bound" at (prove_wc.rs) failed because
-          expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:46:1: no applicable rules for prove_via_impl { requested_trait_ref: MyStruct<!ty_0>: Drop, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Drop for MyStruct<u32> { } }, assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 /// Drop impl for a non-ADT type (e.g., u32).

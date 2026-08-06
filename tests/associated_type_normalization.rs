@@ -20,6 +20,37 @@ fn test_mirror_normalizes_u32_to_u32() {
 }
 
 #[test]
+fn normalization_distinguishes_impl_and_gat_parameters() {
+    // Header matching determines `T`, the impl where-clause determines `U`, and the projection
+    // directly supplies `V`. Normalization must apply all three before reading the associated
+    // value from the matched impl.
+    FormalityTest::new(crates![crate test {
+        trait Witness<T> {}
+        impl Witness<i32> for () {}
+
+        struct Triple<T, U, V> {}
+        struct Source {}
+
+        trait Family<T> {
+            type Assoc<V> : [];
+        }
+
+        impl<T, U> Family<T> for Source
+        where
+            (): Witness<U>,
+        {
+            type Assoc<V> = Triple<T, U, V>;
+        }
+
+        test {
+            prove(<Source as Family<u32>>::Assoc<bool> => Triple<u32, i32, bool>)
+        }
+    }])
+    .skip_execute()
+    .ok();
+}
+
+#[test]
 fn exact_alias_cycle_has_no_codegen_normal_form() {
     FormalityTest::new(crates![crate test {
         trait Family {
@@ -52,6 +83,9 @@ fn mutual_alias_cycle_has_no_codegen_normal_form() {
             type Output : [];
         }
 
+        // Each impl explicitly supplies the other dictionary needed to validate its
+        // associated value. This makes both impls well-formed without giving the
+        // resulting aliases a finite codegen normal form.
         impl First for ()
         where
             (): Second,

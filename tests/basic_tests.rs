@@ -19,6 +19,23 @@ fn impl_with_duplicate_fn_names_is_rejected() {
 }
 
 #[test]
+fn impl_with_duplicate_associated_type_names_is_rejected() {
+    FormalityTest::new(crates![crate Foo {
+        trait Trait {
+            type Assoc : [];
+        }
+
+        impl Trait for () {
+            type Assoc = ();
+            type Assoc = u32;
+        }
+    }])
+    .err(expect_test::expect![[r#"
+        the rule "check_trait_impl" at (impls.rs) failed because
+          multiple impl associated types named `Assoc`"#]])
+}
+
+#[test]
 fn parser() {
     FormalityTest::new(crates![crate Foo {
         trait Baz where  cake  {}
@@ -49,12 +66,9 @@ fn hello_world_fail() {
 
                 trait Baz {}
             }]).err(expect_test::expect![[r#"
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ WellFormedTraitRef(Bar(!ty_0, !ty_1)), via: Bar(!ty_0, !ty_1), assumptions: {Bar(!ty_0, !ty_1)}, env: Env { variables: [!ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ WellFormedTraitRef(!ty_0: Bar<!ty_1>), via: !ty_0: Bar<!ty_1>, assumptions: {!ty_0: Bar<!ty_1>}, env: Env { variables: [!ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Baz(!ty_1), via: Bar(!ty_0, !ty_1), assumptions: {Bar(!ty_0, !ty_1)}, env: Env { variables: [!ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-                the rule "trait implied bound" at (prove_wc.rs) failed because
-                  expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_1: Baz, via: !ty_0: Bar<!ty_1>, assumptions: {!ty_0: Bar<!ty_1>}, env: Env { variables: [!ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 #[test]
@@ -100,12 +114,9 @@ fn basic_where_clauses_fail() {
 
                 trait WellFormed where for<T> u32: A<T> { }
             }]).err(expect_test::expect![[r#"
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ WellFormedTraitRef(A(u32, !ty_1)), via: A(u32, ?ty_2), assumptions: {for <ty> A(u32, ^ty0_0)}, env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ WellFormedTraitRef(u32: A<!ty_1>), via: u32: A<?ty_2>, assumptions: {for <ty> u32: A<^ty0_0>}, env: Env { variables: [!ty_1, ?ty_2], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: B(!ty_0), via: A(u32, ?ty_1), assumptions: {for <ty> A(u32, ^ty0_0)}, env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-                the rule "trait implied bound" at (prove_wc.rs) failed because
-                  expression evaluated to an empty collection: `decls.trait_invariants()`"#]])
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: B, via: u32: A<?ty_1>, assumptions: {for <ty> u32: A<^ty0_0>}, env: Env { variables: [!ty_0, ?ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 #[test]
@@ -188,7 +199,7 @@ fn non_lifetime_binder_in_neg_trait_impl_where_clause_pass() {
 
         trait B { }
 
-        impl<T> !A<T> for u32 where for<U> u32: A<U> { }
+        impl !A<u32> for u32 where for<U> U: B { }
 
         impl <T> B for T {}
     }])
@@ -203,7 +214,7 @@ fn non_lifetime_binder_in_neg_trait_impl_where_clause_fail() {
 
         trait B { }
 
-        impl<T> !A<T> for u32 where for<U> u32: A<U> { }
+        impl !A<u32> for u32 where for<U> U: B { }
     }])
     .err(expect_test::expect![[r#"
         the rule "check crate" at (mod.rs) failed because

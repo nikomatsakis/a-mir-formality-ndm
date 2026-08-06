@@ -18,5 +18,5 @@ fn for_t_exists_u() {
         ..Program::empty()
     };
 
-    test_prove(decls, term("{} => {for<T> Test(T, T)}")).assert_ok(expect!["{Constraints { env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {} }}"]);
+    test_prove(decls, term("{} => {for<T> T: Test<T>}")).assert_ok(expect!["{Constraints { env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false }, known_true: true, substitution: {} }}"]);
 }
