@@ -138,10 +138,6 @@ judgment_fn! {
         // Prove an ordinary trait goal with a concrete impl. Validation goals enter the ordinary
         // solver through `prove_validate`'s `verify_x(G) :- G` rule.
         (
-            (let TraitRef {
-                trait_id,
-                parameters: _,
-            } = trait_ref)
             (candidate in decls.raw_trait_impls_for(trait_id))!
             (prove_via_impl(
                 decls,
@@ -152,14 +148,22 @@ judgment_fn! {
             ) => Constrained(application, c))
             (let c = application.proof_constraints(c))
             ----------------------------- ("positive impl")
-            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
+            (prove_wc(
+                decls,
+                env,
+                assumptions,
+                trait_ref @ TraitRef {
+                    trait_id,
+                    parameters: _,
+                },
+            ) => c)
         )
 
         (
             (if env.bias() == Bias::Completeness)!
             (may_be_remote(decls, env, assumptions, trait_ref) => c)
             ----------------------------- ("coherence / remote impl")
-            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
+            (prove_wc(decls, env, assumptions, trait_ref @ TraitRef { .. }) => c)
         )
 
         (
@@ -223,7 +227,7 @@ judgment_fn! {
                 trait_ref,
             ) => c)!
             ----------------------------- ("trait requirement")
-            (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
+            (prove_wc(decls, env, assumptions, trait_ref @ TraitRef { .. }) => c)
         )
 
         (

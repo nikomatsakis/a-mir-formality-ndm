@@ -1,9 +1,9 @@
 //! Structured requirements declared by traits.
 
 use crate::grammar::{
-    AliasTy, AssociatedItemId, AssociatedTy, AssociatedTyBoundData, AtomicPredicate, Binder,
-    BoundVar, Parameter, ParameterKind, Predicate, Relation, Trait, TraitBoundData, TraitItem,
-    TraitRef, Wc, WcData, Wcs,
+    AliasTy, AssociatedItemId, AssociatedTy, AssociatedTyBoundData, Binder, BoundVar, Parameter,
+    ParameterKind, Predicate, Relation, Trait, TraitBoundData, TraitItem, TraitRef, Wc, WcData,
+    Wcs,
 };
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, set, Cons, Set, Upcast};
@@ -235,12 +235,10 @@ judgment_fn! {
                     binder: trait_binder,
                 },
                 trait_subst,
-                TraitRequirementBoundData::AssociatedTyRequirement(
-                    AssociatedTyRequirement {
-                        id: associated_id,
-                        binder: associated_binder,
-                    },
-                ),
+                AssociatedTyRequirement {
+                    id: associated_id,
+                    binder: associated_binder,
+                },
                 goal,
             ) => c)
         )
@@ -345,7 +343,7 @@ judgment_fn! {
                 AssociatedTyRequirement::new(id, associated_binder))
             (let requirement = TraitRequirement::new(Binder::new(
                 trait_variables,
-                TraitRequirementBoundData::associated_ty_requirement(associated_requirement),
+                associated_requirement,
             )))
             (associated_ty_requirements(trait_variables, rest) => rest_requirements)
             ----------------------------- ("associated type")
@@ -371,13 +369,11 @@ judgment_fn! {
         debug(self_parameter, clause)
 
         (
-            (if trait_ref.parameters.first() == Some(self_parameter))!
+            (if parameters.first() == Some(self_parameter))!
             ----------------------------- ("supertrait")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Predicate(
-                    Predicate::IsImplemented(trait_ref),
-                )),
+                trait_ref @ TraitRef { parameters, .. },
             ) => TraitHeaderClause::supertrait(Binder::new((), trait_ref)))
         )
 
@@ -386,7 +382,7 @@ judgment_fn! {
             ----------------------------- ("outlives")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Relation(Relation::Outlives(source, target))),
+                Relation::Outlives(source, target),
             ) => TraitHeaderClause::outlives(Binder::new((), Relation::outlives(source, target))))
         )
 
@@ -406,26 +402,22 @@ judgment_fn! {
             ----------------------------- ("input predicate")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Predicate(
-                    predicate @ (
-                        Predicate::NotImplemented(_)
-                        | Predicate::AliasEq(_, _)
-                        | Predicate::WellFormedTraitRef(_)
-                        | Predicate::IsLocal(_)
-                        | Predicate::ConstHasType(_, _)
-                    ),
-                )),
+                predicate @ (
+                    Predicate::NotImplemented(_)
+                    | Predicate::AliasEq(_, _)
+                    | Predicate::WellFormedTraitRef(_)
+                    | Predicate::IsLocal(_)
+                    | Predicate::ConstHasType(_, _)
+                ),
             ) => TraitHeaderClause::input_well_formed(predicate))
         )
 
         (
-            (if trait_ref.parameters.first() != Some(self_parameter))!
+            (if parameters.first() != Some(self_parameter))!
             ----------------------------- ("input trait predicate")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Predicate(
-                    Predicate::IsImplemented(trait_ref),
-                )),
+                trait_ref @ TraitRef { parameters, .. },
             ) => TraitHeaderClause::input_well_formed(trait_ref))
         )
 
@@ -433,13 +425,11 @@ judgment_fn! {
             ----------------------------- ("input relation")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Relation(
-                    relation @ (
-                        Relation::Equals(_, _)
-                        | Relation::Sub(_, _)
-                        | Relation::WellFormed(_)
-                    ),
-                )),
+                relation @ (
+                    Relation::Equals(_, _)
+                    | Relation::Sub(_, _)
+                    | Relation::WellFormed(_)
+                ),
             ) => TraitHeaderClause::input_well_formed(relation))
         )
 
@@ -448,7 +438,7 @@ judgment_fn! {
             ----------------------------- ("input outlives")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Relation(Relation::Outlives(source, target))),
+                Relation::Outlives(source, target),
             ) => TraitHeaderClause::input_well_formed(Relation::outlives(source, target)))
         )
 

@@ -54,8 +54,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                Wc::Atomic(AtomicPredicate::Predicate(pred_1)),
-                Wc::Atomic(AtomicPredicate::Predicate(pred_2)),
+                AtomicPredicate::Predicate(pred_1),
+                AtomicPredicate::Predicate(pred_2),
             ) => c)
         )
 
@@ -66,8 +66,8 @@ judgment_fn! {
                 _decls,
                 env,
                 _assumptions,
-                Wc::Atomic(AtomicPredicate::Relation(rel_1)),
-                Wc::Atomic(AtomicPredicate::Relation(rel_2)),
+                AtomicPredicate::Relation(rel_1),
+                AtomicPredicate::Relation(rel_2),
             ) => Constraints::none(env))
         )
 
@@ -110,10 +110,6 @@ judgment_fn! {
         // `Valid(Zero, P)` can establish a seemingly nonzero view when that frontier exposes no
         // fields of `P` (for example, when `P` is unrelated to the frontier's root trait).
         (
-            (let TraitRef {
-                trait_id: via_trait_id,
-                parameters: _,
-            } = via_trait_ref)
             (validation_evidence_suffices(
                 decls,
                 via_validation,
@@ -134,8 +130,11 @@ judgment_fn! {
                 assumptions,
                 via_validation,
                 goal_validation,
-                AtomicPredicate::Predicate(Predicate::IsImplemented(via_trait_ref)),
-                AtomicPredicate::Predicate(Predicate::IsImplemented(goal_trait_ref)),
+                via_trait_ref @ TraitRef {
+                    trait_id: via_trait_id,
+                    parameters: _,
+                },
+                goal_trait_ref @ TraitRef { .. },
             ) => c)
         )
 
@@ -159,14 +158,12 @@ judgment_fn! {
                 assumptions,
                 via_validation,
                 goal_validation,
-                AtomicPredicate::Predicate(
-                    via @ (
-                        Predicate::NotImplemented(_)
-                        | Predicate::AliasEq(_, _)
-                        | Predicate::WellFormedTraitRef(_)
-                        | Predicate::IsLocal(_)
-                        | Predicate::ConstHasType(_, _)
-                    ),
+                via @ (
+                    Predicate::NotImplemented(_)
+                    | Predicate::AliasEq(_, _)
+                    | Predicate::WellFormedTraitRef(_)
+                    | Predicate::IsLocal(_)
+                    | Predicate::ConstHasType(_, _)
                 ),
                 AtomicPredicate::Predicate(goal),
             ) => c)

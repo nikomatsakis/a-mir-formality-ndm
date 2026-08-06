@@ -161,12 +161,10 @@ judgment_fn! {
                     where_clauses,
                     ..
                 },
-                TraitRequirementBoundData::AssociatedTyRequirement(
-                    AssociatedTyRequirement {
-                        id: associated_id,
-                        binder: associated_binder,
-                    },
-                ),
+                AssociatedTyRequirement {
+                    id: associated_id,
+                    binder: associated_binder,
+                },
             ) => c.pop_subst(gat_subst))
         )
     }
