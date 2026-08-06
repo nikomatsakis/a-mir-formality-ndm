@@ -1,5 +1,7 @@
-use crate::grammar::{AtomicPredicate, Predicate, Relation, Wc, WcData, Wcs};
-use crate::prove::ToWcs;
+use crate::grammar::{
+    AtomicPredicate, NegTraitImpl, NegTraitImplBoundData, Predicate, Relation, Trait,
+    TraitBoundData, TraitRef, Wc, WcData, Wcs,
+};
 use formality_core::judgment_fn;
 
 use crate::prove::prove::{
@@ -25,7 +27,7 @@ use crate::prove::prove::{
 use super::constraints::{Constrained, Constraints};
 
 fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, goal: &Wc) -> bool {
-    if assumptions
+    assumptions
         .iter()
         .any(|assumption| match (&assumption, goal) {
             (Wc::Mode(assumption_validation, assumption_goal), Wc::Mode(goal_validation, goal))
@@ -51,19 +53,6 @@ fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, 
 
             _ => &assumption == goal,
         })
-    {
-        return true;
-    }
-
-    false
-}
-
-fn is_ordinary_assumption_goal(goal: &Wc) -> bool {
-    matches!(goal, Wc::Atomic(_))
-}
-
-fn is_validation_assumption_goal(goal: &Wc) -> bool {
-    matches!(goal, Wc::Mode(_, _))
 }
 
 judgment_fn! {
@@ -122,25 +111,38 @@ judgment_fn! {
         )
 
         (
-            (if is_ordinary_assumption_goal(&goal))!
             (a in assumptions)
             (prove_via_assumption(decls, env, assumptions, a, goal) => c)
             ----------------------------- ("assumption")
-            (prove_wc(decls, env, assumptions, goal) => c)
+            (prove_wc(decls, env, assumptions, Wc::Atomic(goal)) => c)
         )
 
         (
-            (if is_validation_assumption_goal(&goal))
             (a in assumptions)
-            (prove_via_assumption(decls, env, assumptions, a, goal) => c)!
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                a,
+                validation.apply(goal),
+            ) => c)!
             ----------------------------- ("validation assumption")
-            (prove_wc(decls, env, assumptions, goal) => c)
+            (prove_wc(
+                decls,
+                env,
+                assumptions,
+                Wc::Mode(validation, goal),
+            ) => c)
         )
 
         // Prove an ordinary trait goal with a concrete impl. Validation goals enter the ordinary
         // solver through `prove_validate`'s `verify_x(G) :- G` rule.
         (
-            (candidate in decls.raw_trait_impls_for(&trait_ref.trait_id))!
+            (let TraitRef {
+                trait_id,
+                parameters: _,
+            } = trait_ref)
+            (candidate in decls.raw_trait_impls_for(trait_id))!
             (prove_via_impl(
                 decls,
                 env,
@@ -161,15 +163,39 @@ judgment_fn! {
         )
 
         (
-            (i in decls.neg_trait_impls_for(&trait_ref.trait_id))
-            (let (env, subst) = env.existential_substitution(&i.binder))
-            (let i = i.binder.instantiate_with(subst).unwrap())
-            (let impl_trait_ref = i.trait_ref())
-            (let impl_where_clauses = i.where_clauses.to_wcs())
-            (prove_after(decls, env, assumptions, Wcs::all_eq(&trait_ref.parameters, &impl_trait_ref.parameters)) => c)
-            (prove_after(decls, c, assumptions, impl_where_clauses) => c)
+            (NegTraitImpl {
+                binder,
+                safety: _,
+            } in decls.neg_trait_impls_for(trait_id))
+            (let (env, subst) = env.existential_substitution(binder))
+            (let NegTraitImplBoundData {
+                trait_id: impl_trait_id,
+                self_ty,
+                trait_parameters,
+                where_clauses,
+            } = binder.instantiate_with(subst).unwrap())
+            (let impl_trait_ref = impl_trait_id.with(self_ty, trait_parameters))
+            (let TraitRef {
+                trait_id: _,
+                parameters: impl_parameters,
+            } = impl_trait_ref)
+            (prove_after(
+                decls,
+                env,
+                assumptions,
+                Wcs::all_eq(goal_parameters, impl_parameters),
+            ) => c)
+            (prove_after(decls, c, assumptions, where_clauses) => c)
             ----------------------------- ("negative impl")
-            (prove_wc(decls, env, assumptions, Predicate::NotImplemented(trait_ref)) => c.pop_subst(subst))
+            (prove_wc(
+                decls,
+                env,
+                assumptions,
+                Predicate::NotImplemented(TraitRef {
+                    trait_id,
+                    parameters: goal_parameters,
+                }),
+            ) => c.pop_subst(subst))
         )
 
         (
@@ -194,7 +220,7 @@ judgment_fn! {
                 assumptions,
                 trait_def,
                 requirement,
-                Predicate::is_implemented(trait_ref),
+                trait_ref,
             ) => c)!
             ----------------------------- ("trait requirement")
             (prove_wc(decls, env, assumptions, Predicate::IsImplemented(trait_ref)) => c)
@@ -219,13 +245,23 @@ judgment_fn! {
         // trait-requirement rule above, which exposes only the clauses classified as implied
         // requirements.
         (
-            (for_all(decls, env, assumptions, &trait_ref.parameters, &prove_wf) => c)
-            (let trait_def = decls.trait_def(&trait_ref.trait_id))
-            (let trait_data = trait_def.binder.instantiate_with(&trait_ref.parameters).unwrap())
-            (let trait_where_clauses = trait_data.where_clauses.to_wcs())
-            (prove_after(decls, c, assumptions, trait_where_clauses) => c)
+            (for_all(decls, env, assumptions, parameters, &prove_wf) => c)
+            (let Trait { binder, .. } = decls.trait_def(trait_id))
+            (let TraitBoundData {
+                where_clauses,
+                trait_items: _,
+            } = binder.instantiate_with(parameters).unwrap())
+            (prove_after(decls, c, assumptions, where_clauses) => c)
             ----------------------------- ("trait well formed")
-            (prove_wc(decls, env, assumptions, Predicate::WellFormedTraitRef(trait_ref)) => c)
+            (prove_wc(
+                decls,
+                env,
+                assumptions,
+                Predicate::WellFormedTraitRef(TraitRef {
+                    trait_id,
+                    parameters,
+                }),
+            ) => c)
         )
 
         (

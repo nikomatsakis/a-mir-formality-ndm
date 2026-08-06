@@ -1,4 +1,4 @@
-use crate::grammar::{AtomicPredicate, Predicate, Upto, WcData, Wcs};
+use crate::grammar::{AtomicPredicate, Predicate, TraitRef, Upto, Wc, Wcs};
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
@@ -17,8 +17,8 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
-        via: WcData,
-        goal: WcData,
+        via: Wc,
+        goal: Wc,
     ) => Constraints {
         debug(goal, via, assumptions, env)
 
@@ -37,8 +37,8 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                WcData::Mode(via_validation, via),
-                WcData::Mode(goal_validation, goal),
+                Wc::Mode(via_validation, via),
+                Wc::Mode(goal_validation, goal),
             ) => c)
         )
 
@@ -54,34 +54,31 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                WcData::Atomic(AtomicPredicate::Predicate(pred_1)),
-                WcData::Atomic(AtomicPredicate::Predicate(pred_2)),
+                Wc::Atomic(AtomicPredicate::Predicate(pred_1)),
+                Wc::Atomic(AtomicPredicate::Predicate(pred_2)),
             ) => c)
         )
 
         (
-            (let (skel_c, parameters_c) = rel_1.debone())
-            (let (skel_g, parameters_g) = rel_2.debone())
-            (if skel_c == skel_g)
-            (if parameters_c == parameters_g)! // for relations, we require 100% match
+            (if rel_1 == rel_2)! // for relations, we require 100% match
             ----------------------------- ("relation-axiom")
             (prove_via_assumption(
                 _decls,
                 env,
                 _assumptions,
-                WcData::Atomic(AtomicPredicate::Relation(rel_1)),
-                WcData::Atomic(AtomicPredicate::Relation(rel_2)),
+                Wc::Atomic(AtomicPredicate::Relation(rel_1)),
+                Wc::Atomic(AtomicPredicate::Relation(rel_2)),
             ) => Constraints::none(env))
         )
 
         // If you have `where for<'a> T: Trait<'a>` then you can prove `T: Trait<'b>` for any `'b`.
         (
             (let (env, subst) = env.existential_substitution(binder))
-            (let via1 = binder.instantiate_with(subst).unwrap())
+            (let via1 = binder.instantiate_with(subst)?)
             // Try to prove `T: Trait<?a> == goal`.
             (prove_via_assumption(decls, env, assumptions, via1, goal) => c)
             ----------------------------- ("forall")
-            (prove_via_assumption(decls, env, assumptions, WcData::ForAll(binder), goal) => c.pop_subst(subst))
+            (prove_via_assumption(decls, env, assumptions, Wc::ForAll(binder), goal) => c.pop_subst(subst))
         )
 
         // If you have `where if (T: Debug) T: Foo` (not in Rust but it should be...)...
@@ -91,7 +88,7 @@ judgment_fn! {
             // ...and we can prove `T: Debug`... then it holds.
             (prove_after(decls, c, assumptions, wc_condition) => c)
             ----------------------------- ("implies")
-            (prove_via_assumption(decls, env, assumptions, WcData::Implies(wc_condition, wc_consequence), goal) => c)
+            (prove_via_assumption(decls, env, assumptions, Wc::Implies(wc_condition, wc_consequence), goal) => c)
         )
     }
 }
@@ -113,19 +110,22 @@ judgment_fn! {
         // `Valid(Zero, P)` can establish a seemingly nonzero view when that frontier exposes no
         // fields of `P` (for example, when `P` is unrelated to the frontier's root trait).
         (
-            (if via_trait_ref.trait_id == goal_trait_ref.trait_id)
+            (let TraitRef {
+                trait_id: via_trait_id,
+                parameters: _,
+            } = via_trait_ref)
             (validation_evidence_suffices(
                 decls,
                 via_validation,
                 goal_validation,
-                &via_trait_ref.trait_id,
+                via_trait_id,
             ) => ())
             (prove_via_assumption(
                 decls,
                 env,
                 assumptions,
-                Predicate::is_implemented(via_trait_ref),
-                Predicate::is_implemented(goal_trait_ref),
+                via_trait_ref,
+                goal_trait_ref,
             ) => c)
             ----------------------------- ("trait predicate")
             (prove_via_mode(
@@ -140,7 +140,6 @@ judgment_fn! {
         )
 
         (
-            (if !matches!(via, Predicate::IsImplemented(_)))!
             (validation_frontier_suffices(
                 decls,
                 via_validation,
@@ -160,7 +159,15 @@ judgment_fn! {
                 assumptions,
                 via_validation,
                 goal_validation,
-                AtomicPredicate::Predicate(via),
+                AtomicPredicate::Predicate(
+                    via @ (
+                        Predicate::NotImplemented(_)
+                        | Predicate::AliasEq(_, _)
+                        | Predicate::WellFormedTraitRef(_)
+                        | Predicate::IsLocal(_)
+                        | Predicate::ConstHasType(_, _)
+                    ),
+                ),
                 AtomicPredicate::Predicate(goal),
             ) => c)
         )

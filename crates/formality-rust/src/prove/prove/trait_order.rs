@@ -6,11 +6,26 @@
 //! but `A` cannot reach `B`.
 
 use crate::grammar::{
-    CrateItem, Trait, TraitId, TraitItem, Ty, Upto, Variable, WhereBound, WhereClause,
+    AssociatedTyBoundData, CrateItem, Fallible, Trait, TraitBoundData, TraitId, TraitImplBoundData,
+    TraitItem, TraitRef, Ty, Upto, Variable, WhereBound, WhereClause,
 };
-use crate::prove::prove::{trait_header_clause, Program, TraitHeaderClause};
+use crate::prove::prove::{as_associated_ty, trait_header_clause, Program, TraitHeaderClause};
 use crate::prove::ToWcs;
 use formality_core::judgment_fn;
+
+judgment_fn! {
+    /// The impl self type is exactly one bound type parameter.
+    fn exact_generic_self_ty(
+        self_ty: Ty,
+    ) => () {
+        debug(self_ty)
+
+        (
+            -------------------------------------------- ("bound type parameter")
+            (exact_generic_self_ty(Ty::Variable(Variable::BoundVar(_))) => ())
+        )
+    }
+}
 
 judgment_fn! {
     /// One direct edge in the syntactic trait-dependency graph.
@@ -31,8 +46,12 @@ judgment_fn! {
         // Every positive trait predicate in the trait header contributes an
         // edge. This includes, but is not limited to, direct supertraits.
         (
-            (if let Some(trait_def) = trait_def(program, source))
-            (where_clause in &trait_def.binder.explicit_binder.peek().where_clauses)
+            (let Trait { binder, .. } = require_trait_def(program, source)?)
+            (let TraitBoundData {
+                where_clauses,
+                trait_items: _,
+            } = binder.explicit_binder.peek())
+            (where_clause in where_clauses)
             (target in traits_in_where_clause(where_clause))
             -------------------------------------------- ("trait where-clause")
             (trait_edge(program, source) => target)
@@ -41,10 +60,18 @@ judgment_fn! {
         // Bounds promised by an associated type contribute edges from the
         // trait that declares the associated type.
         (
-            (if let Some(trait_def) = trait_def(program, source))
-            (trait_item in &trait_def.binder.explicit_binder.peek().trait_items)
-            (if let TraitItem::AssociatedTy(associated_ty) = trait_item)!
-            (ensure in &associated_ty.binder.peek().ensures)
+            (let Trait { binder, .. } = require_trait_def(program, source)?)
+            (let TraitBoundData {
+                where_clauses: _,
+                trait_items,
+            } = binder.explicit_binder.peek())
+            (trait_item in trait_items)
+            (as_associated_ty(trait_item) => associated_ty)!
+            (let AssociatedTyBoundData {
+                ensures,
+                where_clauses: _,
+            } = associated_ty.binder.peek())
+            (ensure in ensures)
             (target in traits_in_where_bound(ensure))
             -------------------------------------------- ("associated type bound")
             (trait_edge(program, source) => target)
@@ -52,10 +79,18 @@ judgment_fn! {
 
         // The conditions on an associated type likewise contribute edges.
         (
-            (if let Some(trait_def) = trait_def(program, source))
-            (trait_item in &trait_def.binder.explicit_binder.peek().trait_items)
-            (if let TraitItem::AssociatedTy(associated_ty) = trait_item)!
-            (where_clause in &associated_ty.binder.peek().where_clauses)
+            (let Trait { binder, .. } = require_trait_def(program, source)?)
+            (let TraitBoundData {
+                where_clauses: _,
+                trait_items,
+            } = binder.explicit_binder.peek())
+            (trait_item in trait_items)
+            (as_associated_ty(trait_item) => associated_ty)!
+            (let AssociatedTyBoundData {
+                ensures: _,
+                where_clauses,
+            } = associated_ty.binder.peek())
+            (where_clause in where_clauses)
             (target in traits_in_where_clause(where_clause))
             -------------------------------------------- ("associated type where-clause")
             (trait_edge(program, source) => target)
@@ -68,15 +103,19 @@ judgment_fn! {
         (
             (candidate in program.raw_trait_impls_for(source))
             (if trait_crate_index(program, source) == Some(candidate.id.crate_index))
-            (let impl_data = candidate.trait_impl.binder.peek())
-            (if matches!(
-                &impl_data.self_ty,
-                Ty::Variable(Variable::BoundVar(_)),
-            ))!
-            (where_clause in impl_data.where_clauses.to_wcs())
-            (trait_header_clause(impl_data.self_ty.to_parameter(), where_clause) => classification)
-            (if let TraitHeaderClause::Supertrait(supertrait) = classification)
-            (let target = supertrait.peek().trait_id.clone())
+            (let TraitImplBoundData {
+                self_ty,
+                where_clauses,
+                ..
+            } = candidate.trait_impl.binder.peek())
+            (exact_generic_self_ty(self_ty) => ())!
+            (where_clause in where_clauses.to_wcs())
+            (trait_header_clause(self_ty, where_clause) =>
+                TraitHeaderClause::Supertrait(supertrait))
+            (let TraitRef {
+                trait_id: target,
+                parameters: _,
+            } = supertrait.peek())
             -------------------------------------------- ("companion blanket impl")
             (trait_edge(program, source) => target)
         )
@@ -94,27 +133,29 @@ judgment_fn! {
         debug(program, upto, source, result)
 
         (
-            (if let Upto::Supertraits(root) = upto)
-            (trait_less_than(program, source, root.clone()) => ())
+            (trait_less_than(program, source, root) => ())
             (trait_less_than(program, result, root) => ())
             -------------------------------------------- ("lower trait")
-            (can_project_supertrait(program, upto, source, result) => ())
+            (can_project_supertrait(
+                program,
+                Upto::Supertraits(root),
+                source,
+                result,
+            ) => ())
         )
 
         (
-            (if let Upto::GatBounds(root) = upto)
             (if source == root)!
             (trait_less_than(program, result, root) => ())
             -------------------------------------------- ("root after supertraits")
-            (can_project_supertrait(program, upto, source, result) => ())
+            (can_project_supertrait(program, Upto::GatBounds(root), source, result) => ())
         )
 
         (
-            (if let Upto::GatBounds(root) = upto)
-            (trait_less_than(program, source, root.clone()) => ())
+            (trait_less_than(program, source, root) => ())
             (trait_less_than(program, result, root) => ())
             -------------------------------------------- ("completed lower trait")
-            (can_project_supertrait(program, upto, source, result) => ())
+            (can_project_supertrait(program, Upto::GatBounds(root), source, result) => ())
         )
     }
 }
@@ -131,15 +172,15 @@ judgment_fn! {
         debug(program, upto, owner, result)
 
         (
-            (if matches!(upto, Upto::Supertraits(_) | Upto::GatBounds(_)))
-            (let root = match upto {
-                Upto::Supertraits(root) | Upto::GatBounds(root) => root,
-                Upto::Zero => unreachable!(),
-            })
             (trait_less_than(program, owner, root) => ())
             (trait_less_than(program, result, root) => ())
             -------------------------------------------- ("completed lower trait")
-            (can_project_associated_bound(program, upto, owner, result) => ())
+            (can_project_associated_bound(
+                program,
+                Upto::Supertraits(root) | Upto::GatBounds(root),
+                owner,
+                result,
+            ) => ())
         )
     }
 }
@@ -154,24 +195,21 @@ judgment_fn! {
         debug(program, upto, owner)
 
         (
-            (if let Upto::Supertraits(root) = upto)
             (trait_less_than(program, owner, root) => ())
             -------------------------------------------- ("lower trait")
-            (can_project_outlives(program, upto, owner) => ())
+            (can_project_outlives(program, Upto::Supertraits(root), owner) => ())
         )
 
         (
-            (if let Upto::GatBounds(root) = upto)
             (if owner == root)!
             -------------------------------------------- ("root after supertraits")
-            (can_project_outlives(program, upto, owner) => ())
+            (can_project_outlives(program, Upto::GatBounds(root), owner) => ())
         )
 
         (
-            (if let Upto::GatBounds(root) = upto)
             (trait_less_than(program, owner, root) => ())
             -------------------------------------------- ("completed lower trait")
-            (can_project_outlives(program, upto, owner) => ())
+            (can_project_outlives(program, Upto::GatBounds(root), owner) => ())
         )
     }
 }
@@ -376,14 +414,21 @@ fn trait_crate_index(program: &Program, trait_id: &TraitId) -> Option<usize> {
     })
 }
 
-fn trait_def(program: &Program, trait_id: &TraitId) -> Option<Trait> {
+fn trait_def<'p>(program: &'p Program, trait_id: &TraitId) -> Option<&'p Trait> {
     program
-        .traits()
-        .into_iter()
-        .find(|trait_def| trait_def.id == *trait_id)
+        .program()
+        .items_from_all_crates()
+        .find_map(|item| match item {
+            CrateItem::Trait(trait_def) if trait_def.id == *trait_id => Some(trait_def),
+            _ => None,
+        })
 }
 
-fn traits_from_dependency_crates(program: &Program, source: &TraitId) -> Vec<TraitId> {
+fn require_trait_def<'p>(program: &'p Program, trait_id: &TraitId) -> Fallible<&'p Trait> {
+    trait_def(program, trait_id).ok_or_else(|| anyhow::anyhow!("no trait named `{trait_id:?}`"))
+}
+
+fn traits_from_dependency_crates<'p>(program: &'p Program, source: &TraitId) -> Vec<&'p TraitId> {
     let Some(source_crate_index) = trait_crate_index(program, source) else {
         return vec![];
     };
@@ -392,19 +437,19 @@ fn traits_from_dependency_crates(program: &Program, source: &TraitId) -> Vec<Tra
         .iter()
         .flat_map(|krate| &krate.items)
         .filter_map(|item| match item {
-            CrateItem::Trait(trait_def) => Some(trait_def.id.clone()),
+            CrateItem::Trait(trait_def) => Some(&trait_def.id),
             _ => None,
         })
         .collect()
 }
 
-fn traits_in_where_clause(where_clause: &WhereClause) -> Vec<TraitId> {
+fn traits_in_where_clause(where_clause: &WhereClause) -> Vec<&TraitId> {
     // This initial edge policy records the trait named by a positive predicate, but not traits
     // mentioned only inside its parameters or as projection owners. Omitting such edges is
     // conservative: it can make traits incomparable and reject an ImplWF derivation, but cannot
     // manufacture an invalid ordering fact.
     match where_clause {
-        WhereClause::IsImplemented(_, trait_id, _) => vec![trait_id.clone()],
+        WhereClause::IsImplemented(_, trait_id, _) => vec![trait_id],
         WhereClause::ForAll(binder) => traits_in_where_clause(binder.peek()),
 
         WhereClause::AliasEq(_, _)
@@ -413,9 +458,9 @@ fn traits_in_where_clause(where_clause: &WhereClause) -> Vec<TraitId> {
     }
 }
 
-fn traits_in_where_bound(where_bound: &WhereBound) -> Vec<TraitId> {
+fn traits_in_where_bound(where_bound: &WhereBound) -> Vec<&TraitId> {
     match where_bound {
-        WhereBound::IsImplemented(trait_id, _) => vec![trait_id.clone()],
+        WhereBound::IsImplemented(trait_id, _) => vec![trait_id],
         WhereBound::ForAll(binder) => traits_in_where_bound(binder.peek()),
         WhereBound::Outlives(_) => vec![],
     }

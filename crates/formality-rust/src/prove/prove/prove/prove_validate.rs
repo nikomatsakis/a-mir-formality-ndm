@@ -1,12 +1,12 @@
 use crate::grammar::{
-    AliasTy, AssociatedTyBoundData, AtomicPredicate, Parameter, Predicate, Relation, Trait,
-    TraitItem, TraitRef, Upto, Wc, Wcs,
+    AliasTy, AssociatedTy, AssociatedTyBoundData, AtomicPredicate, Parameter, Predicate, Relation,
+    Trait, TraitBoundData, TraitRef, Upto, Wc, Wcs,
 };
 use crate::prove::prove::{
-    can_project_associated_bound, can_project_outlives, can_project_supertrait, trait_requirement,
-    TraitRequirement, TraitRequirementBoundData,
+    can_project_associated_bound, can_project_outlives, can_project_supertrait,
+    trait_associated_ty, trait_requirement, AssociatedTyRequirement, TraitRequirement,
+    TraitRequirementBoundData,
 };
-use crate::prove::ToWcs;
 use formality_core::{judgment_fn, Downcast};
 
 use super::{
@@ -20,13 +20,33 @@ use super::{
 };
 use crate::prove::prove::Program;
 
-fn replace_trait_parameter(
-    mut trait_ref: TraitRef,
-    index: usize,
-    parameter: Parameter,
-) -> TraitRef {
-    trait_ref.parameters[index] = parameter;
-    trait_ref
+fn associated_type_parameters(
+    parameters: &[Parameter],
+) -> impl Iterator<Item = (usize, AliasTy)> + '_ {
+    parameters
+        .iter()
+        .enumerate()
+        .filter_map(|(index, parameter)| parameter.downcast().map(|alias| (index, alias)))
+}
+
+fn replace_trait_parameter(trait_ref: &TraitRef, index: usize, parameter: &Parameter) -> TraitRef {
+    let mut parameters = trait_ref.parameters.to_owned();
+    parameters[index] = parameter.to_owned();
+    TraitRef::new(&trait_ref.trait_id, parameters)
+}
+
+judgment_fn! {
+    /// Extract the parameters of an outlives relation.
+    fn as_outlives(
+        relation: Relation,
+    ) => (Parameter, Parameter) {
+        debug(relation)
+
+        (
+            ----------------------------- ("outlives")
+            (as_outlives(Relation::Outlives(source, target)) => (source, target))
+        )
+    }
 }
 
 judgment_fn! {
@@ -59,9 +79,7 @@ judgment_fn! {
         // validated trait predicate through that value without promoting the equation or the
         // normalized type into ordinary evidence.
         (
-            (i in 0 .. trait_ref.parameters.len())
-            (let parameter = trait_ref.parameters[*i].clone())
-            (if let Some(alias) = parameter.downcast::<AliasTy>())!
+            ((index, alias) in associated_type_parameters(parameters))!
             (prove_normalize_for_validation(
                 decls,
                 env,
@@ -69,7 +87,7 @@ judgment_fn! {
                 alias,
             ) => Constrained(normalized, c))
             (let normalized_trait_ref =
-                replace_trait_parameter(trait_ref.clone(), *i, normalized.clone()))
+                replace_trait_parameter(trait_ref, *index, normalized))
             (prove_after(
                 decls,
                 c,
@@ -82,13 +100,20 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)),
+                AtomicPredicate::Predicate(Predicate::IsImplemented(
+                    trait_ref @ TraitRef {
+                        trait_id: _,
+                        parameters,
+                    },
+                )),
             ) => c)
         )
 
-        // Provisional evidence may expose only fields already constructed at `validation`.
-        // Exact evidence is handled by the assumption rule before reaching this rule, and a
-        // complete ordinary proof is handled by the fallback rules below.
+        // Provisional evidence may expose only fields already constructed at `validation`. Exact
+        // evidence is handled by the assumption rule before reaching this rule, and a complete
+        // ordinary proof is handled by the fallback rule below. Trait requirements can establish
+        // either trait predicates or outlives relations, so restrict this dispatcher to those
+        // constructors before enumerating every trait requirement.
         (
             (trait_def in decls.traits())
             (trait_requirement(trait_def) => requirements)
@@ -100,7 +125,7 @@ judgment_fn! {
                 validation,
                 trait_def,
                 requirement,
-                trait_ref,
+                validate_goal,
             ) => c)!
             ----------------------------- ("trait requirement")
             (prove_validate(
@@ -108,32 +133,10 @@ judgment_fn! {
                 env,
                 assumptions,
                 validation,
-                AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)),
-            ) => c)
-        )
-
-        // The same declared-requirement judgment handles outlives conclusions. Unlike a
-        // supertrait conclusion this is a relation, so it needs its own dispatch rule.
-        (
-            (trait_def in decls.traits())
-            (trait_requirement(trait_def) => requirements)
-            (requirement in requirements)
-            (prove_validate_via_trait_requirement(
-                decls,
-                env,
-                assumptions,
-                validation,
-                trait_def,
-                requirement,
-                Relation::Outlives(a.clone(), b.clone()),
-            ) => c)!
-            ----------------------------- ("outlives requirement")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation,
-                AtomicPredicate::Relation(Relation::Outlives(a, b)),
+                validate_goal @ (
+                    AtomicPredicate::Predicate(Predicate::IsImplemented(_))
+                    | AtomicPredicate::Relation(Relation::Outlives(_, _))
+                ),
             ) => c)
         )
 
@@ -142,25 +145,13 @@ judgment_fn! {
         // above.
         (
             (prove_wc(decls, env, assumptions, validate_goal) => c)
-            --- ("atomic predicate")
+            --- ("ordinary proof")
             (prove_validate(
                 decls,
                 env,
                 assumptions,
-                validation,
-                AtomicPredicate::Predicate(validate_goal),
-            ) => c)
-        )
-
-        (
-            (prove_wc(decls, env, assumptions, validate_goal) => c)
-            --- ("atomic relation")
-            (prove_validate(
-                decls,
-                env,
-                assumptions,
-                validation,
-                AtomicPredicate::Relation(validate_goal),
+                _validation,
+                validate_goal,
             ) => c)
         )
     }
@@ -180,6 +171,53 @@ judgment_fn! {
     ) => Constraints {
         debug(validation, assumptions, trait_def, requirement, goal, env)
 
+        (
+            (let (env, trait_subst) = env.existential_substitution(requirement_binder))
+            (let requirement = requirement_binder.instantiate_with(trait_subst)?)
+            (let source_trait_ref = TraitRef::new(source_trait_id, trait_subst))
+            (prove_validate_via_instantiated_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                validation,
+                source_trait_ref,
+                requirement,
+                goal,
+            ) => c)
+            ----------------------------- ("instantiate")
+            (prove_validate_via_trait_requirement(
+                decls,
+                env,
+                assumptions,
+                validation,
+                Trait {
+                    safety: _,
+                    id: source_trait_id,
+                    binder: _,
+                },
+                TraitRequirement {
+                    binder: requirement_binder,
+                },
+                goal,
+            ) => c.pop_subst(trait_subst))
+        )
+    }
+}
+
+judgment_fn! {
+    /// Use one instantiated trait requirement without turning provisional evidence into ordinary
+    /// evidence.
+    fn prove_validate_via_instantiated_trait_requirement(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        validation: Upto,
+        source_trait_ref: TraitRef,
+        requirement: TraitRequirementBoundData,
+        goal: AtomicPredicate,
+    ) => Constraints {
+        debug(validation, assumptions, source_trait_ref, requirement, goal, env)
+
         // Given `trait Stronger: Super`, this rule derives
         //
         //     verify(S, Impl, T: Stronger)
@@ -190,41 +228,43 @@ judgment_fn! {
         // requires both `Stronger < Impl` and `Super < Impl`; at the GAT-bound frontier the root
         // trait's own supertrait fields are available too.
         (
-            (if let AtomicPredicate::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
             (can_project_supertrait(
                 decls,
                 validation,
-                &trait_def.id,
-                &goal_trait_ref.trait_id,
+                source_trait_id,
+                goal_trait_id,
             ) => ())
-
-            (let (env, trait_subst) =
-                env.existential_substitution(&requirement.binder))
-            (let requirement = requirement.binder.instantiate_with(trait_subst)?)
-            (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
             (prove_via_assumption(
                 decls,
                 env,
                 assumptions,
                 Wc::for_all(supertrait),
-                goal,
+                goal_trait_ref,
             ) => c)
             (prove_after(
                 decls,
                 c,
                 assumptions,
-                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
+                validation.apply(source_trait_ref),
             ) => c)
             ----------------------------- ("supertrait")
-            (prove_validate_via_trait_requirement(
+            (prove_validate_via_instantiated_trait_requirement(
                 decls,
                 env,
                 assumptions,
                 validation,
-                trait_def,
-                requirement,
-                goal,
-            ) => c.pop_subst(trait_subst))
+                source_trait_ref @ TraitRef {
+                    trait_id: source_trait_id,
+                    parameters: _,
+                },
+                TraitRequirementBoundData::Supertrait(supertrait),
+                AtomicPredicate::Predicate(Predicate::IsImplemented(
+                    goal_trait_ref @ TraitRef {
+                        trait_id: goal_trait_id,
+                        parameters: _,
+                    },
+                )),
+            ) => c)
         )
 
         // Associated type bounds are implied requirements too. For example, from verified
@@ -232,114 +272,122 @@ judgment_fn! {
         // `<T as Family>::Item<U>: Bound`, provided that associated-bound field has already been
         // constructed at the current frontier.
         (
-            (if let AtomicPredicate::Predicate(Predicate::IsImplemented(goal_trait_ref)) = goal)
             (can_project_associated_bound(
                 decls,
                 validation,
-                &trait_def.id,
-                &goal_trait_ref.trait_id,
+                source_trait_id,
+                goal_trait_id,
             ) => ())
-
-            (let (env, trait_subst) =
-                env.existential_substitution(&requirement.binder))
-            (let requirement = requirement.binder.instantiate_with(trait_subst)?)
-            (if let TraitRequirementBoundData::AssociatedTyRequirement(associated) = requirement)
             (let (env, associated_subst) =
-                env.existential_substitution(&associated.binder))
-            (let value_template = associated.binder.instantiate_with(associated_subst)?)
+                env.existential_substitution(associated_binder))
+            (let value_template = associated_binder.instantiate_with(associated_subst)?)
             (let alias = AliasTy::associated_ty(
-                &trait_def.id,
-                &associated.id,
+                source_trait_id,
+                associated_id,
                 associated_subst.len(),
-                (trait_subst, associated_subst),
+                (source_parameters, associated_subst),
             ))
-            (let value_bounds =
-                value_template.instantiate_with(std::slice::from_ref(&alias))?)
+            (let value_bounds = value_template.instantiate_with((alias,))?)
             (required in value_bounds)!
-            (prove_via_assumption(decls, env, assumptions, required, goal) => c)
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                required,
+                goal_trait_ref,
+            ) => c)
 
-            (let trait_data = trait_def.binder.instantiate_with(trait_subst)?)
-            (let trait_associated_ty = trait_data
-                .trait_items
-                .iter()
-                .find_map(|item| match item {
-                    TraitItem::AssociatedTy(associated_ty)
-                        if associated_ty.id == associated.id =>
-                    {
-                        Some(associated_ty)
-                    }
-                    _ => None,
-                })
-                .ok_or_else(|| anyhow::anyhow!(
-                    "trait has no associated type {:?}",
-                    associated.id,
-                ))?)
+            (let Trait {
+                safety: _,
+                id: _,
+                binder: trait_binder,
+            } = decls.trait_def(source_trait_id))
+            (let TraitBoundData {
+                where_clauses: _,
+                trait_items,
+            } = trait_binder.instantiate_with(source_parameters)?)
+            (trait_associated_ty(trait_items, associated_id) => AssociatedTy {
+                id: _,
+                binder: trait_associated_binder,
+            })
             (let AssociatedTyBoundData {
                 ensures: _,
                 where_clauses,
-            } = trait_associated_ty.binder.instantiate_with(associated_subst)?)
+            } = trait_associated_binder.instantiate_with(associated_subst)?)
             (prove_after(
                 decls,
                 c,
                 assumptions,
-                validation.apply_goals(where_clauses.to_wcs()),
+                validation.apply_goals(where_clauses),
             ) => c)
             (prove_after(
                 decls,
                 c,
                 assumptions,
-                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
+                validation.apply(source_trait_ref),
             ) => c)
             (let c = c.pop_subst(associated_subst))
             ----------------------------- ("associated type")
-            (prove_validate_via_trait_requirement(
+            (prove_validate_via_instantiated_trait_requirement(
                 decls,
                 env,
                 assumptions,
                 validation,
-                trait_def,
-                requirement,
-                goal,
-            ) => c.pop_subst(trait_subst))
+                source_trait_ref @ TraitRef {
+                    trait_id: source_trait_id,
+                    parameters: source_parameters,
+                },
+                TraitRequirementBoundData::AssociatedTyRequirement(
+                    AssociatedTyRequirement {
+                        id: associated_id,
+                        binder: associated_binder,
+                    },
+                ),
+                AtomicPredicate::Predicate(Predicate::IsImplemented(
+                    goal_trait_ref @ TraitRef {
+                        trait_id: goal_trait_id,
+                        parameters: _,
+                    },
+                )),
+            ) => c)
         )
 
         // Outlives requirements occupy the supertrait portion of a dictionary and follow that
         // portion's construction frontier.
         (
-            (can_project_outlives(decls, validation, &trait_def.id) => ())
-            (if let AtomicPredicate::Relation(goal_relation) = goal)
-            (let (env, trait_subst) =
-                env.existential_substitution(&requirement.binder))
-            (let requirement = requirement.binder.instantiate_with(trait_subst)?)
-            (if let TraitRequirementBoundData::Outlives(outlives) = requirement)!
+            (can_project_outlives(decls, validation, source_trait_id) => ())
             (let (env, outlives_subst) = env.existential_substitution(outlives))
             (let required_relation = outlives.instantiate_with(outlives_subst)?)
-            (let (required_skeleton, required_parameters) = required_relation.debone())
-            (let (goal_skeleton, goal_parameters) = goal_relation.debone())
-            (if required_skeleton == goal_skeleton)
+            (as_outlives(required_relation) => (required_source, required_target))
             (prove_after(
                 decls,
                 env,
                 assumptions,
-                Wcs::all_eq(required_parameters, goal_parameters),
+                (
+                    Relation::equals(required_source, goal_source),
+                    Relation::equals(required_target, goal_target),
+                ),
             ) => c)
             (prove_after(
                 decls,
                 c,
                 assumptions,
-                validation.apply(TraitRef::new(&trait_def.id, trait_subst)),
+                validation.apply(source_trait_ref),
             ) => c)
             (let c = c.pop_subst(outlives_subst))
             ----------------------------- ("outlives")
-            (prove_validate_via_trait_requirement(
+            (prove_validate_via_instantiated_trait_requirement(
                 decls,
                 env,
                 assumptions,
                 validation,
-                trait_def,
-                requirement,
-                goal,
-            ) => c.pop_subst(trait_subst))
+                source_trait_ref @ TraitRef {
+                    trait_id: source_trait_id,
+                    parameters: _,
+                },
+                TraitRequirementBoundData::Outlives(outlives),
+                AtomicPredicate::Relation(Relation::Outlives(goal_source, goal_target)),
+            ) => c)
         )
     }
 }

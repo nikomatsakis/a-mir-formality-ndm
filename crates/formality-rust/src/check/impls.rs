@@ -1,12 +1,14 @@
 use anyhow::bail;
 
 use crate::grammar::{
-    AdtId, AssociatedTy, AssociatedTyBoundData, AssociatedTyValue, AssociatedTyValueBoundData,
-    Binder, CrateId, Fallible, Fn, FnBoundData, ImplItem, MaybeFnBody, NegTraitImpl,
-    NegTraitImplBoundData, Predicate, Relation, RigidName, Substitution, Trait, TraitBoundData,
-    TraitImpl, TraitImplBoundData, TraitItem, TraitRef, Ty, Wcs,
+    Adt, AdtBoundData, AdtId, AssociatedTy, AssociatedTyBoundData, AssociatedTyValue,
+    AssociatedTyValueBoundData, Binder, CrateId, Fallible, Fn, FnBoundData, ImplItem, InputArg,
+    MaybeFnBody, NegTraitImpl, NegTraitImplBoundData, Predicate, Relation, RigidName, Substitution,
+    Trait, TraitBoundData, TraitImpl, TraitImplBoundData, TraitItem, TraitRef, Ty, ValueId, Wcs,
 };
-use crate::prove::prove::{prove_impl_wf, trait_input_wf_requirements, Env, Program, Safety};
+use crate::prove::prove::{
+    prove_impl_wf, trait_associated_ty, trait_input_wf_requirements, Env, Program, Safety,
+};
 use crate::rust::Term;
 use formality_core::{judgment::ProofTree, judgment_fn, Downcasted};
 
@@ -18,11 +20,11 @@ judgment_fn! {
     ) => () {
         debug(program, trait_impl, crate_id)
         (
-            (let TraitImpl { binder, safety: _ } = &trait_impl)
             (let (env, bound_data) = Env::default().instantiate_universally(binder))
             (let TraitImplBoundData { trait_id, self_ty, trait_parameters, where_clauses, impl_items } = bound_data)
-            (let trait_ref = trait_id.with(self_ty, trait_parameters))
-            (let trait_decl = program.program().trait_named(&trait_ref.trait_id)?)
+            (let trait_ref @ TraitRef { parameters: trait_ref_parameters, .. } =
+                trait_id.with(self_ty, trait_parameters))
+            (let trait_decl = program.program().trait_named(trait_id)?)
             (let input_wf_requirements =
                 trait_input_wf_requirements(trait_decl, trait_ref)?)
 
@@ -30,11 +32,13 @@ judgment_fn! {
             (super::prove_goal(program, env, where_clauses, input_wf_requirements) => ())
             (super::prove_not_goal(program, env, where_clauses, Predicate::not_implemented(trait_ref)) => ())
 
-            (let TraitBoundData { where_clauses: _, trait_items } = trait_decl.binder.instantiate_with(&trait_ref.parameters)?)
-            (check_safety_matches(&trait_decl, &trait_impl) => ())
+            (let Trait { binder: trait_binder, .. } = trait_decl)
+            (let TraitBoundData { where_clauses: _, trait_items } =
+                trait_binder.instantiate_with(trait_ref_parameters)?)
+            (check_safety_matches(trait_decl, trait_impl) => ())
 
             (for_all(impl_item in impl_items)
-                (check_trait_impl_item(program, env, where_clauses, trait_ref, trait_items, impl_item, crate_id) => ()))
+                (check_trait_impl_item(program, env, where_clauses, trait_items, impl_item, crate_id) => ()))
 
             (check_unique_impl_item_names(impl_items) => ())
             (check_all_required_items_present(trait_items, impl_items) => ())
@@ -46,7 +50,11 @@ judgment_fn! {
             (prove_impl_wf(program, trait_impl) => ())
 
             ---- ("check_trait_impl")
-            (check_trait_impl(program, trait_impl, crate_id) => ())
+            (check_trait_impl(
+                program,
+                trait_impl @ TraitImpl { binder, safety: _ },
+                crate_id,
+            ) => ())
         )
     }
 }
@@ -68,12 +76,12 @@ judgment_fn! {
             (let (env, bound_data) = Env::default().instantiate_universally(binder))
             (let NegTraitImplBoundData { trait_id, self_ty, trait_parameters, where_clauses } = bound_data)
             (let trait_ref = trait_id.with(self_ty, trait_parameters))
-            (let trait_decl = program.program().trait_named(&trait_ref.trait_id)?)
+            (let trait_decl = program.program().trait_named(trait_id)?)
             (let input_wf_requirements =
                 trait_input_wf_requirements(trait_decl, trait_ref)?)
-            (super::where_clauses::prove_where_clauses_well_formed(program, &env, &where_clauses, &where_clauses) => ())
-            (super::prove_goal(program, &env, &where_clauses, input_wf_requirements) => ())
-            (super::prove_not_goal(program, &env, &where_clauses, Predicate::is_implemented(&trait_ref)) => ())
+            (super::where_clauses::prove_where_clauses_well_formed(program, env, where_clauses, where_clauses) => ())
+            (super::prove_goal(program, env, where_clauses, input_wf_requirements) => ())
+            (super::prove_not_goal(program, env, where_clauses, Predicate::is_implemented(trait_ref)) => ())
             ---- ("check_neg_trait_impl")
             (check_neg_trait_impl(program, NegTraitImpl { binder, safety: Safety::Safe }) => ())
         )
@@ -141,7 +149,6 @@ judgment_fn! {
         program: Program,
         env: Env,
         assumptions: Wcs,
-        trait_ref: TraitRef,
         trait_items: Vec<TraitItem>,
         impl_item: ImplItem,
         crate_id: CrateId,
@@ -151,15 +158,25 @@ judgment_fn! {
         (
             (check_fn_in_impl(program, env, assumptions, trait_items, v, crate_id) => ())
             ---- ("fn in impl")
-            (check_trait_impl_item(program, env, assumptions, _trait_ref, trait_items, ImplItem::Fn(v), crate_id) => ())
+            (check_trait_impl_item(program, env, assumptions, trait_items, ImplItem::Fn(v), crate_id) => ())
         )
 
         (
             (check_associated_ty_value(program, env, assumptions, trait_items, v) => ())
             ---- ("associated ty value")
-            (check_trait_impl_item(program, env, assumptions, _trait_ref, trait_items, ImplItem::AssociatedTyValue(v), _crate_id) => ())
+            (check_trait_impl_item(program, env, assumptions, trait_items, ImplItem::AssociatedTyValue(v), _crate_id) => ())
         )
     }
+}
+
+fn trait_fn<'t>(trait_items: &'t [TraitItem], id: &ValueId) -> Fallible<&'t Fn> {
+    trait_items
+        .iter()
+        .find_map(|item| match item {
+            TraitItem::Fn(function) if function.id == *id => Some(function),
+            _ => None,
+        })
+        .ok_or_else(|| anyhow::anyhow!("trait has no function named `{id:?}`"))
 }
 
 judgment_fn! {
@@ -174,10 +191,8 @@ judgment_fn! {
         debug(program, env, impl_assumptions, ii_fn, crate_id)
         (
             // Find the corresponding function from the trait
-            (if let Some(ti_fn) = trait_items
-                .iter()
-                .downcasted::<Fn>()
-                .find(|trait_f| trait_f.id == ii_fn.id))
+            (let ti_fn @ Fn { binder: ti_binder, .. } =
+                trait_fn(trait_items, ii_id)?)
 
             // A safe trait call must not dispatch to an unsafe override (or
             // vice versa); they are the same callable interface.
@@ -187,26 +202,41 @@ judgment_fn! {
             (super::fns::check_fn(program, env, impl_assumptions, ii_fn, crate_id) => ())
 
             // Merge binders and instantiate universally
-            (let (env, (ii_bound, ti_bound)) = env.instantiate_universally(&merge_binders(&ii_fn.binder, &ti_fn.binder)?))
+            (let merged_binder = merge_binders(ii_binder, ti_binder)?)
+            (let (env, (ii_bound, ti_bound)) = env.instantiate_universally(merged_binder))
             (let FnBoundData { input_args: ii_input_args, output_ty: ii_output_ty, where_clauses: ii_where_clauses, body: _ } = ii_bound)
             (let FnBoundData { input_args: ti_input_args, output_ty: ti_output_ty, where_clauses: ti_where_clauses, body: _ } = ti_bound)
 
             // Prove impl where-clauses follow from trait where-clauses
-            (super::prove_goal(program, &env, (&impl_assumptions, &ti_where_clauses), &ii_where_clauses) => ())
+            (super::prove_goal(program, env, (impl_assumptions, ti_where_clauses), ii_where_clauses) => ())
 
             // Check argument count matches
             (if ii_input_args.len() == ti_input_args.len())
 
             // Check each argument: trait arg is subtype of impl arg (contravariance)
             (for_all(pair in ii_input_args.iter().zip(ti_input_args.iter()))
-                (let (ii_input_arg, ti_input_arg) = pair)
-                (super::prove_goal(program, &env, (&impl_assumptions, &ii_where_clauses), Relation::sub(&ti_input_arg.ty, &ii_input_arg.ty)) => ()))
+                (let (
+                    InputArg { ty: ii_input_ty, .. },
+                    InputArg { ty: ti_input_ty, .. },
+                ) = pair)
+                (super::prove_goal(program, env, (impl_assumptions, ii_where_clauses), Relation::sub(ti_input_ty, ii_input_ty)) => ()))
 
             // Check return type: impl return is subtype of trait return (covariance)
-            (super::prove_goal(program, &env, (&impl_assumptions, &ii_where_clauses), Relation::sub(ii_output_ty, ti_output_ty)) => ())
+            (super::prove_goal(program, env, (impl_assumptions, ii_where_clauses), Relation::sub(ii_output_ty, ti_output_ty)) => ())
 
             ---- ("check_fn_in_impl")
-            (check_fn_in_impl(program, env, impl_assumptions, trait_items, ii_fn, crate_id) => ())
+            (check_fn_in_impl(
+                program,
+                env,
+                impl_assumptions,
+                trait_items,
+                ii_fn @ Fn {
+                    id: ii_id,
+                    binder: ii_binder,
+                    ..
+                },
+                crate_id,
+            ) => ())
         )
     }
 }
@@ -260,27 +290,31 @@ judgment_fn! {
     ) => () {
         debug(program, impl_env, impl_assumptions, impl_value)
         (
-            (let AssociatedTyValue { id, binder } = &impl_value)
-
             // Find the corresponding associated type from the trait
-            (if let Some(trait_associated_ty) = trait_items
-                .iter()
-                .downcasted::<AssociatedTy>()
-                .find(|trait_associated_ty| trait_associated_ty.id == *id))
+            (trait_associated_ty(trait_items, id) =>
+                AssociatedTy { binder: trait_binder, .. })!
 
             // Merge binders and instantiate universally
-            (let (env, (ii_bound, ti_bound)) = impl_env.instantiate_universally(&merge_binders(binder, &trait_associated_ty.binder)?))
+            (let merged_binder = merge_binders(binder, trait_binder)?)
+            (let (env, (ii_bound, ti_bound)) =
+                impl_env.instantiate_universally(merged_binder))
             (let AssociatedTyValueBoundData { where_clauses: ii_where_clauses, ty: _ } = ii_bound)
             (let AssociatedTyBoundData { ensures: _, where_clauses: ti_where_clauses } = ti_bound)
 
             // Prove impl where-clauses are well-formed
-            (super::where_clauses::prove_where_clauses_well_formed(program, &env, (&impl_assumptions, &ii_where_clauses), &ii_where_clauses) => ())
+            (super::where_clauses::prove_where_clauses_well_formed(program, env, (impl_assumptions, ii_where_clauses), ii_where_clauses) => ())
 
             // Prove impl where-clauses follow from trait where-clauses
-            (super::prove_goal(program, &env, (&impl_assumptions, &ti_where_clauses), &ii_where_clauses) => ())
+            (super::prove_goal(program, env, (impl_assumptions, ti_where_clauses), ii_where_clauses) => ())
 
             ---- ("check_associated_ty_value")
-            (check_associated_ty_value(program, impl_env, impl_assumptions, trait_items, impl_value) => ())
+            (check_associated_ty_value(
+                program,
+                impl_env,
+                impl_assumptions,
+                trait_items,
+                AssociatedTyValue { id, binder },
+            ) => ())
         )
     }
 }
@@ -314,7 +348,7 @@ fn merge_binders<I: Term, T: Term>(
 }
 
 /// Extract the ADT id from a Drop impl's self type (peeking through the binder).
-fn drop_impl_adt_id(trait_impl: &TraitImpl) -> Fallible<AdtId> {
+fn drop_impl_adt_id(trait_impl: &TraitImpl) -> Fallible<&AdtId> {
     let bound = trait_impl.binder.peek();
     let Ty::RigidTy(rigid) = &bound.self_ty else {
         bail!(
@@ -328,7 +362,7 @@ fn drop_impl_adt_id(trait_impl: &TraitImpl) -> Fallible<AdtId> {
             bound.self_ty
         );
     };
-    Ok(adt_id.clone())
+    Ok(adt_id)
 }
 
 judgment_fn! {
@@ -341,25 +375,27 @@ judgment_fn! {
         debug(program, trait_impl)
 
         (
-            (if **trait_impl.trait_id() != *"Drop")!
+            (if trait_impl.trait_id().as_str() != "Drop")!
             ---- ("not a Drop impl")
             (check_drop_impl_always_applicable(program, trait_impl) => ())
         )
 
         (
-            (if **trait_impl.trait_id() == *"Drop")!
+            (if trait_impl.trait_id().as_str() == "Drop")!
             // Extract the ADT id and look up its definition.
-            (let adt_id = drop_impl_adt_id(&trait_impl)?)
+            (let adt_id = drop_impl_adt_id(trait_impl)?)
             (let adt = program.program().adt_item_named(adt_id)?.to_adt())
+            (let Adt { binder: adt_binder, .. } = adt)
             // Universally instantiate the ADT: forall<T...> { (T: Bounds) => ... }
-            (let (env, adt_vars) = Env::default().universal_substitution(&adt.binder))
-            (let adt_bound = adt.binder.instantiate_with(adt_vars)?)
+            (let (env, adt_vars) = Env::default().universal_substitution(adt_binder))
+            (let AdtBoundData { where_clauses, .. } =
+                adt_binder.instantiate_with(adt_vars)?)
             (let adt_self_ty = Ty::rigid(adt_id, adt_vars))
             // Prove: under the ADT's where-clauses, Drop is implemented for the ADT.
             // This will find the impl, unify its self type, and verify its where-clauses.
             (let drop_trait_ref = crate::grammar::TraitId::new("Drop").with(adt_self_ty, ()))
-            (super::prove_goal(&program, &env, &adt_bound.where_clauses,
-                Predicate::IsImplemented(drop_trait_ref.clone())) => ())
+            (super::prove_goal(program, env, where_clauses,
+                Predicate::is_implemented(drop_trait_ref)) => ())
             ---- ("Drop impl is always applicable")
             (check_drop_impl_always_applicable(program, trait_impl) => ())
         )

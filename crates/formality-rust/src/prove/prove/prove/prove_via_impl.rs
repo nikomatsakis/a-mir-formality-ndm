@@ -1,9 +1,13 @@
-use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitRef, Upto, Wcs};
+use crate::grammar::{
+    Const, ExistentialVar, Lt, Parameter, ParameterKind, TraitImpl, TraitImplBoundData, TraitRef,
+    Ty, Upto, Wcs,
+};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::prove::{match_impl_candidate, prove_after};
 use crate::prove::prove::{Constrained, Constraints, Env};
-use crate::prove::ToWcs;
-use formality_core::{judgment_fn, Upcast};
+use formality_core::judgment_fn;
+
+use super::prove_match_impl::MatchedImpl;
 
 /// A successful application of one particular impl declaration.
 /// It retains the source impl identity and its inferred binder variables.
@@ -16,12 +20,20 @@ pub(crate) struct ImplApplication {
 
 formality_core::cast_impl!(ImplApplication);
 
+fn impl_variable_parameter(variable: &ExistentialVar) -> Parameter {
+    match variable.kind {
+        ParameterKind::Ty => Parameter::ty(Ty::variable(variable)),
+        ParameterKind::Lt => Parameter::lt(Lt::variable(variable)),
+        ParameterKind::Const => Parameter::const_(Const::variable(variable)),
+    }
+}
+
 impl ImplApplication {
     fn new(candidate: &ImplCandidate, impl_variables: &[ExistentialVar]) -> Self {
         Self {
             impl_id: candidate.id,
-            trait_impl: (&candidate.trait_impl).upcast(),
-            impl_variables: impl_variables.upcast(),
+            trait_impl: candidate.trait_impl.to_owned(),
+            impl_variables: impl_variables.to_vec(),
         }
     }
 
@@ -31,8 +43,9 @@ impl ImplApplication {
         self.impl_variables
             .iter()
             .map(|variable| {
-                let parameter: Parameter = variable.upcast();
-                constraints.substitution().apply(parameter)
+                constraints
+                    .substitution()
+                    .apply(impl_variable_parameter(variable))
             })
             .collect()
     }
@@ -66,12 +79,18 @@ judgment_fn! {
             (match_impl_candidate(
                 decls,
                 env,
-                (assumptions, &recursive_assumption),
+                (assumptions, recursive_assumption),
                 requested_trait_ref,
                 candidate,
-            ) => Constrained(matched, c))!
-            (let trait_impl = matched.trait_impl(c))
-            (let impl_where_clauses = trait_impl.where_clauses.to_wcs())
+            ) => Constrained(
+                matched @ MatchedImpl { impl_variables, .. },
+                c,
+            ))!
+            (let trait_impl @ TraitImplBoundData {
+                trait_id,
+                where_clauses,
+                ..
+            } = matched.trait_impl(c))
 
             // A well-formed impl is a dictionary constructor from validated inputs to ordinary,
             // completed `Implemented` evidence. Selecting the impl fixes its associated-type
@@ -82,14 +101,14 @@ judgment_fn! {
             // FIXME(ndm): It seems to me that this logic can be "extracted and shared" somehow
             // between impl WF checking and this code here. We are basically constructing the
             // "inputs" to the impl's implication.
-            (let validation = Upto::supertraits(&trait_impl.trait_id))
+            (let validation = Upto::supertraits(trait_id))
             (let provisional_impl_header =
                 validation.apply(trait_impl.trait_ref()))
             (prove_after(
                 decls,
                 c,
                 (assumptions, provisional_impl_header),
-                validation.apply_goals(impl_where_clauses),
+                validation.apply_goals(where_clauses),
             ) => c)
             ---------------------------------------------------- ("candidate")
             (prove_via_impl(
@@ -99,10 +118,7 @@ judgment_fn! {
                 requested_trait_ref,
                 candidate,
             ) => Constrained(
-                ImplApplication::new(
-                    candidate,
-                    &matched.impl_variables,
-                ),
+                ImplApplication::new(candidate, impl_variables),
                 c,
             ))
         )
@@ -112,15 +128,13 @@ judgment_fn! {
 #[cfg(test)]
 mod tests {
     use super::{prove_via_impl, ImplApplication};
-    use crate::grammar::{Crates, Parameter, ParameterKind, TraitId, TraitRef, Wcs};
+    use crate::grammar::{Crates, Parameter, ParameterKind, TraitId, TraitRef, Variable, Wcs};
     use crate::prove::prove::decls::ImplCandidate;
     use crate::prove::prove::{Constrained, Constraints, Env, Program};
     use crate::rust::term;
-    use formality_core::Upcast;
 
     fn program(source: &str) -> Program {
-        let crates: Crates = term(source);
-        crates.to_prove_decls()
+        term::<Crates>(source).to_prove_decls()
     }
 
     fn basic_program() -> Program {
@@ -352,7 +366,7 @@ mod tests {
         assert_eq!(
             proof_constraints
                 .substitution()
-                .get(caller_variable.upcast()),
+                .get(Variable::ExistentialVar(caller_variable)),
             Some(term::<Parameter>("Wrapper<i32>")),
         );
     }

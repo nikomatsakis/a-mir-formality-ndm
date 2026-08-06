@@ -3,7 +3,7 @@
 use crate::grammar::{
     AliasTy, AssociatedItemId, AssociatedTy, AssociatedTyBoundData, AtomicPredicate, Binder,
     BoundVar, Parameter, ParameterKind, Predicate, Relation, Trait, TraitBoundData, TraitItem,
-    TraitRef, Ty, Wc, WcData, Wcs,
+    TraitRef, Wc, WcData, Wcs,
 };
 use crate::prove::ToWcs;
 use formality_core::{judgment_fn, set, Cons, Set, Upcast};
@@ -59,6 +59,63 @@ pub struct AssociatedTyRequirement {
 }
 
 judgment_fn! {
+    /// Downcast a trait item that declares an associated type.
+    pub(crate) fn as_associated_ty(
+        trait_item: TraitItem,
+    ) => AssociatedTy {
+        debug(trait_item)
+
+        (
+            ----------------------------- ("associated type")
+            (as_associated_ty(TraitItem::AssociatedTy(associated_ty)) => associated_ty)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Select the associated type with the given id from a trait's items.
+    pub(crate) fn trait_associated_ty(
+        trait_items: Vec<TraitItem>,
+        associated_id: AssociatedItemId,
+    ) => AssociatedTy {
+        debug(trait_items, associated_id)
+
+        (
+            (if id == associated_id)!
+            ----------------------------- ("associated type")
+            (trait_associated_ty(
+                Cons(
+                    TraitItem::AssociatedTy(
+                        associated_ty @ AssociatedTy { id, .. },
+                    ),
+                    _rest,
+                ),
+                associated_id,
+            ) => associated_ty)
+        )
+
+        (
+            (if id != associated_id)!
+            (trait_associated_ty(rest, associated_id) => associated_ty)
+            ----------------------------- ("later associated type")
+            (trait_associated_ty(
+                Cons(TraitItem::AssociatedTy(AssociatedTy { id, .. }), rest),
+                associated_id,
+            ) => associated_ty)
+        )
+
+        (
+            (trait_associated_ty(rest, associated_id) => associated_ty)
+            ----------------------------- ("skip function")
+            (trait_associated_ty(
+                Cons(TraitItem::Fn(_function), rest),
+                associated_id,
+            ) => associated_ty)
+        )
+    }
+}
+
+judgment_fn! {
     /// Use one structured requirement for ordinary implied-bound reasoning.
     pub fn prove_via_trait_requirement(
         _decls: Program,
@@ -71,83 +128,122 @@ judgment_fn! {
         debug(assumptions, trait_def, requirement, goal, env)
 
         (
-            (let (env, trait_subst) =
-                env.existential_substitution(&requirement.binder))
-            (let requirement =
-                requirement.binder.instantiate_with(trait_subst)?)
-            (if let TraitRequirementBoundData::Supertrait(supertrait) = requirement)!
-            (let required = Wc::for_all(supertrait))
-            (prove_via_assumption(decls, env, assumptions, required, goal) => c)
-            (let source = TraitRef::new(&trait_def.id, trait_subst))
-            (prove_after(decls, c, assumptions, source) => c)
-            ----------------------------- ("supertrait")
+            (let (env, trait_subst) = env.existential_substitution(binder))
+            (let requirement = binder.instantiate_with(trait_subst)?)
+            (prove_via_trait_requirement_bound(
+                decls,
+                env,
+                assumptions,
+                trait_def,
+                trait_subst,
+                requirement,
+                goal,
+            ) => c)
+            ----------------------------- ("requirement")
             (prove_via_trait_requirement(
                 decls,
                 env,
                 assumptions,
                 trait_def,
-                requirement,
+                TraitRequirement { binder },
                 goal,
             ) => c.pop_subst(trait_subst))
+        )
+    }
+}
+
+judgment_fn! {
+    /// Use one instantiated requirement for ordinary implied-bound reasoning.
+    fn prove_via_trait_requirement_bound(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        trait_def: Trait,
+        trait_subst: Vec<Parameter>,
+        requirement: TraitRequirementBoundData,
+        goal: Wc,
+    ) => Constraints {
+        debug(assumptions, trait_def, trait_subst, requirement, goal, env)
+
+        (
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                Wc::for_all(supertrait),
+                goal,
+            ) => c)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                TraitRef::new(trait_id, trait_subst),
+            ) => c)
+            ----------------------------- ("supertrait")
+            (prove_via_trait_requirement_bound(
+                decls,
+                env,
+                assumptions,
+                Trait {
+                    safety: _,
+                    id: trait_id,
+                    binder: _,
+                },
+                trait_subst,
+                TraitRequirementBoundData::Supertrait(supertrait),
+                goal,
+            ) => c)
         )
 
         (
-            (let (env, trait_subst) =
-                env.existential_substitution(&requirement.binder))
-            (let requirement =
-                requirement.binder.instantiate_with(trait_subst)?)
-            (if let TraitRequirementBoundData::AssociatedTyRequirement(associated) =
-                requirement)
-            (let (env, associated_subst) =
-                env.existential_substitution(&associated.binder))
-            (let value_template =
-                associated.binder.instantiate_with(associated_subst)?)
+            (let (env, associated_subst) = env.existential_substitution(associated_binder))
+            (let value_template = associated_binder.instantiate_with(associated_subst)?)
             (let alias = AliasTy::associated_ty(
-                &trait_def.id,
-                &associated.id,
+                trait_id,
+                associated_id,
                 associated_subst.len(),
                 (trait_subst, associated_subst),
             ))
-            (let value_bounds =
-                value_template.instantiate_with(std::slice::from_ref(&alias))?)
+            (let value_bounds = value_template.instantiate_with((alias,))?)
             (required in value_bounds)!
             (prove_via_assumption(decls, env, assumptions, required, goal) => c)
 
-            (let trait_data = trait_def.binder.instantiate_with(trait_subst)?)
-            (let trait_associated_ty = trait_data
-                .trait_items
-                .iter()
-                .find_map(|item| match item {
-                    TraitItem::AssociatedTy(associated_ty)
-                        if associated_ty.id == associated.id =>
-                    {
-                        Some(associated_ty)
-                    }
-                    _ => None,
-                })
-                .ok_or_else(|| anyhow::anyhow!(
-                    "trait has no associated type {:?}",
-                    associated.id,
-                ))?)
+            (let TraitBoundData {
+                where_clauses: _,
+                trait_items,
+            } = trait_binder.instantiate_with(trait_subst)?)
+            (trait_associated_ty(trait_items, associated_id) => AssociatedTy {
+                id: _,
+                binder: trait_associated_binder,
+            })
             (let AssociatedTyBoundData {
                 ensures: _,
                 where_clauses,
-            } = trait_associated_ty.binder.instantiate_with(associated_subst)?)
-            (let source = TraitRef::new(&trait_def.id, trait_subst))
-            (prove_after(decls, c, assumptions, where_clauses.to_wcs()) => c)
+            } = trait_associated_binder.instantiate_with(associated_subst)?)
+            (let source = TraitRef::new(trait_id, trait_subst))
+            (prove_after(decls, c, assumptions, where_clauses) => c)
             (prove_after(decls, c, assumptions, source) => c)
             (let c = c.pop_subst(associated_subst))
             ----------------------------- ("associated type")
-            (prove_via_trait_requirement(
+            (prove_via_trait_requirement_bound(
                 decls,
                 env,
                 assumptions,
-                trait_def,
-                requirement,
+                Trait {
+                    safety: _,
+                    id: trait_id,
+                    binder: trait_binder,
+                },
+                trait_subst,
+                TraitRequirementBoundData::AssociatedTyRequirement(
+                    AssociatedTyRequirement {
+                        id: associated_id,
+                        binder: associated_binder,
+                    },
+                ),
                 goal,
-            ) => c.pop_subst(trait_subst))
+            ) => c)
         )
-
     }
 }
 
@@ -164,16 +260,19 @@ judgment_fn! {
 
         (
             (let (variables, TraitBoundData { where_clauses, trait_items }) =
-                trait_def.binder.open())
-            (let self_parameter: Parameter = variables[0].upcast())
+                binder.open())
             (trait_header_requirements(
                 variables,
-                self_parameter,
-                where_clauses.to_wcs(),
+                variables[0],
+                where_clauses,
             ) => header_requirements)
             (associated_ty_requirements(variables, trait_items) => associated_ty_requirements)
             ----------------------------- ("trait requirements")
-            (trait_requirement(trait_def) => (header_requirements, associated_ty_requirements))
+            (trait_requirement(Trait {
+                safety: _,
+                id: _,
+                binder,
+            }) => (header_requirements, associated_ty_requirements))
         )
     }
 }
@@ -238,13 +337,10 @@ judgment_fn! {
                 binder.open())
 
             (let value_variable = BoundVar::fresh(ParameterKind::Ty))
-            (let value_ty: Ty = value_variable.upcast())
-            (let value_bounds: Wcs =
-                ensures.iter().map(|ensure| ensure.to_wc(value_ty)).collect())
-            (let value_binder: Binder<Wcs> =
-                Binder::new(vec![value_variable], value_bounds))
-            (let associated_binder: Binder<Binder<Wcs>> =
-                Binder::new(associated_variables, value_binder))
+            (let value_bounds = Wcs::from_iter(
+                ensures.iter().map(|ensure| ensure.to_wc(value_variable))))
+            (let value_binder = Binder::new(vec![value_variable], value_bounds))
+            (let associated_binder = Binder::new(associated_variables, value_binder))
             (let associated_requirement =
                 AssociatedTyRequirement::new(id, associated_binder))
             (let requirement = TraitRequirement::new(Binder::new(
@@ -275,13 +371,14 @@ judgment_fn! {
         debug(self_parameter, clause)
 
         (
-            (if let Predicate::IsImplemented(trait_ref) = predicate)
             (if trait_ref.parameters.first() == Some(self_parameter))!
             ----------------------------- ("supertrait")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Predicate(predicate)),
-            ) => TraitHeaderClause::supertrait(Binder::<TraitRef>::dummy(trait_ref.upcast())))
+                WcData::Atomic(AtomicPredicate::Predicate(
+                    Predicate::IsImplemented(trait_ref),
+                )),
+            ) => TraitHeaderClause::supertrait(Binder::new((), trait_ref)))
         )
 
         (
@@ -290,14 +387,14 @@ judgment_fn! {
             (trait_header_clause(
                 self_parameter,
                 WcData::Atomic(AtomicPredicate::Relation(Relation::Outlives(source, target))),
-            ) => TraitHeaderClause::outlives(Binder::dummy(Relation::outlives(source, target))))
+            ) => TraitHeaderClause::outlives(Binder::new((), Relation::outlives(source, target))))
         )
 
         (
-            (let opened: (Vec<BoundVar>, Wc) = binder.open())
-            (trait_header_clause(self_parameter, &opened.1) => classification)
+            (let (variables, clause) = binder.open())
+            (trait_header_clause(self_parameter, clause) => classification)
             (let classification =
-                rebind_trait_header_clause(&opened.0, classification, binder))
+                rebind_trait_header_clause(variables, classification, binder))
             ----------------------------- ("higher-ranked")
             (trait_header_clause(
                 self_parameter,
@@ -306,32 +403,53 @@ judgment_fn! {
         )
 
         (
-            (if !matches!(
-                predicate,
-                Predicate::IsImplemented(trait_ref)
-                    if trait_ref.parameters.first() == Some(self_parameter)
-            ))!
             ----------------------------- ("input predicate")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Predicate(predicate)),
-            ) => TraitHeaderClause::input_well_formed(Wc::Atomic(
-                AtomicPredicate::Predicate(predicate.clone()),
-            )))
+                WcData::Atomic(AtomicPredicate::Predicate(
+                    predicate @ (
+                        Predicate::NotImplemented(_)
+                        | Predicate::AliasEq(_, _)
+                        | Predicate::WellFormedTraitRef(_)
+                        | Predicate::IsLocal(_)
+                        | Predicate::ConstHasType(_, _)
+                    ),
+                )),
+            ) => TraitHeaderClause::input_well_formed(predicate))
         )
 
         (
-            (if !matches!(
-                relation,
-                Relation::Outlives(source, _) if source == self_parameter
-            ))!
+            (if trait_ref.parameters.first() != Some(self_parameter))!
+            ----------------------------- ("input trait predicate")
+            (trait_header_clause(
+                self_parameter,
+                WcData::Atomic(AtomicPredicate::Predicate(
+                    Predicate::IsImplemented(trait_ref),
+                )),
+            ) => TraitHeaderClause::input_well_formed(trait_ref))
+        )
+
+        (
             ----------------------------- ("input relation")
             (trait_header_clause(
                 self_parameter,
-                WcData::Atomic(AtomicPredicate::Relation(relation)),
-            ) => TraitHeaderClause::input_well_formed(Wc::Atomic(
-                AtomicPredicate::Relation(relation.clone()),
-            )))
+                WcData::Atomic(AtomicPredicate::Relation(
+                    relation @ (
+                        Relation::Equals(_, _)
+                        | Relation::Sub(_, _)
+                        | Relation::WellFormed(_)
+                    ),
+                )),
+            ) => TraitHeaderClause::input_well_formed(relation))
+        )
+
+        (
+            (if source != self_parameter)!
+            ----------------------------- ("input outlives")
+            (trait_header_clause(
+                self_parameter,
+                WcData::Atomic(AtomicPredicate::Relation(Relation::Outlives(source, target))),
+            ) => TraitHeaderClause::input_well_formed(Relation::outlives(source, target)))
         )
 
         (
@@ -370,7 +488,7 @@ fn rebind_trait_header_clause(
 }
 
 fn classify_trait_header_clause(
-    self_parameter: &Parameter,
+    self_parameter: impl Upcast<Parameter>,
     clause: &Wc,
 ) -> anyhow::Result<TraitHeaderClause> {
     let proven = trait_header_clause(self_parameter, clause)
@@ -409,33 +527,29 @@ pub fn trait_input_wf_requirements(trait_def: &Trait, trait_ref: &TraitRef) -> a
             trait_items: _,
         },
     ) = trait_def.binder.open();
-    let self_parameter: Parameter = trait_variables[0].upcast();
-
-    let input_clauses: Wcs = where_clauses
-        .to_wcs()
-        .into_iter()
-        .map(|clause| -> anyhow::Result<Option<Wc>> {
-            Ok(
-                match classify_trait_header_clause(&self_parameter, &clause)? {
-                    TraitHeaderClause::InputWellFormed(clause) => Some(clause),
-                    TraitHeaderClause::Supertrait(_) | TraitHeaderClause::Outlives(_) => None,
-                },
-            )
-        })
-        .collect::<anyhow::Result<Vec<_>>>()?
-        .into_iter()
-        .flatten()
-        .collect();
+    let input_clauses = Wcs::from_iter(
+        where_clauses
+            .to_wcs()
+            .into_iter()
+            .map(|clause| -> anyhow::Result<Option<Wc>> {
+                Ok(
+                    match classify_trait_header_clause(trait_variables[0], &clause)? {
+                        TraitHeaderClause::InputWellFormed(clause) => Some(clause),
+                        TraitHeaderClause::Supertrait(_) | TraitHeaderClause::Outlives(_) => None,
+                    },
+                )
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?
+            .into_iter()
+            .flatten(),
+    );
     let input_clauses =
         Binder::new(&trait_variables, input_clauses).instantiate_with(&trait_ref.parameters)?;
 
-    let parameter_requirements: Wcs = trait_ref
-        .parameters
-        .iter()
-        .map(Relation::well_formed)
-        .collect();
+    let parameter_requirements =
+        Wcs::from_iter(trait_ref.parameters.iter().map(Relation::well_formed));
 
-    Ok((parameter_requirements, input_clauses).upcast())
+    Ok((parameter_requirements, input_clauses).to_wcs())
 }
 
 #[cfg(test)]
