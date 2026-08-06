@@ -9,7 +9,7 @@ use crate::rust::term;
 use formality_core::{Downcast, Upcast};
 use formality_macros::test;
 
-use crate::prove::prove::prove::{prove_after, prove_normalize::prove_normalize};
+use crate::prove::prove::prove::{prove, prove_after, prove_normalize::prove_normalize};
 
 fn decls() -> Program {
     Program {
@@ -160,6 +160,43 @@ fn normalization_can_use_a_sufficient_validated_input() {
 
     let from_ordinary = prove_normalize(&program, (), term::<Wc>("Marker(u32)"), alias);
     assert!(from_ordinary.is_proven());
+}
+
+#[test]
+fn value_only_normalization_is_not_used_for_well_formedness() {
+    // `Family for X` may define `Out = NeedsBound<Y>` because its `Y: Family` input is
+    // available at `GatBounds(Family)` during `ImplWF`, where `Family`'s `Bound(Y)` supertrait
+    // field is visible. At the earlier `Supertraits(Family)` frontier, selecting the impl still
+    // reveals the associated value, but it must not make `NeedsBound<Y>` well formed.
+    let program = Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Bound where {}"),
+            term("struct NeedsBound<T> where T : Bound {}"),
+            term("trait Family where Self : Bound { type Out : []; }"),
+            term("struct X {}"),
+            term("struct Y {}"),
+            term("impl Bound for X {}"),
+            term(
+                "impl Family for X where Y : Family {
+                    type Out = NeedsBound<Y>;
+                }",
+            ),
+        ])),
+        ..Program::empty()
+    };
+    let assumptions = Wc::validate(
+        Upto::supertraits(TraitId::new("Family")),
+        term::<Wc>("Family(Y)"),
+    );
+    let alias = term::<AliasTy>("<X as Family>::Out");
+
+    assert!(!prove_normalize(&program, (), &assumptions, &alias).is_proven());
+
+    let wf_value = Wc::validate(
+        Upto::supertraits(TraitId::new("Family")),
+        Relation::well_formed(term::<Parameter>("NeedsBound<Y>")),
+    );
+    assert!(!prove(program, (), assumptions, wf_value).is_proven());
 }
 
 #[test]

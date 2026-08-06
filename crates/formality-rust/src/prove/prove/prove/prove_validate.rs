@@ -1,19 +1,33 @@
 use crate::grammar::{
-    AliasTy, AssociatedTyBoundData, Predicate, Relation, Trait, TraitItem, TraitRef, Upto, Wc,
-    WcData, Wcs,
+    AliasTy, AssociatedTyBoundData, Parameter, Predicate, Relation, Trait, TraitItem, TraitRef,
+    Upto, Wc, WcData, Wcs,
 };
 use crate::prove::prove::{
     can_project_associated_bound, can_project_outlives, can_project_supertrait, prove,
     trait_requirement, TraitRequirement, TraitRequirementBoundData,
 };
 use crate::prove::ToWcs;
-use formality_core::judgment_fn;
+use formality_core::{judgment_fn, Downcast};
 
 use super::{
-    constraints::Constraints, env::Env, prove_after::prove_after,
-    prove_via_assumption::prove_via_assumption, prove_wc::prove_wc, prove_wf::wf_requirements,
+    constraints::{Constrained, Constraints},
+    env::Env,
+    prove_after::prove_after,
+    prove_normalize::prove_normalize_for_validation,
+    prove_via_assumption::prove_via_assumption,
+    prove_wc::prove_wc,
+    prove_wf::wf_requirements,
 };
 use crate::prove::prove::Program;
+
+fn replace_trait_parameter(
+    mut trait_ref: TraitRef,
+    index: usize,
+    parameter: Parameter,
+) -> TraitRef {
+    trait_ref.parameters[index] = parameter;
+    trait_ref
+}
 
 judgment_fn! {
     /// Prove that `validate_goal` is available at one dictionary-construction frontier.
@@ -74,6 +88,38 @@ judgment_fn! {
                 assumptions,
                 validation,
                 WcData::Relation(Relation::WellFormed(parameter)),
+            ) => c)
+        )
+
+        // Associated values are fixed as soon as an impl is selected, before the dictionaries
+        // proving their well-formedness and declared bounds have been constructed. Rewrite a
+        // validated trait predicate through that value without promoting the equation or the
+        // normalized type into ordinary evidence.
+        (
+            (i in 0 .. trait_ref.parameters.len())
+            (let parameter = trait_ref.parameters[*i].clone())
+            (if let Some(alias) = parameter.downcast::<AliasTy>())!
+            (prove_normalize_for_validation(
+                decls,
+                env,
+                assumptions,
+                alias,
+            ) => Constrained(normalized, c))
+            (let normalized_trait_ref =
+                replace_trait_parameter(trait_ref.clone(), *i, normalized.clone()))
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                Wc::validate(validation, normalized_trait_ref),
+            ) => c)
+            ----------------------------- ("normalize associated value")
+            (prove_validate(
+                decls,
+                env,
+                assumptions,
+                validation,
+                Predicate::IsImplemented(trait_ref),
             ) => c)
         )
 

@@ -8,7 +8,7 @@ use crate::{
 use formality_core::{judgment_fn, Downcast};
 
 use crate::prove::prove::{
-    decls::Program,
+    decls::{ImplCandidate, Program},
     prove::{
         combinators::zip,
         env::Env,
@@ -80,9 +80,76 @@ judgment_fn! {
         )
 
         (
+            (let AliasName::AssociatedTyId(name) = &a.name)
+            (let impl_validation = Upto::gat_bounds(&name.trait_id))
+            (candidate in decls.raw_trait_impls_for(&name.trait_id))
+            (prove_normalize_via_impl_candidate(
+                decls,
+                env,
+                assumptions,
+                a,
+                impl_validation,
+                candidate,
+            ) => normalized)
+            ----------------------------- ("normalize-via-impl")
+            (prove_normalize(decls, env, assumptions, TyData::AliasTy(a)) => normalized)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Reveal an associated value for use within a validation proof.
+    ///
+    /// Unlike [`prove_normalize`], this does not establish that the selected value is well formed
+    /// or satisfies its declared bounds. Its result must therefore remain inside the validation
+    /// judgment that requested it.
+    pub(super) fn prove_normalize_for_validation(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        a: AliasTy,
+    ) => Constrained<Parameter> {
+        debug(a, assumptions, env)
+
+        (
+            (let AliasName::AssociatedTyId(name) = &a.name)
+            (let impl_validation = Upto::supertraits(&name.trait_id))
+            (candidate in decls.raw_trait_impls_for(&name.trait_id))
+            (prove_normalize_via_impl_candidate(
+                decls,
+                env,
+                assumptions,
+                a,
+                impl_validation,
+                candidate,
+            ) => normalized)
+            ----------------------------- ("normalize value via impl")
+            (prove_normalize_for_validation(
+                decls,
+                env,
+                assumptions,
+                a,
+            ) => normalized)
+        )
+    }
+}
+
+judgment_fn! {
+    /// Normalize an associated type through an impl whose where-clauses must be available at
+    /// `impl_validation`.
+    fn prove_normalize_via_impl_candidate(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        a: AliasTy,
+        impl_validation: Upto,
+        candidate: ImplCandidate,
+    ) => Constrained<Parameter> {
+        debug(a, impl_validation, candidate, assumptions, env)
+
+        (
             (let (item_id, gat_parameters, requested_trait_ref, gat_where_clauses) =
                 associated_ty_parts(decls, a)?)
-            (candidate in decls.raw_trait_impls_for(&requested_trait_ref.trait_id))
 
             // Normalizing through an impl is itself a coinductive application. The recursive
             // handle is deliberately zero-capability: it can close an exact occurrence but cannot
@@ -105,10 +172,15 @@ judgment_fn! {
             (let provisional_alias_eq =
                 Predicate::AliasEq(a.clone(), provisional_ty.clone()))
 
-            // Selecting the impl makes its header available at the supertrait frontier, but
-            // invoking its associated-type definition requires the stronger inputs assumed by
-            // the GAT contract checked in `ImplWF`: both the impl where-clauses and the
-            // declaration-side GAT conditions must hold at the GAT-bound frontier.
+            // Selecting the impl makes its header available at the supertrait frontier. Ordinary
+            // normalization passes `GatBounds(ImplTrait)` as `impl_validation`, matching the
+            // stronger inputs assumed by the GAT contract checked in `ImplWF`. Value-only
+            // normalization passes `Supertraits(ImplTrait)` instead, but its result remains
+            // confined to the surrounding validation proof.
+            //
+            // FIXME: Value-only normalization still requires declaration-side GAT conditions at
+            // `GatBounds(ImplTrait)`. Determine whether selecting the value should require those
+            // conditions only at an earlier frontier too.
             (let trait_impl = matched.trait_impl(c))
             (let gat_validation = Upto::gat_bounds(&trait_impl.trait_id))
             (let provisional_impl_header =
@@ -116,7 +188,7 @@ judgment_fn! {
             (let impl_where_clauses = trait_impl
                 .where_clauses
                 .to_wcs()
-                .validated(gat_validation.clone()))
+                .validated(impl_validation))
             (let conditions = (
                 &impl_where_clauses,
                 gat_where_clauses.validated(gat_validation),
@@ -141,7 +213,14 @@ judgment_fn! {
             // path while retaining ambiguous paths whose result is well scoped.
             (if c.env().encloses(ty))!
             ----------------------------- ("normalize-via-impl")
-            (prove_normalize(decls, env, assumptions, TyData::AliasTy(a)) => Constrained(ty, c))
+            (prove_normalize_via_impl_candidate(
+                decls,
+                env,
+                assumptions,
+                a,
+                impl_validation,
+                candidate,
+            ) => Constrained(ty, c))
         )
     }
 }
