@@ -3,7 +3,7 @@
 use std::fmt::Debug;
 
 use crate::prove::prove::{
-    is_definitely_not_proveable, prove_via_impl, Constrained, Constraints, Env, Program,
+    is_definitely_not_proveable, prove_via_impl, Constrained, Constraints, Env, Program, ProvedImpl,
 };
 use crate::rust::Visit;
 use crate::{
@@ -267,16 +267,24 @@ fn assert_test_trait_ref_has_impl(
                 return false;
             };
 
-            paths
-                .into_iter()
-                .any(|(Constrained(application, constraints), _)| {
-                    let impl_arguments = application.inferred_impl_arguments(&constraints);
-                    let proof_constraints = application.proof_constraints(&constraints);
-
-                    env.encloses(&impl_arguments)
-                        && proof_constraints.env() == env
-                        && proof_constraints.unconditionally_true()
-                })
+            paths.into_iter().any(
+                |(
+                    Constrained(
+                        ProvedImpl {
+                            impl_variables,
+                            impl_substitution,
+                            ..
+                        },
+                        constraints,
+                    ),
+                    _,
+                )| {
+                    env.encloses(&impl_substitution) && {
+                        let proof_constraints = constraints.pop_subst(&impl_variables);
+                        proof_constraints.env() == env && proof_constraints.unconditionally_true()
+                    }
+                },
+            )
         });
 
     assert!(

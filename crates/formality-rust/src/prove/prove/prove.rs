@@ -34,7 +34,7 @@ pub(crate) use self::prove_impl_contract::impl_contract;
 pub(crate) use self::prove_impl_wf::prove_impl_wf;
 pub(crate) use self::prove_match_impl::match_impl_candidate;
 pub(crate) use self::prove_via_assumption::prove_via_assumption;
-pub(crate) use self::prove_via_impl::{prove_via_impl, ProvedViaImpl};
+pub(crate) use self::prove_via_impl::{prove_via_impl, ProvedImpl};
 pub use negation::{is_definitely_not_proveable, may_not_be_provable, negation_via_failure};
 
 /// Top-level entry point for proving things.

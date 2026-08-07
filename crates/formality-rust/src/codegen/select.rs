@@ -2,8 +2,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::grammar::{Parameter, TraitImpl, TraitRef, Wcs};
-use crate::prove::prove::{prove_via_impl, Constrained, Env, ImplId, Program, ProvedViaImpl};
+use crate::grammar::{Parameter, TraitImplBoundData, TraitRef, Wcs};
+use crate::prove::prove::{prove_via_impl, Constrained, Env, ImplId, Program, ProvedImpl};
 use formality_core::{visit::CoreVisit, Upcast};
 
 use super::normalize::normalize_parameters;
@@ -19,7 +19,7 @@ formality_core::cast_impl!(ApplicationKey);
 
 #[derive(Debug)]
 struct ApplicationGroup {
-    application: ProvedViaImpl,
+    application: ProvedImpl,
     definite: bool,
     ambiguous: bool,
 }
@@ -31,13 +31,11 @@ impl ApplicationGroup {
     }
 }
 
-/// The unique declaration and impl-binder substitution selected for one
-/// monomorphic trait-method call.
+/// The unique instantiated impl selected for one monomorphic trait-method call.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(super) struct SelectedImpl {
     pub(super) impl_id: ImplId,
-    pub(super) trait_impl: TraitImpl,
-    pub(super) impl_arguments: Vec<Parameter>,
+    pub(super) trait_impl: TraitImplBoundData,
 }
 
 /// Reconstruct the concrete dictionary promised by type checking.
@@ -62,8 +60,8 @@ pub(super) fn select_impl(program: &Program, trait_ref: &TraitRef) -> SelectedIm
         };
 
         for (Constrained(application, constraints), _) in paths {
-            let impl_arguments = application.inferred_impl_arguments(&constraints);
-            let proof_constraints = application.proof_constraints(&constraints);
+            let impl_arguments = &application.impl_substitution;
+            let proof_constraints = constraints.pop_subst(&application.impl_variables);
             let proof_is_definite =
                 proof_constraints.env() == &initial_env && proof_constraints.unconditionally_true();
 
@@ -156,7 +154,6 @@ fn choose_application(
     SelectedImpl {
         impl_id: selected_key.impl_id,
         trait_impl: group.application.trait_impl,
-        impl_arguments: selected_key.impl_arguments,
     }
 }
 
@@ -165,8 +162,8 @@ mod tests {
     use std::collections::{BTreeMap, BTreeSet};
 
     use super::{choose_application, select_impl, ApplicationGroup, ApplicationKey};
-    use crate::grammar::{Crates, Parameter, TraitRef};
-    use crate::prove::prove::{prove_via_impl, Constrained, Env, Program, ProvedViaImpl};
+    use crate::grammar::{Crates, TraitRef};
+    use crate::prove::prove::{prove_via_impl, Constrained, Env, Program, ProvedImpl};
     use crate::rust::term;
 
     fn program(source: &str) -> Program {
@@ -174,7 +171,7 @@ mod tests {
         crates.to_prove_decls()
     }
 
-    fn application(program: &Program, trait_ref: &TraitRef) -> ProvedViaImpl {
+    fn application(program: &Program, trait_ref: &TraitRef) -> ProvedImpl {
         let candidate = program
             .raw_trait_impls_for(&trait_ref.trait_id)
             .into_iter()
@@ -206,7 +203,7 @@ mod tests {
         );
         let selected = select_impl(&program, &term("u32: Foo"));
 
-        assert!(selected.impl_arguments.is_empty());
+        assert_eq!(selected.trait_impl.trait_ref(), term("u32: Foo"));
         assert_eq!(
             selected.impl_id,
             program.raw_trait_impls_for(&term("Foo"))[0].id
@@ -242,7 +239,7 @@ mod tests {
         );
         let selected = select_impl(&program, &term("u32: Foo"));
 
-        assert_eq!(selected.impl_arguments, vec![term::<Parameter>("u32")]);
+        assert_eq!(selected.trait_impl.trait_ref(), term("u32: Foo"));
     }
 
     #[test]
@@ -316,6 +313,6 @@ mod tests {
         );
 
         let selected = choose_application(&trait_ref, groups, BTreeSet::new());
-        assert!(selected.impl_arguments.is_empty());
+        assert_eq!(selected.trait_impl.trait_ref(), trait_ref);
     }
 }

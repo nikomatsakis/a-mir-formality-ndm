@@ -33,7 +33,7 @@ formality_core::cast_impl!(MatchedImpl);
 // Operations on an opened, candidate-local impl.
 
 impl MatchedImpl {
-    fn new(
+    pub(crate) fn new(
         constraints: &Constraints,
         impl_variables: &[ExistentialVar],
         trait_impl: &TraitImplBoundData,

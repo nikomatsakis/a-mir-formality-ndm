@@ -1,57 +1,50 @@
-use crate::grammar::{
-    Const, ExistentialVar, Lt, Parameter, ParameterKind, TraitImpl, TraitRef, Ty, Upto, Wcs,
-};
+use crate::grammar::{ExistentialVar, Parameter, TraitImplBoundData, TraitRef, Upto, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::prove::{impl_contract, match_impl_candidate, prove_after};
 use crate::prove::prove::{Constrained, Constraints, Env};
-use formality_core::judgment_fn;
+use formality_core::{judgment_fn, To};
 
 use super::prove_match_impl::MatchedImpl;
 
 /// A successful application of one particular impl declaration.
-/// It retains the source impl identity and its inferred binder variables.
+///
+/// The impl has been opened, matched against the requested trait-ref, and had its where-clauses
+/// proven. Its fields have the final substitution learned during that proof applied to them. They
+/// can still mention caller variables, or unconstrained impl variables when the application is
+/// ambiguous; consumers decide whether those are acceptable before removing `impl_variables` from
+/// the returned constraints.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) struct ProvedViaImpl {
+pub(crate) struct ProvedImpl {
     pub(crate) impl_id: ImplId,
-    pub(crate) trait_impl: TraitImpl,
+
     pub(crate) impl_variables: Vec<ExistentialVar>,
+
+    /// Impl binder arguments after applying all constraints learned while proving this impl.
+    pub(crate) impl_substitution: Vec<Parameter>,
+
+    /// The opened impl after applying all constraints learned while proving this impl.
+    pub(crate) trait_impl: TraitImplBoundData,
 }
 
-formality_core::cast_impl!(ProvedViaImpl);
+formality_core::cast_impl!(ProvedImpl);
 
-fn impl_variable_parameter(variable: &ExistentialVar) -> Parameter {
-    match variable.kind {
-        ParameterKind::Ty => Parameter::ty(Ty::variable(variable)),
-        ParameterKind::Lt => Parameter::lt(Lt::variable(variable)),
-        ParameterKind::Const => Parameter::const_(Const::variable(variable)),
-    }
-}
+// Operations on an opened, candidate-local impl.
 
-impl ProvedViaImpl {
-    fn new(candidate: &ImplCandidate, impl_variables: &[ExistentialVar]) -> Self {
+impl ProvedImpl {
+    pub(crate) fn new(
+        impl_id: &ImplId,
+        constraints: &Constraints,
+        impl_variables: &[ExistentialVar],
+        trait_impl: &TraitImplBoundData,
+    ) -> Self {
         Self {
-            impl_id: candidate.id,
-            trait_impl: candidate.trait_impl.to_owned(),
+            impl_id: impl_id.clone(),
             impl_variables: impl_variables.to_vec(),
+            impl_substitution: constraints
+                .substitution()
+                .apply(impl_variables.to::<Vec<Parameter>>()),
+            trait_impl: constraints.substitution().apply(trait_impl),
         }
-    }
-
-    /// Infer the impl binder arguments while the impl variables are still in
-    /// scope and represented in `constraints`.
-    pub(crate) fn inferred_impl_arguments(&self, constraints: &Constraints) -> Vec<Parameter> {
-        self.impl_variables
-            .iter()
-            .map(|variable| {
-                constraints
-                    .substitution()
-                    .apply(impl_variable_parameter(variable))
-            })
-            .collect()
-    }
-
-    /// Restore the caller's proof environment after applying this impl.
-    pub(crate) fn proof_constraints(&self, constraints: &Constraints) -> Constraints {
-        constraints.pop_subst(&self.impl_variables)
     }
 }
 
@@ -64,7 +57,7 @@ judgment_fn! {
         assumptions: Wcs,
         requested_trait_ref: TraitRef,
         candidate: ImplCandidate,
-    ) => Constrained<ProvedViaImpl> {
+    ) => Constrained<ProvedImpl> {
         debug(requested_trait_ref, candidate, assumptions, env)
 
         (
@@ -107,7 +100,7 @@ judgment_fn! {
                 requested_trait_ref,
                 candidate,
             ) => Constrained(
-                ProvedViaImpl::new(candidate, impl_variables),
+                ProvedImpl::new(&candidate.id, c, impl_variables, trait_impl),
                 c,
             ))
         )
@@ -116,7 +109,7 @@ judgment_fn! {
 
 #[cfg(test)]
 mod tests {
-    use super::{prove_via_impl, ProvedViaImpl};
+    use super::{prove_via_impl, ProvedImpl};
     use crate::grammar::{Crates, Parameter, ParameterKind, TraitId, TraitRef, Variable, Wcs};
     use crate::prove::prove::decls::ImplCandidate;
     use crate::prove::prove::{Constrained, Constraints, Env, Program};
@@ -143,7 +136,7 @@ mod tests {
         env: Env,
         requested_trait_ref: TraitRef,
         candidate: &ImplCandidate,
-    ) -> Option<(ProvedViaImpl, Constraints)> {
+    ) -> Option<(ProvedImpl, Constraints)> {
         prove_via_impl(program, env, Wcs::t(), requested_trait_ref, candidate)
             .into_singleton()
             .ok()
@@ -249,7 +242,7 @@ mod tests {
             ]",
         );
         let candidates = program.raw_trait_impls_for(&term("Pair"));
-        let (application, constraints) = apply_candidate(
+        let (application, _) = apply_candidate(
             &program,
             Env::default(),
             term("Wrapper<u32, i32>: Pair<i32>"),
@@ -258,7 +251,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            application.inferred_impl_arguments(&constraints),
+            application.impl_substitution,
             vec![term::<Parameter>("u32"), term::<Parameter>("i32")],
         );
     }
@@ -274,7 +267,7 @@ mod tests {
             ]",
         );
         let candidates = program.raw_trait_impls_for(&term("Project"));
-        let (application, constraints) = apply_candidate(
+        let (application, _) = apply_candidate(
             &program,
             Env::default(),
             term("u32: Project<i32>"),
@@ -283,7 +276,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            application.inferred_impl_arguments(&constraints),
+            application.impl_substitution,
             vec![term::<Parameter>("u32")],
         );
     }
@@ -301,11 +294,11 @@ mod tests {
             ]",
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
-        let (application, constraints) =
+        let (application, _) =
             apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
 
         assert_eq!(
-            application.inferred_impl_arguments(&constraints),
+            application.impl_substitution,
             vec![term::<Parameter>("i32")],
         );
     }
@@ -326,7 +319,7 @@ mod tests {
 
         assert_ne!(constraints.env(), &Env::default());
         assert_eq!(
-            application.proof_constraints(&constraints).env(),
+            constraints.pop_subst(&application.impl_variables).env(),
             &Env::default()
         );
     }
@@ -350,7 +343,7 @@ mod tests {
         let requested = term::<TraitId>("Foo").with(&caller_variable, ());
         let (application, constraints) =
             apply_candidate(&program, env, requested, &candidates[0]).unwrap();
-        let proof_constraints = application.proof_constraints(&constraints);
+        let proof_constraints = constraints.pop_subst(&application.impl_variables);
 
         assert_eq!(
             proof_constraints
@@ -371,9 +364,9 @@ mod tests {
             ]",
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
-        let (application, constraints) =
+        let (application, _) =
             apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
-        let arguments = application.inferred_impl_arguments(&constraints);
+        let arguments = application.impl_substitution;
 
         assert_eq!(arguments.len(), 1);
         assert!(arguments[0].is_variable());

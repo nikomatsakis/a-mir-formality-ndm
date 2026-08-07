@@ -131,12 +131,8 @@ pub(super) fn resolve_fn_body(
                 format_args!("trait {:?}", trait_ref.trait_id),
             )?;
 
-            let impl_data = selected
-                .trait_impl
-                .binder
-                .instantiate_with(&selected.impl_arguments)?;
             let override_method = unique_impl_method(
-                &impl_data.impl_items,
+                &selected.trait_impl.impl_items,
                 method_id,
                 format_args!("selected impl {:?}", selected.impl_id),
             )?;

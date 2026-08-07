@@ -23,7 +23,7 @@ pub(crate) use prove::prove_fully_normalize_parameter;
 pub(crate) use prove::prove_impl_wf;
 pub use prove::prove_normalize::prove_normalize;
 pub use prove::{is_definitely_not_proveable, may_not_be_provable, negation_via_failure};
-pub(crate) use prove::{prove_via_impl, ProvedViaImpl};
+pub(crate) use prove::{prove_via_impl, ProvedImpl};
 pub use prove::{Bias, Env, MaxUniverse, Universe};
 pub use prove::{Constrained, Constraints};
 pub use requirements::*;
