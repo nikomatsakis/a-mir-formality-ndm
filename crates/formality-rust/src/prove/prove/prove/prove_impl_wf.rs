@@ -69,7 +69,7 @@ judgment_fn! {
                 validation.apply_assumption(impl_header),
                 validation.apply_assumptions(conditions),
             ))
-            (let goal = validation.apply(Wc::for_all(supertrait)))
+            (let goal = validation.apply_goal(Wc::for_all(supertrait)))
             (prove(program, env, assumptions, goal) => c)
             ----------------------------- ("supertrait")
             (validate_impl_requirement(
@@ -87,7 +87,7 @@ judgment_fn! {
                 validation.apply_assumption(impl_header),
                 validation.apply_assumptions(conditions),
             ))
-            (let goal = validation.apply(Wc::for_all(outlives)))
+            (let goal = validation.apply_goal(Wc::for_all(outlives)))
             (prove(program, env, assumptions, goal) => c)
             ----------------------------- ("outlives")
             (validate_impl_requirement(

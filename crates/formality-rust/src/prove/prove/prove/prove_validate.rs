@@ -92,7 +92,7 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                validation.apply(normalized_trait_ref),
+                validation.apply_goal(normalized_trait_ref),
             ) => c)
             ----------------------------- ("normalize associated value")
             (prove_validate(
@@ -243,7 +243,7 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                validation.apply(source_trait_ref),
+                validation.apply_goal(source_trait_ref),
             ) => c)
             ----------------------------- ("supertrait")
             (prove_validate_via_instantiated_trait_requirement(
@@ -320,7 +320,7 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                validation.apply(source_trait_ref),
+                validation.apply_goal(source_trait_ref),
             ) => c)
             (let c = c.pop_subst(associated_subst))
             ----------------------------- ("associated type")
@@ -364,7 +364,7 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                validation.apply(source_trait_ref),
+                validation.apply_goal(source_trait_ref),
             ) => c)
             (let c = c.pop_subst(outlives_subst))
             ----------------------------- ("outlives")

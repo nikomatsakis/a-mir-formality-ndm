@@ -98,11 +98,11 @@ mod tests {
         let proposition = term::<Wc>("Vec<u32>: Debug");
         let goal: Wcs = proposition.clone().upcast();
         let empty = Wcs::t();
-        let zero_assumption: Wcs = Upto::Zero.apply(&proposition).upcast();
+        let zero_assumption: Wcs = Upto::Zero.apply_assumption(&proposition).upcast();
         let ranked_assumption: Wcs = Upto::supertraits(TraitId::new("Root"))
-            .apply(&proposition)
+            .apply_assumption(&proposition)
             .upcast();
-        let zero_goal: Wcs = Upto::Zero.apply(&proposition).upcast();
+        let zero_goal: Wcs = Upto::Zero.apply_goal(&proposition).upcast();
 
         let baseline = proof_search_size(&empty, &goal);
         assert_eq!(proof_search_size(&zero_assumption, &goal), baseline);
@@ -113,8 +113,8 @@ mod tests {
     #[test]
     fn overflow_size_still_observes_growth_inside_validation() {
         let mode = Upto::supertraits(TraitId::new("Root"));
-        let shallow: Wcs = mode.apply(term::<Wc>("u32: Debug")).upcast();
-        let deep: Wcs = mode.apply(term::<Wc>("Vec<u32>: Debug")).upcast();
+        let shallow: Wcs = mode.apply_goal(term::<Wc>("u32: Debug")).upcast();
+        let deep: Wcs = mode.apply_goal(term::<Wc>("Vec<u32>: Debug")).upcast();
 
         assert!(proof_search_size(&Wcs::t(), &deep) > proof_search_size(&Wcs::t(), &shallow));
     }

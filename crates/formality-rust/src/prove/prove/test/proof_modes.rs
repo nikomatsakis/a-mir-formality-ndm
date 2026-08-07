@@ -28,7 +28,7 @@ fn sub() -> Wc {
 }
 
 fn validated_at(upto: Upto, wc: impl Upcast<Wc>) -> Wc {
-    upto.apply(wc)
+    upto.apply_goal(wc)
 }
 
 fn at_supertraits(wc: impl Upcast<Wc>) -> Wc {
@@ -39,8 +39,16 @@ fn at_gat_bounds(wc: impl Upcast<Wc>) -> Wc {
     validated_at(Upto::gat_bounds(TraitId::new("ValidationRoot")), wc)
 }
 
+fn assumed_at(upto: Upto, wc: impl Upcast<Wc>) -> Wc {
+    upto.apply_assumption(wc)
+}
+
 fn assumed_at_supertraits(wc: impl Upcast<Wc>) -> Wc {
-    Upto::supertraits(TraitId::new("ValidationRoot")).apply_assumption(wc)
+    assumed_at(Upto::supertraits(TraitId::new("ValidationRoot")), wc)
+}
+
+fn assumed_at_gat_bounds(wc: impl Upcast<Wc>) -> Wc {
+    assumed_at(Upto::gat_bounds(TraitId::new("ValidationRoot")), wc)
 }
 
 fn normalization_decls() -> Program {
@@ -156,7 +164,7 @@ fn normalization_can_use_a_sufficient_validated_input() {
     let from_validation = prove_normalize(
         &program,
         (),
-        at_supertraits(term::<Wc>("u32: Marker")),
+        assumed_at_supertraits(term::<Wc>("u32: Marker")),
         &alias,
     );
     assert!(from_validation.is_proven());
@@ -187,14 +195,14 @@ fn value_only_normalization_is_not_used_for_well_formedness() {
         ])),
         ..Program::empty()
     };
-    let assumptions = Upto::supertraits(TraitId::new("Family")).apply(term::<Wc>("Y: Family"));
+    let assumptions =
+        Upto::supertraits(TraitId::new("Family")).apply_assumption(term::<Wc>("Y: Family"));
     let alias = term::<AliasTy>("<X as Family>::Out");
 
     assert!(!prove_normalize(&program, (), &assumptions, &alias).is_proven());
 
-    let wf_value =
-        Upto::supertraits(TraitId::new("Family"))
-            .apply(Relation::well_formed(term::<Parameter>("NeedsBound<Y>")));
+    let wf_value = Upto::supertraits(TraitId::new("Family"))
+        .apply_goal(Relation::well_formed(term::<Parameter>("NeedsBound<Y>")));
     assert!(!prove(program, (), assumptions, wf_value).is_proven());
 }
 
@@ -232,7 +240,7 @@ fn equality_with_alias_stays_in_current_validation_context() {
     let result = prove_after(
         Program::empty(),
         Constraints::none(()),
-        at_supertraits(alias_eq),
+        assumed_at_supertraits(alias_eq),
         Relation::equals(
             term::<Parameter>("<u32 as Family>::Output"),
             term::<Parameter>("bool"),
@@ -266,7 +274,7 @@ fn normalizing_non_alias_uses_only_explicit_assumptions() {
     let result = prove_normalize(
         Program::empty(),
         (),
-        at_supertraits(term::<Wc>("u32 = bool")),
+        assumed_at_supertraits(term::<Wc>("u32 = bool")),
         term::<Parameter>("u32"),
     );
 
@@ -275,24 +283,20 @@ fn normalizing_non_alias_uses_only_explicit_assumptions() {
 
 #[test]
 fn validation_evidence_is_not_ordinary_evidence() {
-    let validated_sub = at_supertraits(sub());
+    let assumed_sub = assumed_at_supertraits(sub());
+    let goal_sub = at_supertraits(sub());
 
-    let validation_result = prove_after(
-        decls(),
-        Constraints::none(()),
-        &validated_sub,
-        &validated_sub,
-    );
+    let validation_result = prove_after(decls(), Constraints::none(()), &assumed_sub, goal_sub);
     assert!(validation_result.is_proven());
 
-    let ordinary_result = prove_after(decls(), Constraints::none(()), validated_sub, sub());
+    let ordinary_result = prove_after(decls(), Constraints::none(()), assumed_sub, sub());
     assert!(!ordinary_result.is_proven());
 }
 
 #[test]
 fn observationally_zero_evidence_can_be_rebased() {
-    let source = Upto::supertraits(TraitId::new("SourceRoot")).apply(sub());
-    let goal = Upto::supertraits(TraitId::new("GoalRoot")).apply(sub());
+    let source = Upto::supertraits(TraitId::new("SourceRoot")).apply_assumption(sub());
+    let goal = Upto::supertraits(TraitId::new("GoalRoot")).apply_goal(sub());
 
     let result = prove_after(decls(), Constraints::none(()), source, goal);
 
@@ -307,7 +311,7 @@ fn gat_bound_frontier_can_discharge_supertrait_frontier() {
     let result = prove_after(
         decls(),
         Constraints::none(()),
-        at_gat_bounds(&root),
+        assumed_at_gat_bounds(&root),
         at_supertraits(root),
     );
 
@@ -320,7 +324,7 @@ fn supertrait_frontier_cannot_discharge_gat_bound_frontier() {
     let result = prove_after(
         decls(),
         Constraints::none(()),
-        at_supertraits(&root),
+        assumed_at_supertraits(&root),
         at_gat_bounds(root),
     );
 
@@ -386,7 +390,7 @@ fn opaque_validated_input_can_construct_an_opaque_result() {
     let from_validated = prove_after(
         program,
         Constraints::none(()),
-        at_supertraits(term::<Wc>("u32: Prerequisite")),
+        assumed_at_supertraits(term::<Wc>("u32: Prerequisite")),
         at_gat_bounds(term::<Wc>("u32: Marker")),
     );
     assert!(from_validated.is_proven());
@@ -404,7 +408,7 @@ fn ranked_gat_bound_evidence_elaborates_supertrait() {
     let result = prove_after(
         decls(),
         Constraints::none(()),
-        at_gat_bounds(sub()),
+        assumed_at_gat_bounds(sub()),
         at_supertraits(term::<Wc>("u32: Super")),
     );
 
@@ -429,7 +433,7 @@ fn ranked_gat_bound_evidence_elaborates_transitive_supertrait() {
     let result = prove_after(
         transitive_supertrait_decls(),
         Constraints::none(()),
-        at_gat_bounds(sub()),
+        assumed_at_gat_bounds(sub()),
         at_supertraits(term::<Wc>("u32: Super")),
     );
 
@@ -441,7 +445,7 @@ fn ranked_gat_bound_evidence_elaborates_higher_ranked_supertrait() {
     let result = prove_after(
         higher_ranked_supertrait_decls(),
         Constraints::none(()),
-        at_gat_bounds(sub()),
+        assumed_at_gat_bounds(sub()),
         at_supertraits(term::<Wc>("for<'a> u32: Super<'a>")),
     );
 
@@ -494,20 +498,21 @@ fn validated_relation_is_exact_and_not_ordinary_evidence() {
         Relation::equals(term::<Parameter>("u32"), term::<Parameter>("bool")).upcast();
     let reverse_equality: Wc =
         Relation::equals(term::<Parameter>("bool"), term::<Parameter>("u32")).upcast();
-    let validated_equality = at_supertraits(&equality);
+    let assumed_equality = assumed_at_supertraits(&equality);
+    let goal_equality = at_supertraits(&equality);
 
     let exact_result = prove_after(
         Program::empty(),
         Constraints::none(()),
-        &validated_equality,
-        &validated_equality,
+        &assumed_equality,
+        goal_equality,
     );
     assert!(exact_result.is_proven());
 
     let reverse_result = prove_after(
         Program::empty(),
         Constraints::none(()),
-        &validated_equality,
+        &assumed_equality,
         at_supertraits(reverse_equality),
     );
     assert!(!reverse_result.is_proven());
@@ -515,7 +520,7 @@ fn validated_relation_is_exact_and_not_ordinary_evidence() {
     let ordinary_result = prove_after(
         Program::empty(),
         Constraints::none(()),
-        validated_equality,
+        assumed_equality,
         equality,
     );
     assert!(!ordinary_result.is_proven());
@@ -528,20 +533,21 @@ fn validated_outlives_is_not_ordinary_evidence() {
     };
     let (env, substitution) = Env::default().universal_substitution(&binder);
     let outlives = binder.instantiate_with(substitution).unwrap();
-    let validated_outlives = at_supertraits(&outlives);
+    let assumed_outlives = assumed_at_supertraits(&outlives);
+    let goal_outlives = at_supertraits(&outlives);
 
     let validation_result = prove_after(
         Program::empty(),
         Constraints::none(&env),
-        &validated_outlives,
-        &validated_outlives,
+        &assumed_outlives,
+        goal_outlives,
     );
     assert!(validation_result.is_proven());
 
     let ordinary_result = prove_after(
         Program::empty(),
         Constraints::none(env),
-        validated_outlives,
+        assumed_outlives,
         outlives,
     );
     assert!(!ordinary_result.is_proven());
@@ -550,7 +556,7 @@ fn validated_outlives_is_not_ordinary_evidence() {
 #[test]
 fn validation_preserves_predicate_congruence() {
     let assumptions: Wcs = (
-        at_supertraits(term::<Wc>("u32: Sub")),
+        assumed_at_supertraits(term::<Wc>("u32: Sub")),
         term::<Wc>("u32 = bool"),
     )
         .upcast();
@@ -636,15 +642,14 @@ fn ordinary_associated_bound_requires_originating_trait_and_gat_conditions() {
 
 #[test]
 fn validation_preserves_frontier_through_well_formedness() {
-    let validated_sub = at_supertraits(sub());
+    let assumed_sub = assumed_at_supertraits(sub());
     let wf: Wc = Relation::well_formed(term::<Parameter>("NeedsSub<u32>")).upcast();
     let validated_wf = at_supertraits(&wf);
 
-    let validation_result =
-        prove_after(decls(), Constraints::none(()), &validated_sub, validated_wf);
+    let validation_result = prove_after(decls(), Constraints::none(()), &assumed_sub, validated_wf);
     assert!(validation_result.is_proven());
 
-    let ordinary_result = prove_after(decls(), Constraints::none(()), validated_sub, wf);
+    let ordinary_result = prove_after(decls(), Constraints::none(()), assumed_sub, wf);
     assert!(!ordinary_result.is_proven());
 }
 

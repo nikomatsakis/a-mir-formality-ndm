@@ -180,7 +180,7 @@ impl Upto {
     ///
     /// Modes attach only to atomic predicates. Quantifiers preserve the current polarity, while
     /// the premise of an implication flips between goal and assumption position.
-    pub fn apply(&self, wc: impl Upcast<Wc>) -> Wc {
+    pub fn apply_goal(&self, wc: impl Upcast<Wc>) -> Wc {
         self.apply_at(wc.upcast(), ModePosition::Goal)
     }
 
@@ -258,8 +258,9 @@ pub enum Wc {
 
     /// Prove (or assume) an atomic proposition at one dictionary-construction frontier.
     ///
-    /// This constructor is internal to Rust's well-formedness semantics. Use [`Upto::apply`] to
-    /// apply a frontier to a compound where-clause.
+    /// This constructor is internal to Rust's well-formedness semantics. Use
+    /// [`Upto::apply_goal`] or [`Upto::apply_assumption`] to apply a frontier to a compound
+    /// where-clause in the corresponding logical position.
     #[grammar($v0($v1))]
     Mode(Upto, AtomicPredicate),
 }
@@ -306,14 +307,14 @@ mod tests {
     fn modes_use_constructor_notation() {
         let atom = term::<Wc>("u32: Debug");
         let cases = [
-            ("Zero(u32: Debug)", Upto::Zero.apply(&atom)),
+            ("Zero(u32: Debug)", Upto::Zero.apply_goal(&atom)),
             (
                 "Supertraits[Root](u32: Debug)",
-                Upto::supertraits(TraitId::new("Root")).apply(&atom),
+                Upto::supertraits(TraitId::new("Root")).apply_goal(&atom),
             ),
             (
                 "GatBounds[Root](u32: Debug)",
-                Upto::gat_bounds(TraitId::new("Root")).apply(&atom),
+                Upto::gat_bounds(TraitId::new("Root")).apply_goal(&atom),
             ),
         ];
 
@@ -332,8 +333,11 @@ mod tests {
         let implication = Wc::implies(&condition, &consequence);
 
         assert_eq!(
-            mode.apply(implication),
-            Wc::implies(mode.apply_assumption(condition), mode.apply(consequence),),
+            mode.apply_goal(implication),
+            Wc::implies(
+                mode.apply_assumption(condition),
+                mode.apply_goal(consequence),
+            ),
         );
     }
 
@@ -346,7 +350,10 @@ mod tests {
 
         assert_eq!(
             mode.apply_assumption(implication),
-            Wc::implies(mode.apply(condition), mode.apply_assumption(consequence),),
+            Wc::implies(
+                mode.apply_goal(condition),
+                mode.apply_assumption(consequence),
+            ),
         );
     }
 
@@ -358,8 +365,8 @@ mod tests {
         };
 
         assert_eq!(
-            mode.apply(Wc::for_all(&binder)),
-            Wc::for_all(binder.map(|goal| mode.apply(goal))),
+            mode.apply_goal(Wc::for_all(&binder)),
+            Wc::for_all(binder.map(|goal| mode.apply_goal(goal))),
         );
     }
 
@@ -367,7 +374,7 @@ mod tests {
     #[should_panic(expected = "cannot apply a mode")]
     fn applying_a_mode_twice_is_rejected() {
         let mode = Upto::supertraits(TraitId::new("Root"));
-        let once = mode.apply(term::<Wc>("u32: Debug"));
-        mode.apply(once);
+        let once = mode.apply_goal(term::<Wc>("u32: Debug"));
+        mode.apply_goal(once);
     }
 }
