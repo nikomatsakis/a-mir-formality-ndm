@@ -4,7 +4,7 @@ use crate::{
         Parameter, Predicate, Relation, RigidTy, TraitImplBoundData, TraitRef, Ty, TyData, Upto,
         Wc, WcData, Wcs,
     },
-    prove::prove::Constrained,
+    prove::prove::{prove::prove_match_impl::MatchedImpl, Constrained},
 };
 use formality_core::{judgment_fn, Downcast};
 
@@ -157,25 +157,23 @@ judgment_fn! {
             (let (gat_parameters, requested_trait_ref, gat_where_clauses) =
                 associated_ty_parts(decls, a, *item_arity)?)
 
-            // Normalizing through an impl is itself a coinductive application. The recursive
-            // handle is deliberately zero-capability: it can close an exact occurrence but cannot
-            // expose requirements of the dictionary whose associated value we are selecting.
-            (let recursive_assumption =
-                Upto::Zero.apply(requested_trait_ref))
-
             (match_impl_candidate(
                 decls,
                 env,
-                (assumptions, recursive_assumption),
+                assumptions,
                 requested_trait_ref,
                 candidate,
-            ) => Constrained(matched, c))
-
-            (let trait_impl @ TraitImplBoundData {
-                trait_id: impl_trait_id,
-                where_clauses: impl_where_clauses,
-                ..
-            } = matched.trait_impl(c))
+            ) => Constrained(
+                matched @ MatchedImpl {
+                    trait_impl: trait_impl @ TraitImplBoundData {
+                        trait_id: impl_trait_id,
+                        where_clauses: impl_where_clauses,
+                        ..
+                    },
+                    ..
+                },
+                c,
+            ))
 
             // The selected impl fixes its associated value before any dictionaries witnessing
             // that value's bounds exist. Make that equation available only inside this candidate
@@ -195,7 +193,7 @@ judgment_fn! {
             // conditions only at an earlier frontier too.
             (let gat_validation = Upto::gat_bounds(impl_trait_id))
             (let provisional_impl_header =
-                Upto::supertraits(impl_trait_id).apply(trait_impl.trait_ref()))
+                Upto::supertraits(impl_trait_id).apply_assumption(trait_impl.trait_ref()))
             (prove_after(
                 decls,
                 c,
@@ -214,10 +212,11 @@ judgment_fn! {
             // latest substitution before selecting and instantiating the associated value.
             (let ty = c.substitution().apply(provisional_ty))
             (let c = matched.pop_constraints(c))
-            // An ambiguous, nonmatching candidate can leave one of its local variables in the
-            // provisional value. Such a value cannot escape the candidate binder; discard that
-            // path while retaining ambiguous paths whose result is well scoped.
-            (if c.env().encloses(ty))!
+            // Rust's constrained-impl-parameter rules guarantee that an impl-local variable cannot
+            // escape through the associated value after the impl conditions have been proven.
+            // a-mir-formality does not enforce those rules yet; see
+            // https://github.com/rust-lang/a-mir-formality/issues/57.
+            (assert c.env().encloses(ty))
             ----------------------------- ("normalize-via-impl")
             (prove_normalize_via_impl_candidate(
                 decls,

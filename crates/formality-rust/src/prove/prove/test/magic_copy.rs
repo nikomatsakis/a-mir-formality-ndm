@@ -27,7 +27,7 @@ fn all_t_is_not_magic_without_copy_for_all_t() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_1: Magic, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 2 }, trait_impl: impl <ty> Magic for ^ty0_0 where ^ty0_0 : Magic { } }, assumptions: {}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:58:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_1: Magic, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 2 }, trait_impl: impl <ty> Magic for ^ty0_0 where ^ty0_0 : Magic { } }, assumptions: {}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -38,5 +38,5 @@ fn invalid_magic_impl_does_not_imply_copy_for_all_t() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_1: Copy, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 3 }, trait_impl: impl Copy for u32 { } }, assumptions: {}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:58:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_1: Copy, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 3 }, trait_impl: impl Copy for u32 { } }, assumptions: {}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }

@@ -48,5 +48,5 @@ fn not_well_formed_adt() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:59:1: no applicable rules for prove_via_impl { requested_trait_ref: u64: Foo, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 1 }, trait_impl: impl Foo for u32 { } }, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:58:1: no applicable rules for prove_via_impl { requested_trait_ref: u64: Foo, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 1 }, trait_impl: impl Foo for u32 { } }, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }

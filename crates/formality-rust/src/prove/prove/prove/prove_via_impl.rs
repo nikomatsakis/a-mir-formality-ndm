@@ -1,9 +1,8 @@
 use crate::grammar::{
-    Const, ExistentialVar, Lt, Parameter, ParameterKind, TraitImpl, TraitImplBoundData, TraitRef,
-    Ty, Upto, Wcs,
+    Const, ExistentialVar, Lt, Parameter, ParameterKind, TraitImpl, TraitRef, Ty, Upto, Wcs,
 };
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
-use crate::prove::prove::prove::{match_impl_candidate, prove_after};
+use crate::prove::prove::prove::{impl_contract, match_impl_candidate, prove_after};
 use crate::prove::prove::{Constrained, Constraints, Env};
 use formality_core::judgment_fn;
 
@@ -12,13 +11,13 @@ use super::prove_match_impl::MatchedImpl;
 /// A successful application of one particular impl declaration.
 /// It retains the source impl identity and its inferred binder variables.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) struct ImplApplication {
+pub(crate) struct ProvedViaImpl {
     pub(crate) impl_id: ImplId,
     pub(crate) trait_impl: TraitImpl,
     pub(crate) impl_variables: Vec<ExistentialVar>,
 }
 
-formality_core::cast_impl!(ImplApplication);
+formality_core::cast_impl!(ProvedViaImpl);
 
 fn impl_variable_parameter(variable: &ExistentialVar) -> Parameter {
     match variable.kind {
@@ -28,7 +27,7 @@ fn impl_variable_parameter(variable: &ExistentialVar) -> Parameter {
     }
 }
 
-impl ImplApplication {
+impl ProvedViaImpl {
     fn new(candidate: &ImplCandidate, impl_variables: &[ExistentialVar]) -> Self {
         Self {
             impl_id: candidate.id,
@@ -65,32 +64,21 @@ judgment_fn! {
         assumptions: Wcs,
         requested_trait_ref: TraitRef,
         candidate: ImplCandidate,
-    ) => Constrained<ImplApplication> {
+    ) => Constrained<ProvedViaImpl> {
         debug(requested_trait_ref, candidate, assumptions, env)
 
         (
-            // Löb induction begins with an opaque handle to the dictionary being constructed.
-            // Header matching may close an exact recursive occurrence with this handle, but it
-            // cannot project supertraits or associated-type bounds from it. After matching, the
-            // residual obligations below receive the candidate's independently validated
-            // `Supertraits` view instead.
-            (let recursive_assumption =
-                Upto::Zero.apply(requested_trait_ref))
             (match_impl_candidate(
                 decls,
                 env,
-                (assumptions, recursive_assumption),
+                assumptions,
                 requested_trait_ref,
                 candidate,
             ) => Constrained(
-                matched @ MatchedImpl { impl_variables, .. },
+                MatchedImpl { impl_variables, trait_impl, .. },
                 c,
             ))!
-            (let trait_impl @ TraitImplBoundData {
-                trait_id,
-                where_clauses,
-                ..
-            } = matched.trait_impl(c))
+            (impl_contract(trait_impl) => (impl_header, conditions))
 
             // A well-formed impl is a dictionary constructor from validated inputs to ordinary,
             // completed `Implemented` evidence. Selecting the impl fixes its associated-type
@@ -98,17 +86,18 @@ judgment_fn! {
             // That view still cannot expose the root dictionary's own supertrait or associated-
             // bound fields.
             //
-            // FIXME(ndm): It seems to me that this logic can be "extracted and shared" somehow
-            // between impl WF checking and this code here. We are basically constructing the
-            // "inputs" to the impl's implication.
-            (let validation = Upto::supertraits(trait_id))
+            (let validation = Upto::supertraits(&impl_header.trait_id))
             (let provisional_impl_header =
-                validation.apply(trait_impl.trait_ref()))
+                // There's something very subtle going on here!
+                //
+                // Adding `Supertraits[Trait](T: Trait)` as an assumption
+                // does not allow upcasting to `Supertraits[Trait](T: Supertrait)`.
+                validation.apply_assumption(impl_header))
             (prove_after(
                 decls,
                 c,
                 (assumptions, provisional_impl_header),
-                validation.apply_goals(where_clauses),
+                validation.apply_goals(conditions),
             ) => c)
             ---------------------------------------------------- ("candidate")
             (prove_via_impl(
@@ -118,7 +107,7 @@ judgment_fn! {
                 requested_trait_ref,
                 candidate,
             ) => Constrained(
-                ImplApplication::new(candidate, impl_variables),
+                ProvedViaImpl::new(candidate, impl_variables),
                 c,
             ))
         )
@@ -127,7 +116,7 @@ judgment_fn! {
 
 #[cfg(test)]
 mod tests {
-    use super::{prove_via_impl, ImplApplication};
+    use super::{prove_via_impl, ProvedViaImpl};
     use crate::grammar::{Crates, Parameter, ParameterKind, TraitId, TraitRef, Variable, Wcs};
     use crate::prove::prove::decls::ImplCandidate;
     use crate::prove::prove::{Constrained, Constraints, Env, Program};
@@ -154,7 +143,7 @@ mod tests {
         env: Env,
         requested_trait_ref: TraitRef,
         candidate: &ImplCandidate,
-    ) -> Option<(ImplApplication, Constraints)> {
+    ) -> Option<(ProvedViaImpl, Constraints)> {
         prove_via_impl(program, env, Wcs::t(), requested_trait_ref, candidate)
             .into_singleton()
             .ok()

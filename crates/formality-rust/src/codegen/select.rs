@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::grammar::{Parameter, TraitImpl, TraitRef, Wcs};
-use crate::prove::prove::{prove_via_impl, Constrained, Env, ImplApplication, ImplId, Program};
+use crate::prove::prove::{prove_via_impl, Constrained, Env, ImplId, Program, ProvedViaImpl};
 use formality_core::{visit::CoreVisit, Upcast};
 
 use super::normalize::normalize_parameters;
@@ -19,7 +19,7 @@ formality_core::cast_impl!(ApplicationKey);
 
 #[derive(Debug)]
 struct ApplicationGroup {
-    application: ImplApplication,
+    application: ProvedViaImpl,
     definite: bool,
     ambiguous: bool,
 }
@@ -166,7 +166,7 @@ mod tests {
 
     use super::{choose_application, select_impl, ApplicationGroup, ApplicationKey};
     use crate::grammar::{Crates, Parameter, TraitRef};
-    use crate::prove::prove::{prove_via_impl, Constrained, Env, ImplApplication, Program};
+    use crate::prove::prove::{prove_via_impl, Constrained, Env, Program, ProvedViaImpl};
     use crate::rust::term;
 
     fn program(source: &str) -> Program {
@@ -174,7 +174,7 @@ mod tests {
         crates.to_prove_decls()
     }
 
-    fn application(program: &Program, trait_ref: &TraitRef) -> ImplApplication {
+    fn application(program: &Program, trait_ref: &TraitRef) -> ProvedViaImpl {
         let candidate = program
             .raw_trait_impls_for(&trait_ref.trait_id)
             .into_iter()

@@ -10,7 +10,7 @@ use crate::prove::prove::{
 };
 use formality_core::judgment_fn;
 
-use super::{constraints::Constraints, env::Env};
+use super::{constraints::Constraints, env::Env, impl_contract};
 
 judgment_fn! {
     /// Prove that an impl declaration satisfies every requirement imposed by its trait.
@@ -63,10 +63,11 @@ judgment_fn! {
         debug(trait_impl, requirement, env, program)
 
         (
-            (let validation = Upto::supertraits(trait_id))
+            (impl_contract(trait_impl) => (impl_header, conditions))
+            (let validation = Upto::supertraits(&impl_header.trait_id))
             (let assumptions = (
-                validation.apply(trait_impl.trait_ref()),
-                validation.apply_assumptions(where_clauses),
+                validation.apply_assumption(impl_header),
+                validation.apply_assumptions(conditions),
             ))
             (let goal = validation.apply(Wc::for_all(supertrait)))
             (prove(program, env, assumptions, goal) => c)
@@ -74,20 +75,17 @@ judgment_fn! {
             (validate_impl_requirement(
                 program,
                 env,
-                trait_impl @ TraitImplBoundData {
-                    trait_id,
-                    where_clauses,
-                    ..
-                },
+                trait_impl,
                 TraitRequirementBoundData::Supertrait(supertrait),
             ) => c)
         )
 
         (
-            (let validation = Upto::supertraits(trait_id))
+            (impl_contract(trait_impl) => (impl_header, conditions))
+            (let validation = Upto::supertraits(&impl_header.trait_id))
             (let assumptions = (
-                validation.apply(trait_impl.trait_ref()),
-                validation.apply_assumptions(where_clauses),
+                validation.apply_assumption(impl_header),
+                validation.apply_assumptions(conditions),
             ))
             (let goal = validation.apply(Wc::for_all(outlives)))
             (prove(program, env, assumptions, goal) => c)
@@ -95,11 +93,7 @@ judgment_fn! {
             (validate_impl_requirement(
                 program,
                 env,
-                trait_impl @ TraitImplBoundData {
-                    trait_id,
-                    where_clauses,
-                    ..
-                },
+                trait_impl,
                 TraitRequirementBoundData::Outlives(outlives),
             ) => c)
         )
@@ -124,8 +118,9 @@ judgment_fn! {
                 .instantiate_with((impl_ty,))?)
 
             // Instantiate the declaration-side GAT conditions with the same arguments.
+            (impl_contract(trait_impl) => (impl_header, conditions))
+            (let TraitRef { trait_id, parameters } = impl_header)
             (let trait_def = program.trait_def(trait_id))
-            (let TraitRef { parameters, .. } = trait_impl.trait_ref())
             (let TraitBoundData { trait_items, .. } =
                 trait_def.binder.instantiate_with(parameters)?)
             (trait_associated_ty(trait_items, associated_id) =>
@@ -141,7 +136,7 @@ judgment_fn! {
             // concrete value's WF and each promised bound.
             (let gat_bounds = Upto::gat_bounds(trait_id))
             (let conditions =
-                gat_bounds.apply_assumptions((where_clauses, trait_gat_wc)))
+                gat_bounds.apply_assumptions((conditions, trait_gat_wc)))
             (let goals =
                 gat_bounds.apply_goals((Relation::well_formed(impl_ty), gat_goals)))
             (let goals = Wcs::from_iter(
@@ -149,18 +144,14 @@ judgment_fn! {
             (prove(
                 program,
                 env,
-                gat_bounds.apply(trait_impl.trait_ref()),
+                gat_bounds.apply_assumption(impl_header),
                 goals,
             ) => c)
             ----------------------------- ("associated type")
             (validate_impl_requirement(
                 program,
                 env,
-                trait_impl @ TraitImplBoundData {
-                    trait_id,
-                    where_clauses,
-                    ..
-                },
+                trait_impl,
                 AssociatedTyRequirement {
                     id: associated_id,
                     binder: associated_binder,
