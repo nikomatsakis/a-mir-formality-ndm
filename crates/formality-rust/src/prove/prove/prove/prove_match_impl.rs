@@ -46,11 +46,6 @@ impl MatchedImpl {
             trait_impl: constraints.substitution().apply(trait_impl),
         }
     }
-
-    /// Remove the fresh impl variables after all caller-specific obligations have succeeded.
-    pub(crate) fn pop_constraints(&self, constraints: &Constraints) -> Constraints {
-        constraints.pop_subst(&self.impl_variables)
-    }
 }
 
 judgment_fn! {

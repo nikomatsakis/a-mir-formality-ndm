@@ -4,7 +4,7 @@ use crate::{
         Parameter, Predicate, Relation, RigidTy, TraitImplBoundData, TraitRef, Ty, TyData, Upto,
         Wc, WcData, Wcs,
     },
-    prove::prove::{prove::prove_match_impl::MatchedImpl, Constrained},
+    prove::prove::{Constrained, ProvedImpl},
 };
 use formality_core::{judgment_fn, Downcast};
 
@@ -12,7 +12,7 @@ use crate::prove::prove::{
     decls::{ImplCandidate, Program},
     prove::{
         combinators::zip, env::Env, prove_after::prove_after, prove_eq::prove_existential_var_eq,
-        prove_match_impl::match_impl_candidate,
+        prove_via_impl,
     },
 };
 
@@ -157,14 +157,14 @@ judgment_fn! {
             (let (gat_parameters, requested_trait_ref, gat_where_clauses) =
                 associated_ty_parts(decls, a, *item_arity)?)
 
-            (match_impl_candidate(
+            (prove_via_impl(
                 decls,
                 env,
                 assumptions,
                 requested_trait_ref,
                 candidate,
             ) => Constrained(
-                matched @ MatchedImpl {
+                ProvedImpl {
                     trait_impl: trait_impl @ TraitImplBoundData {
                         trait_id: impl_trait_id,
                         where_clauses: impl_where_clauses,
@@ -208,10 +208,9 @@ judgment_fn! {
                 ),
             ) => c)
 
-            // Where-clauses may have inferred impl parameters absent from the header, so apply the
-            // latest substitution before selecting and instantiating the associated value.
+            // The stronger impl and GAT obligations may have further constrained caller variables
+            // appearing in the selected value, so apply the latest substitution before returning.
             (let ty = c.substitution().apply(provisional_ty))
-            (let c = matched.pop_constraints(c))
             // Rust's constrained-impl-parameter rules guarantee that an impl-local variable cannot
             // escape through the associated value after the impl conditions have been proven.
             // a-mir-formality does not enforce those rules yet; see
