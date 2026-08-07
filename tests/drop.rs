@@ -121,7 +121,7 @@ fn drop_impl_concrete_type_param() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:51:1: no applicable rules for prove_via_impl { requested_trait_ref: MyStruct<!ty_0>: Drop, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Drop for MyStruct<u32> { } }, assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: MyStruct<!ty_0>: Drop, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Drop for MyStruct<u32> { } }, assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 /// Drop impl for a non-ADT type (e.g., u32).

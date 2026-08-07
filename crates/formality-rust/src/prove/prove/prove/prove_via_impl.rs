@@ -10,14 +10,11 @@ use super::prove_match_impl::MatchedImpl;
 ///
 /// The impl has been opened, matched against the requested trait-ref, and had its where-clauses
 /// proven. Its fields have the final substitution learned during that proof applied to them. They
-/// can still mention caller variables, or unconstrained impl variables when the application is
-/// ambiguous; consumers decide whether those are acceptable before removing `impl_variables` from
-/// the returned constraints.
+/// can still mention caller variables. A definite result cannot mention the candidate's fresh
+/// variables; an ambiguous result may retain them solely to identify the unresolved application.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct ProvedImpl {
     pub(crate) impl_id: ImplId,
-
-    pub(crate) impl_variables: Vec<ExistentialVar>,
 
     /// Impl binder arguments after applying all constraints learned while proving this impl.
     pub(crate) impl_substitution: Vec<Parameter>,
@@ -28,18 +25,15 @@ pub(crate) struct ProvedImpl {
 
 formality_core::cast_impl!(ProvedImpl);
 
-// Operations on an opened, candidate-local impl.
-
 impl ProvedImpl {
-    pub(crate) fn new(
+    fn new(
         impl_id: &ImplId,
         constraints: &Constraints,
         impl_variables: &[ExistentialVar],
         trait_impl: &TraitImplBoundData,
     ) -> Self {
         Self {
-            impl_id: impl_id.clone(),
-            impl_variables: impl_variables.to_vec(),
+            impl_id: *impl_id,
             impl_substitution: constraints
                 .substitution()
                 .apply(impl_variables.to::<Vec<Parameter>>()),
@@ -92,6 +86,23 @@ judgment_fn! {
                 (assumptions, provisional_impl_header),
                 validation.apply_goals(conditions),
             ) => c)
+
+            // Snapshot everything learned about the impl before removing its fresh variables.
+            // Rust's constrained-impl-parameter rules guarantee that none of those variables can
+            // escape through the completed application. a-mir-formality does not yet enforce
+            // those rules; see https://github.com/rust-lang/a-mir-formality/issues/57.
+            (let proved_impl @ ProvedImpl {
+                impl_substitution: final_impl_substitution,
+                trait_impl: final_trait_impl,
+                ..
+            } = ProvedImpl::new(&candidate.id, c, impl_variables, trait_impl))
+            (let c = c.pop_subst(impl_variables))
+            (assert c.env().encloses(c.substitution()))
+            // An ambiguous recursive answer may not determine every impl argument. Its application
+            // is retained only so consumers can report the ambiguity; it cannot be selected as
+            // evidence. Every answer claimed to be true must be entirely caller-scoped.
+            (assert !c.known_true ||
+                c.env().encloses((final_impl_substitution, final_trait_impl)))
             ---------------------------------------------------- ("candidate")
             (prove_via_impl(
                 decls,
@@ -99,10 +110,7 @@ judgment_fn! {
                 assumptions,
                 requested_trait_ref,
                 candidate,
-            ) => Constrained(
-                ProvedImpl::new(&candidate.id, c, impl_variables, trait_impl),
-                c,
-            ))
+            ) => Constrained(proved_impl, c))
         )
     }
 }
@@ -304,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    fn proof_constraints_pop_impl_variables() {
+    fn returned_constraints_exclude_impl_variables() {
         let program = program(
             "[
                 crate test {
@@ -314,18 +322,14 @@ mod tests {
             ]",
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
-        let (application, constraints) =
+        let (_, constraints) =
             apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
 
-        assert_ne!(constraints.env(), &Env::default());
-        assert_eq!(
-            constraints.pop_subst(&application.impl_variables).env(),
-            &Env::default()
-        );
+        assert_eq!(constraints.env(), &Env::default());
     }
 
     #[test]
-    fn caller_existential_constraint_survives_impl_pop() {
+    fn caller_existential_constraint_survives_candidate_pop() {
         let program = program(
             "[
                 crate test {
@@ -341,12 +345,10 @@ mod tests {
         let mut env = Env::default();
         let caller_variable = env.fresh_existential(ParameterKind::Ty);
         let requested = term::<TraitId>("Foo").with(&caller_variable, ());
-        let (application, constraints) =
-            apply_candidate(&program, env, requested, &candidates[0]).unwrap();
-        let proof_constraints = constraints.pop_subst(&application.impl_variables);
+        let (_, constraints) = apply_candidate(&program, env, requested, &candidates[0]).unwrap();
 
         assert_eq!(
-            proof_constraints
+            constraints
                 .substitution()
                 .get(Variable::ExistentialVar(caller_variable)),
             Some(term::<Parameter>("Wrapper<i32>")),
@@ -354,7 +356,8 @@ mod tests {
     }
 
     #[test]
-    fn unconstrained_impl_argument_remains_visible() {
+    #[should_panic]
+    fn unconstrained_impl_argument_cannot_escape() {
         let program = program(
             "[
                 crate test {
@@ -364,12 +367,7 @@ mod tests {
             ]",
         );
         let candidates = program.raw_trait_impls_for(&term("Foo"));
-        let (application, _) =
-            apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]).unwrap();
-        let arguments = application.impl_substitution;
-
-        assert_eq!(arguments.len(), 1);
-        assert!(arguments[0].is_variable());
+        apply_candidate(&program, Env::default(), term("u32: Foo"), &candidates[0]);
     }
 
     #[test]

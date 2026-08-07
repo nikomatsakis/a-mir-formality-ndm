@@ -61,9 +61,8 @@ pub(super) fn select_impl(program: &Program, trait_ref: &TraitRef) -> SelectedIm
 
         for (Constrained(application, constraints), _) in paths {
             let impl_arguments = &application.impl_substitution;
-            let proof_constraints = constraints.pop_subst(&application.impl_variables);
             let proof_is_definite =
-                proof_constraints.env() == &initial_env && proof_constraints.unconditionally_true();
+                constraints.env() == &initial_env && constraints.unconditionally_true();
 
             if !impl_arguments.free_variables().is_empty() {
                 unresolved.insert(application.impl_id);
@@ -258,8 +257,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "impl selection remained ambiguous")]
-    fn unresolved_impl_argument_is_ambiguous() {
+    #[should_panic]
+    fn unresolved_impl_argument_cannot_escape() {
         let program = program(
             "[
                 crate test {
@@ -272,8 +271,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "ambiguous competitor")]
-    fn definite_candidate_plus_distinct_unresolved_candidate_is_ambiguous() {
+    #[should_panic]
+    fn definite_candidate_plus_unconstrained_candidate_is_rejected() {
         let program = program(
             "[
                 crate test {

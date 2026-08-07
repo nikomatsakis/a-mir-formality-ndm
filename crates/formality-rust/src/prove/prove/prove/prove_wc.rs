@@ -17,7 +17,7 @@ use crate::prove::prove::{
         prove_sub::prove_sub,
         prove_validate::prove_validate,
         prove_via_assumption::prove_via_assumption,
-        prove_via_impl::{prove_via_impl, ProvedImpl},
+        prove_via_impl::prove_via_impl,
         prove_wf::prove_wf,
     },
     requirements::{prove_via_trait_requirement, trait_requirement},
@@ -145,8 +145,7 @@ judgment_fn! {
                 assumptions,
                 trait_ref,
                 candidate,
-            ) => Constrained(ProvedImpl { impl_variables, .. }, c))
-            (let c = c.pop_subst(impl_variables))
+            ) => Constrained(_, c))
             ----------------------------- ("positive impl")
             (prove_wc(
                 decls,

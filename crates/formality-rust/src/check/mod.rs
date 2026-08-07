@@ -271,18 +271,15 @@ fn assert_test_trait_ref_has_impl(
                 |(
                     Constrained(
                         ProvedImpl {
-                            impl_variables,
-                            impl_substitution,
-                            ..
+                            impl_substitution, ..
                         },
                         constraints,
                     ),
                     _,
                 )| {
-                    env.encloses(&impl_substitution) && {
-                        let proof_constraints = constraints.pop_subst(&impl_variables);
-                        proof_constraints.env() == env && proof_constraints.unconditionally_true()
-                    }
+                    env.encloses(&impl_substitution)
+                        && constraints.env() == env
+                        && constraints.unconditionally_true()
                 },
             )
         });
