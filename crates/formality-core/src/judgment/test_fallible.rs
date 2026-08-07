@@ -6,7 +6,7 @@ use anyhow::bail;
 
 use crate::cast_impl;
 use crate::judgment_fn;
-use crate::Fallible;
+use crate::{Fallible, Size};
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug, Hash)]
 struct Check {
@@ -14,6 +14,12 @@ struct Check {
 }
 
 cast_impl!(Check);
+
+impl Size for Check {
+    fn size(&self) -> usize {
+        1usize.saturating_add(self.x.size())
+    }
+}
 
 impl Check {
     fn is(&self, x: &u32) -> Fallible<u32> {

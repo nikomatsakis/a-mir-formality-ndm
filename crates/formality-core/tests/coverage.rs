@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use formality_core::judgment::coverage::record_negative_coverage;
-use formality_core::{cast_impl, judgment_fn, Fallible};
+use formality_core::{cast_impl, judgment_fn, Fallible, Size};
 
 /// `FORMALITY_COVERAGE_DIR` is process-global, so the two coverage tests must
 /// not set it concurrently. Serialize them through this lock.
@@ -16,6 +16,12 @@ static COVERAGE_ENV_LOCK: Mutex<()> = Mutex::new(());
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug, Hash)]
 struct Num(u32);
 cast_impl!(Num);
+
+impl Size for Num {
+    fn size(&self) -> usize {
+        1usize.saturating_add(self.0.size())
+    }
+}
 
 fn is_even(n: &Num) -> Fallible<()> {
     if n.0 % 2 == 0 {
@@ -125,14 +131,18 @@ fn negative_coverage_records_failure_reasons() {
     let err = is_zero(Num(1))
         .into_map()
         .expect_err("is_zero(1) should fail");
-    record_negative_coverage(std::iter::once(err.as_ref()));
+    record_negative_coverage(std::iter::once(
+        err.as_failed().expect("expected a complete failure"),
+    ));
 
     // No applicable rule: `is_one`'s only conclusion pattern is `Num(1)`, so
     // `Num(2)` matches nothing.
     let err = is_one(Num(2))
         .into_map()
         .expect_err("is_one(2) should fail");
-    record_negative_coverage(std::iter::once(err.as_ref()));
+    record_negative_coverage(std::iter::once(
+        err.as_failed().expect("expected a complete failure"),
+    ));
 
     let file: PathBuf = tmp.join("test-coverage.jsonl");
     let contents = std::fs::read_to_string(&file).expect("coverage file written");

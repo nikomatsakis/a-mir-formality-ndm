@@ -62,6 +62,12 @@ pub fn format_error_leaves(e: &anyhow::Error) -> String {
     if let Some(failed) = e.downcast_ref::<FailedJudgment>() {
         return failed.format_leaves();
     }
+    if let Some(failed) = e
+        .chain()
+        .find_map(|cause| cause.downcast_ref::<FailedJudgment>())
+    {
+        return failed.format_leaves();
+    }
     // If no FailedJudgment found, fall back to debug format
     format!("{e:?}")
 }
@@ -145,6 +151,11 @@ fn record_negative_coverage_from_anyhow(e: &anyhow::Error) {
     if let Some(failed) = e.downcast_ref::<Box<FailedJudgment>>() {
         crate::judgment::coverage::record_negative_coverage(std::iter::once(failed.as_ref()));
     } else if let Some(failed) = e.downcast_ref::<FailedJudgment>() {
+        crate::judgment::coverage::record_negative_coverage(std::iter::once(failed));
+    } else if let Some(failed) = e
+        .chain()
+        .find_map(|cause| cause.downcast_ref::<FailedJudgment>())
+    {
         crate::judgment::coverage::record_negative_coverage(std::iter::once(failed));
     }
 }

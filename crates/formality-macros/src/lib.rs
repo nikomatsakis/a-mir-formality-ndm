@@ -15,6 +15,7 @@ mod fold;
 mod parse;
 mod precedence;
 mod reject;
+mod size;
 mod spec;
 mod term;
 mod test;

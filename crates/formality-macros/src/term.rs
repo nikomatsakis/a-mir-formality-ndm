@@ -9,6 +9,7 @@ use crate::{
     debug::derive_debug_with_spec,
     fold::derive_fold,
     parse::derive_parse_with_spec,
+    size::derive_size,
     spec::FormalitySpec,
     visit::derive_visit,
 };
@@ -24,6 +25,11 @@ pub fn term(spec: Option<FormalitySpec>, mut input: DeriveInput) -> syn::Result<
         Default::default()
     } else {
         derive_visit(synstructure::Structure::new(&input))
+    };
+    let size_impl = if customize.size {
+        Default::default()
+    } else {
+        derive_size(synstructure::Structure::new(&input))
     };
     let parse_impl = if customize.parse {
         Default::default()
@@ -51,6 +57,7 @@ pub fn term(spec: Option<FormalitySpec>, mut input: DeriveInput) -> syn::Result<
 
         #fold_impl
         #visit_impl
+        #size_impl
         #parse_impl
         #debug_impl
         #term_impl

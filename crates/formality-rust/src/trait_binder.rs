@@ -5,6 +5,7 @@ use crate::rust::Term;
 use formality_core::{
     fold::CoreFold,
     parse::{ActiveVariant, Binding, CoreParse, ParseResult, Parser, Scope},
+    size::Size,
     term::CoreTerm,
     visit::CoreVisit,
     DowncastTo, UpcastFrom,
@@ -49,12 +50,17 @@ where
         self.explicit_binder.free_variables()
     }
 
-    fn size(&self) -> usize {
-        self.explicit_binder.size()
-    }
-
     fn assert_valid(&self) {
         self.explicit_binder.assert_valid()
+    }
+}
+
+impl<T> Size for TraitBinder<T>
+where
+    T: Term,
+{
+    fn size(&self) -> usize {
+        self.explicit_binder.size()
     }
 }
 

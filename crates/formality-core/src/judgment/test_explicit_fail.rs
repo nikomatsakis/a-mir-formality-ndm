@@ -5,7 +5,7 @@
 //! documenting intentionally unsupported cases and producing clear errors.
 
 use crate::cast_impl;
-use crate::judgment_fn;
+use crate::{judgment_fn, Size};
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug, Hash)]
 enum Place {
@@ -14,6 +14,15 @@ enum Place {
 }
 
 cast_impl!(Place);
+
+impl Size for Place {
+    fn size(&self) -> usize {
+        match self {
+            Place::Local(_) => 1,
+            Place::Deref(place) => 1usize.saturating_add(place.size()),
+        }
+    }
+}
 
 judgment_fn!(
     fn check_place_move(place: Place) => () {

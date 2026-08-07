@@ -24,7 +24,10 @@ judgment_fn! {
 }
 
 fn check_sub(a: Ty, b: Ty) -> Fallible<()> {
-    let _map = sub(a, b).into_map().with_context(|| format!("check_sub"))?;
+    let _map = sub(a, b)
+        .into_map()
+        .map_err(|error| error.into_anyhow())
+        .with_context(|| format!("check_sub"))?;
     Ok(())
 }
 

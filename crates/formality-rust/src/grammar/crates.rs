@@ -1,13 +1,22 @@
 use crate::grammar::{Adt, AdtId, Binder, CrateId};
 use crate::grammar::{Enum, Fn, NegTraitImpl, Struct, Trait, TraitImpl, WhereClause};
-use formality_core::term;
+use formality_core::{term, Size};
 
 use crate::grammar::feature::FeatureGate;
 
 #[term(crate $id { $*items })]
+#[customize(size)]
 pub struct Crate {
     pub id: CrateId,
     pub items: Vec<CrateItem>,
+}
+
+// A crate is declaration context that checker judgments decompose into items;
+// its total source size should not consume the proof-search growth budget.
+impl Size for Crate {
+    fn size(&self) -> usize {
+        0
+    }
 }
 
 #[term]

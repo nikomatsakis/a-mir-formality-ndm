@@ -3,6 +3,7 @@ use crate::{
     collections::{Map, Set},
     fold::CoreFold,
     language::{CoreParameter, Language},
+    size::Size,
     variable::CoreVariable,
     visit::CoreVisit,
 };
@@ -141,12 +142,16 @@ impl<L: Language> CoreVisit<L> for CoreSubstitution<L> {
         v
     }
 
-    fn size(&self) -> usize {
-        self.range().iter().map(|r| r.size()).sum()
-    }
-
     fn assert_valid(&self) {
         self.range().assert_valid()
+    }
+}
+
+impl<L: Language> Size for CoreSubstitution<L> {
+    fn size(&self) -> usize {
+        self.range()
+            .iter()
+            .fold(0, |size, item| size.saturating_add(item.size()))
     }
 }
 

@@ -258,7 +258,7 @@ where
         assumptions.clone(),
         goal.clone(),
     );
-    let cs = cs.into_map()?;
+    let cs = cs.into_map().map_err(|error| error.into_anyhow())?;
     cs.iter()
         .find_map(|(c, proof_tree)| c.unconditionally_true().then_some(proof_tree))
         .cloned()
@@ -284,7 +284,7 @@ fn prove_not_goal(
     let cs = is_definitely_not_proveable(env, &assumptions, &goal, |env, assumptions, goal| {
         crate::prove::prove::prove(program, env, &assumptions, &goal)
     });
-    let cs = cs.into_map()?;
+    let cs = cs.into_map().map_err(|error| error.into_anyhow())?;
     if let Some((_, proof_tree)) = cs.iter().find(|(c, _)| c.unconditionally_true()) {
         return Ok(proof_tree.clone());
     }

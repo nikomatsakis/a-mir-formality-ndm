@@ -3,7 +3,7 @@ use crate::grammar::{
 };
 use crate::rust::{Fold, Visit};
 use formality_core::set;
-use formality_core::{cast_impl, visit::CoreVisit, Set, To, Upcast, UpcastFrom};
+use formality_core::{cast_impl, visit::CoreVisit, Set, Size, To, Upcast, UpcastFrom};
 use formality_macros::term;
 
 /// Whether the solver has to be sound or complete. While it should
@@ -368,14 +368,16 @@ impl CoreVisit<crate::prove::prove::FormalityLang> for Env {
         self.variables.clone()
     }
 
-    fn size(&self) -> usize {
-        0
-    }
-
     fn assert_valid(&self) {
         // no duplicates in `self.variables`
         let s: Set<Variable> = self.variables.iter().copied().collect();
         assert_eq!(s.len(), self.variables.len());
+    }
+}
+
+impl Size for Env {
+    fn size(&self) -> usize {
+        0
     }
 }
 

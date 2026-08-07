@@ -9,19 +9,22 @@ mod memo;
 
 mod proven_set;
 pub use proven_set::{
-    insert_smallest_proof, member_of, CheckProven, EachProof, FailedJudgment, FailedRule,
-    FailureLocation, FailureReason, LeafFailure, ProofTree, Proven, ProvenSet, RuleFailureCause,
+    insert_smallest_proof, member_of, CheckProven, CheckProvenReport, EachProof, EachProofReport,
+    FailedJudgment, FailedRule, FailureLocation, FailureReason, IncompleteError,
+    IncompleteProvenSet, IncompleteReason, IncompleteTree, LeafFailure, ProofTree, Proven,
+    ProvenSet, ProvenSetError, RuleFailureCause,
 };
 
 mod runtime;
 #[doc(hidden)]
-pub use runtime::{execute_judgment, JudgmentCache};
+pub use runtime::{execute_judgment, JudgmentCache, JudgmentResult};
 
 mod test_explicit_fail;
 mod test_fallible;
 mod test_filtered;
 mod test_fixed_point;
 mod test_for_all;
+mod test_incomplete;
 mod test_memo;
 mod test_panic;
 mod test_reachable;
@@ -46,10 +49,12 @@ mod test_reachable;
 /// * `(if <expr>)`
 /// * `(if let <pat> = <expr>)`
 /// * `(let <binding> = <expr>)`
+/// * `(incomplete)` -- stop this rule continuation without adding a logical
+///   output and mark the enclosing evaluation incomplete.
 ///
 /// The conclusions can be the following
 ///
-/// * `(<pat> => <binding>)
+/// * `(<pat> => <binding>)`
 ///
 /// ## Failure reporting and match commit points
 ///
@@ -60,6 +65,11 @@ mod test_reachable;
 /// You can place a `!` after a condition to mark it as a "match commit point".
 /// Rules that fail before reaching the match commit point will not be included
 /// in the failure result.
+///
+/// Before executing any rules, the generated function sums the [`Size`](crate::Size)
+/// contribution of its inputs. Inputs larger than the active cutoff produce an
+/// incomplete frontier. Use [`with_cutoff`](crate::with_cutoff) around an outermost
+/// judgment call to adjust the default cutoff for that evaluation.
 #[macro_export]
 macro_rules! judgment_fn {
     (
@@ -73,6 +83,10 @@ macro_rules! judgment_fn {
     ) => {
         $(#[$attr])*
         $v fn $name($($input_name : impl $crate::Upcast<$input_ty>),*) -> $crate::ProvenSet<$output> {
+            // The outermost judgment call establishes a stable cutoff for the
+            // entire fixed-point and memoization scope. Nested calls inherit it.
+            let _cutoff_guard = $crate::size::enter_judgment();
+
             #[derive(Ord, PartialOrd, Eq, PartialEq, Hash, Clone)]
             struct __JudgmentStruct($($input_ty),*);
 
@@ -111,6 +125,37 @@ macro_rules! judgment_fn {
                         )
                     );
                 )*
+            }
+
+            // Overflow is an operational property of this judgment evaluation,
+            // not a logical result. Context-like inputs can contribute zero by
+            // customizing their `Size` implementation.
+            let mut __input_size = 0usize;
+            $(
+                __input_size = __input_size.saturating_add(
+                    $crate::Size::size(&$input_name)
+                );
+            )*
+            let __cutoff = $crate::size::cutoff();
+            if __input_size > __cutoff {
+                let __attributes: Vec<(String, String)> = vec![
+                    $((stringify!($debug_input_name).to_string(), format!("{:?}", $debug_input_name))),*
+                ];
+                let (file, line, column) = $crate::respan!(
+                    $name
+                    ((file!(), line!(), column!()))
+                );
+                return $crate::ProvenSet::incomplete(
+                    $crate::judgment::IncompleteTree::size(
+                        stringify!($name),
+                        __attributes,
+                        file,
+                        line,
+                        column,
+                        __input_size,
+                        __cutoff,
+                    )
+                );
             }
 
             $(
@@ -163,7 +208,7 @@ macro_rules! judgment_fn {
 
                 // Execute rules:
                 |input: __JudgmentStruct| {
-                    let mut output: $crate::Map<$output, $crate::judgment::ProofTree> = $crate::Map::new();
+                    let mut output: $crate::judgment::JudgmentResult<$output> = Default::default();
 
                     failed_rules.clear();
 
@@ -184,14 +229,17 @@ macro_rules! judgment_fn {
                 },
             );
 
-            if !output.is_empty() {
-                $crate::ProvenSet::proven(output)
+            let (proofs, incomplete) = output.into_parts();
+            if !proofs.is_empty() {
+                $crate::ProvenSet::proven(proofs).with_incomplete(incomplete)
+            } else if failed_rules.is_empty() && !incomplete.is_empty() {
+                $crate::ProvenSet::from_incomplete_frontiers(incomplete)
             } else {
                 $crate::ProvenSet::failed_rules(
                     &input,
                     $crate::judgment::FailureLocation::caller(),
                     failed_rules,
-                )
+                ).with_incomplete(incomplete)
             }
         }
     }
@@ -257,7 +305,7 @@ macro_rules! push_rules {
                     patterns($($patterns)*,)
                     args(@body
                         ($judgment_name; $n; $v; $output);
-                        ($failed_rules, __matched, (__judgment_name, __attributes), $n);
+                        ($failed_rules, __matched, (__judgment_name, __attributes), $n, $output);
                         $($m)*
                     )
                 );
@@ -369,11 +417,11 @@ macro_rules! push_rules {
     // output of this rule, once all the conditions are evaluated.
 
     (
-        @body $args:tt; ($failed_rules:expr, $match_var:ident, $input_info:tt, $rule_name:literal); $child_proof_trees:ident;
+        @body $args:tt; ($failed_rules:expr, $match_var:ident, $input_info:tt, $rule_name:literal, $output:expr); $child_proof_trees:ident;
         ! $($m:tt)*
     ) => {
         $match_var = true;
-        $crate::push_rules!(@body $args; ($failed_rules, $match_var, $input_info, $rule_name); $child_proof_trees; $($m)*);
+        $crate::push_rules!(@body $args; ($failed_rules, $match_var, $input_info, $rule_name, $output); $child_proof_trees; $($m)*);
     };
 
     (
@@ -381,7 +429,7 @@ macro_rules! push_rules {
         (if let $p:pat = $e:expr) $($m:tt)*
     ) => {
         match $crate::judgment::try_catch(|| Ok($e)) {
-            Ok(value) => {
+            $crate::judgment::TryCatch::Value(value) => {
                 if let $p = &value {
                     $crate::push_rules!(@body $args; $inputs; $child_proof_trees; $($m)*);
                 } else {
@@ -392,8 +440,12 @@ macro_rules! push_rules {
                 }
             }
 
-            Err(e) => {
+            $crate::judgment::TryCatch::Failure(e) => {
                 $crate::push_rules!(@record_failure $inputs; $e; e);
+            }
+
+            $crate::judgment::TryCatch::Incomplete(incomplete) => {
+                $crate::push_rules!(@record_incomplete $inputs; $e; incomplete);
             }
         }
     };
@@ -583,6 +635,7 @@ macro_rules! push_rules {
                 // Collect the proof tree from each iteration together with the
                 // next values of any loop-carried variables, so the `for_all`
                 // proof tree reflects all iterations (not just the last one).
+                #[allow(unused_mut)]
                 let mut next_carried_and_proof = None;
                 $crate::push_rules!(@body (loop(next_carried_and_proof, ($($with_var,)*))); $inputs; item_proof_trees; $($inner_step)*);
 
@@ -624,7 +677,7 @@ macro_rules! push_rules {
     // out of a reference is not permitted) and to produce clear error messages.
     // Unlike other conditions, this always terminates the rule -- it never continues.
     (
-        @body $args:tt; ($failed_rules:expr, $match_var:ident, $input_info:tt, $rule_name:literal); $child_proof_trees:ident;
+        @body $args:tt; ($failed_rules:expr, $match_var:ident, $input_info:tt, $rule_name:literal, $output:expr); $child_proof_trees:ident;
         (fail $fmt:literal $(, $arg:expr)*) $($m:tt)*
     ) => {
         {
@@ -633,8 +686,50 @@ macro_rules! push_rules {
             let message = format!($fmt $(, $arg)*);
             #[allow(unused_assignments)]
             { $match_var = true; }
-            $crate::push_rules!(@record_failure ($failed_rules, $match_var, $input_info, $rule_name); $fmt;
+            $crate::push_rules!(@record_failure ($failed_rules, $match_var, $input_info, $rule_name, $output); $fmt;
                 $crate::judgment::RuleFailureCause::ExplicitFailure { message });
+        }
+    };
+
+    // Capture a bare premise identifier before dispatching on its spelling.
+    // Passing the captured token twice lets the helper both literal-match the
+    // `incomplete` keyword and retain its call-site span for diagnostics.
+    (
+        @body $args:tt; $inputs:tt;
+        $child_proof_trees:ident;
+        ($premise:ident) $($m:tt)*
+    ) => {
+        $crate::push_rules!(
+            @body_bare_ident $args; $inputs; $child_proof_trees;
+            $premise($premise); $($m)*
+        );
+    };
+
+    // `(incomplete)` is an operational meta-premise. It records the exact
+    // frontier and terminates only this continuation without manufacturing a
+    // logical output or a rule failure.
+    (
+        @body_bare_ident $args:tt;
+        ($_failed_rules:expr, $_match_var:ident, ($input_judgment_name:expr, $input_attributes:expr), $rule_name:literal, $output:expr);
+        $child_proof_trees:ident;
+        incomplete($premise:ident); $($m:tt)*
+    ) => {
+        {
+            let _ = &$child_proof_trees;
+            let (file, line, column) = $crate::respan!(
+                $premise
+                ((file!(), line!(), column!()))
+            );
+            $output.insert_incomplete(
+                $crate::judgment::IncompleteTree::explicit(
+                    $input_judgment_name,
+                    $input_attributes.clone(),
+                    $rule_name,
+                    file,
+                    line,
+                    column,
+                )
+            );
         }
     };
 
@@ -653,16 +748,13 @@ macro_rules! push_rules {
         @body $args:tt; $inputs:tt; $child_proof_trees:ident;
         ($i:expr => ()) $($m:tt)*
     ) => {
-        match $crate::judgment::CheckProven::check_proven(
-            $i,
-        ) {
-            Ok(proof_tree) => {
-                $child_proof_trees.push(proof_tree);
-                $crate::push_rules!(@body $args; $inputs; $child_proof_trees; $($m)*);
-            }
-            Err(e) => {
-                $crate::push_rules!(@record_failure $inputs; $i; e);
-            }
+        let report = $crate::judgment::CheckProven::check_proven($i);
+        $crate::push_rules!(@extend_incomplete $inputs; report.incomplete);
+        if let Some(proof_tree) = report.proof {
+            $child_proof_trees.push(proof_tree);
+            $crate::push_rules!(@body $args; $inputs; $child_proof_trees; $($m)*);
+        } else if let Some(e) = report.failure {
+            $crate::push_rules!(@record_failure $inputs; $i; e);
         }
     };
 
@@ -670,7 +762,7 @@ macro_rules! push_rules {
         @body $args:tt; $inputs:tt; $child_proof_trees:ident;
         ($i:expr => $p:pat) $($m:tt)*
     ) => {
-        if let Err(e) = $crate::judgment::EachProof::each_proof(
+        let report = $crate::judgment::EachProof::each_proof(
             $i,
             |(value, proof_tree)| {
                 #[allow(irrefutable_let_patterns)]
@@ -695,7 +787,9 @@ macro_rules! push_rules {
                     });
                 }
             },
-        ) {
+        );
+        $crate::push_rules!(@extend_incomplete $inputs; report.incomplete);
+        if let Some(e) = report.failure {
             $crate::push_rules!(@record_failure $inputs; $i; e);
         }
     };
@@ -707,15 +801,20 @@ macro_rules! push_rules {
         // [1] I'd prefer to have `$p:pat` but the follow-set rules don't allow for it.
         // That's dumb.
         match $crate::judgment::try_catch::<$t>(|| Ok($i)) {
-            Ok(p) => {
+            $crate::judgment::TryCatch::Value(p) => {
                 let proof_tree = $crate::judgment::ProofTree::leaf(format!("{} = {p:?}", stringify!($p)));
                 let $p = &p;
                 $child_proof_trees.push(proof_tree);
                 $crate::push_rules!(@body $args; $inputs; $child_proof_trees; $($m)*);
             }
 
-            Err(e) => {
+            $crate::judgment::TryCatch::Failure(e) => {
                 $crate::push_rules!(@record_failure $inputs; $i; e);
+            }
+
+
+            $crate::judgment::TryCatch::Incomplete(incomplete) => {
+                $crate::push_rules!(@record_incomplete $inputs; $i; incomplete);
             }
         }
     };
@@ -725,15 +824,20 @@ macro_rules! push_rules {
         (let $p:pat = $i:expr) $($m:tt)*
     ) => {
         match $crate::judgment::try_catch(|| Ok($i)) {
-            Ok(p) => {
+            $crate::judgment::TryCatch::Value(p) => {
                 let proof_tree = $crate::judgment::ProofTree::leaf(format!("{} = {p:?}", stringify!($p)));
                 let $p = &p;
                 $child_proof_trees.push(proof_tree);
                 $crate::push_rules!(@body $args; $inputs; $child_proof_trees; $($m)*);
             }
 
-            Err(e) => {
+            $crate::judgment::TryCatch::Failure(e) => {
                 $crate::push_rules!(@record_failure $inputs; $i; e);
+            }
+
+
+            $crate::judgment::TryCatch::Incomplete(incomplete) => {
+                $crate::push_rules!(@record_incomplete $inputs; $i; incomplete);
             }
         }
     };
@@ -772,7 +876,7 @@ macro_rules! push_rules {
     (
         @body
             ($judgment_name:ident, $rule_name:literal, $v:expr, $output:expr);
-            ($_failed_rules:expr, $_match_var:ident, ($input_judgment_name:expr, $input_attributes:expr), $_rule_name:literal);
+            ($_failed_rules:expr, $_match_var:ident, ($input_judgment_name:expr, $input_attributes:expr), $_rule_name:literal, $_input_output:expr);
             $child_proof_trees:ident;
     ) => {
         {
@@ -790,7 +894,7 @@ macro_rules! push_rules {
                 $child_proof_trees.clone(),
             );
             tracing::debug!("produced {:?} from rule {:?} in judgment {:?}", result, $rule_name, stringify!($judgment_name));
-            $crate::judgment::insert_smallest_proof(&mut $output, result, proof_tree);
+            $output.insert_proof(result, proof_tree);
         }
     };
 
@@ -801,7 +905,29 @@ macro_rules! push_rules {
         $next_carried_and_proof = Some((($($with_var.clone(),)*), $child_proof_trees.clone()));
     };
 
-    (@record_failure ($failed_rules:expr, $match_var:expr, $_input_info:tt, $rule_name:literal); $step_expr:expr; $cause:expr) => {
+    (@extend_incomplete ($_failed_rules:expr, $_match_var:expr, $_input_info:tt, $_rule_name:literal, $output:expr); $incomplete:expr) => {
+        $output.extend_incomplete($incomplete);
+    };
+
+    (@record_incomplete $inputs:tt; $step_expr:expr; $incomplete:expr) => {
+        {
+            let incomplete = $incomplete;
+            $crate::push_rules!(
+                @extend_incomplete $inputs;
+                incomplete.incomplete_frontiers().clone()
+            );
+            if let Some(failure) = incomplete.failure() {
+                $crate::push_rules!(
+                    @record_failure $inputs; $step_expr;
+                    $crate::judgment::RuleFailureCause::FailedJudgment(
+                        Box::new(failure.clone())
+                    )
+                );
+            }
+        }
+    };
+
+    (@record_failure ($failed_rules:expr, $match_var:expr, $_input_info:tt, $rule_name:literal, $_output:expr); $step_expr:expr; $cause:expr) => {
         let file = $crate::respan!($step_expr (file!()));
         let line = $crate::respan!($step_expr (line!()));
         let column = $crate::respan!($step_expr (column!()));
@@ -837,17 +963,25 @@ macro_rules! push_rules {
     }
 }
 
-/// Helper function that just calls `f` and returns the value.
-/// Used for implementing `judgement_fn` macro to allow expressions to include `?`.
-pub fn try_catch<R>(f: impl FnOnce() -> Fallible<R>) -> Result<R, RuleFailureCause> {
-    match f() {
-        Ok(v) => Ok(v),
+/// Completion-aware result of evaluating a fallible premise expression.
+#[doc(hidden)]
+pub enum TryCatch<R> {
+    Value(R),
+    Failure(RuleFailureCause),
+    Incomplete(IncompleteError),
+}
 
-        // Kind of dumb that `Inapplicable` only includes a `String` and not an `anyhow::Error`
-        // but it's super annoying to package one of those up in the way we want.
-        Err(e) => Err(RuleFailureCause::Inapplicable {
-            reason: e.to_string(),
-        }),
+/// Helper used by `judgment_fn!` to let premise expressions contain `?` while
+/// preserving type-erased incompleteness from hand-written adapters.
+#[doc(hidden)]
+pub fn try_catch<R>(f: impl FnOnce() -> Fallible<R>) -> TryCatch<R> {
+    match f() {
+        Ok(v) => TryCatch::Value(v),
+
+        Err(e) => match IncompleteError::from_anyhow(&e) {
+            Some(incomplete) => TryCatch::Incomplete(incomplete.clone()),
+            None => TryCatch::Failure(RuleFailureCause::from_anyhow(e)),
+        },
     }
 }
 

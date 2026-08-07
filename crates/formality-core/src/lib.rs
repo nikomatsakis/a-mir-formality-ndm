@@ -31,6 +31,7 @@ pub mod fold;
 pub mod judgment;
 pub mod language;
 pub mod parse;
+pub mod size;
 pub mod substitution;
 pub mod term;
 pub mod test_util;
@@ -46,6 +47,7 @@ pub use collections::Set;
 pub use collections::SetExt;
 pub use collections::Union;
 pub use judgment::ProvenSet;
+pub use size::{with_cutoff, Size, DEFAULT_CUTOFF};
 
 /// Run an action with a tracing log subscriber. The logging level is loaded
 /// from `RUST_LOG`. The `formality_macro::test` expansion uses this to enable logs.
@@ -274,11 +276,13 @@ macro_rules! id {
                     vec![]
                 }
 
+                fn assert_valid(&self) {}
+            }
+
+            impl $crate::size::Size for $n {
                 fn size(&self) -> usize {
                     1
                 }
-
-                fn assert_valid(&self) {}
             }
 
             impl CoreFold<crate::FormalityLang> for $n {

@@ -119,9 +119,7 @@ pub(super) fn resolve_fn_body(
 pub(super) fn unwrap_proven<T: std::fmt::Debug + Clone + Ord>(
     ps: formality_core::ProvenSet<T>,
 ) -> Fallible<T> {
-    let proven = ps
-        .into_singleton()
-        .map_err(|e| anyhow::anyhow!("{}", e.format_leaves()))?;
+    let proven = ps.into_singleton().map_err(|error| error.into_anyhow())?;
     Ok(proven.0)
 }
 

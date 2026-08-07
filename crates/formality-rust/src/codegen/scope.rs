@@ -4,7 +4,7 @@ use crate::check::borrow_check::env::TypeckEnv;
 use crate::check::borrow_check::flow_state::FlowState;
 use crate::grammar::{expr::LabelId, Crates, Fallible, Parameter, Ty, ValueId, Wcs};
 use crate::prove::prove::{Env, Program};
-use formality_core::Upcast;
+use formality_core::{Size, Upcast};
 use libspecr::prelude::Map;
 use minirust_rs::lang;
 use std::sync::Arc;
@@ -100,6 +100,32 @@ formality_core::cast_impl!(CodegenGlobal);
 formality_core::cast_impl!(CodegenFn);
 formality_core::cast_impl!(CodegenScope);
 formality_core::cast_impl!(MonoKey);
+
+impl Size for MonoKey {
+    fn size(&self) -> usize {
+        1usize
+            .saturating_add(self.id.size())
+            .saturating_add(self.args.size())
+    }
+}
+
+impl Size for CodegenGlobal {
+    fn size(&self) -> usize {
+        0
+    }
+}
+
+impl Size for CodegenFn {
+    fn size(&self) -> usize {
+        0
+    }
+}
+
+impl Size for CodegenScope {
+    fn size(&self) -> usize {
+        0
+    }
+}
 
 impl CodegenGlobal {
     /// Create a fresh global state for codegen over the given crates.

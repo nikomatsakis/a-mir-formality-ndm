@@ -1,12 +1,18 @@
 #![cfg(test)]
 
-use crate::{cast_impl, judgment_fn, Fallible};
+use crate::{cast_impl, judgment_fn, Fallible, Size};
 use formality_macros::test;
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug, Hash)]
 struct Num(u32);
 
 cast_impl!(Num);
+
+impl Size for Num {
+    fn size(&self) -> usize {
+        1usize.saturating_add(self.0.size())
+    }
+}
 
 fn is_even(n: &Num) -> Fallible<()> {
     if n.0 % 2 == 0 {

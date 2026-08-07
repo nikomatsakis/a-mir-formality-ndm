@@ -1,7 +1,7 @@
 use super::env::Env;
 use crate::grammar::{ExistentialVar, Parameter, Substitution, Variable};
 use crate::rust::Visit;
-use formality_core::{cast_impl, visit::CoreVisit, Downcast, Upcast, UpcastFrom};
+use formality_core::{cast_impl, visit::CoreVisit, Downcast, Size, Upcast, UpcastFrom};
 
 /// A wrapper around a value that is constrained by a set of conditions.
 ///
@@ -210,15 +210,6 @@ impl CoreVisit<crate::prove::prove::FormalityLang> for Constraints {
             .collect()
     }
 
-    fn size(&self) -> usize {
-        let Constraints {
-            env,
-            known_true: _,
-            substitution,
-        } = self;
-        env.size() + substitution.size()
-    }
-
     fn assert_valid(&self) {
         let Constraints {
             env,
@@ -251,6 +242,17 @@ impl CoreVisit<crate::prove::prove::FormalityLang> for Constraints {
             fvs.iter()
                 .for_each(|fv| assert!(env.universe(fv) < env.universe(x)));
         }
+    }
+}
+
+impl Size for Constraints {
+    fn size(&self) -> usize {
+        let Constraints {
+            env,
+            known_true: _,
+            substitution,
+        } = self;
+        env.size().saturating_add(substitution.size())
     }
 }
 

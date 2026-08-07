@@ -6,6 +6,7 @@ pub(crate) struct Customize {
     pub debug: bool,
     pub constructors: bool,
     pub fold: bool,
+    pub size: bool,
     pub visit: bool,
 }
 
@@ -44,6 +45,7 @@ impl syn::parse::Parse for Customize {
                 debug,
                 constructors,
                 fold,
+                size,
                 visit,
             }
 

@@ -7,10 +7,6 @@ pub trait CoreVisit<L: Language>: std::fmt::Debug {
     /// The list may contain duplicates and must be in a determinstic order (though the order itself isn't important).
     fn free_variables(&self) -> Vec<CoreVariable<L>>;
 
-    /// Measures the overall size of the term by counting constructors etc.
-    /// Used to determine overflow.
-    fn size(&self) -> usize;
-
     /// Asserts various validity constraints and panics if they are not held.
     /// These validition constraints should never fail unless there is a bug in our logic.
     /// This is to aid with fuzzing and bug detection.
@@ -36,10 +32,6 @@ impl<L: Language, T: CoreVisit<L>> CoreVisit<L> for Vec<T> {
         self.iter().flat_map(|e| e.free_variables()).collect()
     }
 
-    fn size(&self) -> usize {
-        self.iter().map(|e| e.size()).sum()
-    }
-
     fn assert_valid(&self) {
         self.iter().for_each(|e| e.assert_valid());
     }
@@ -48,10 +40,6 @@ impl<L: Language, T: CoreVisit<L>> CoreVisit<L> for Vec<T> {
 impl<L: Language, T: CoreVisit<L> + Ord> CoreVisit<L> for Set<T> {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         self.iter().flat_map(|e| e.free_variables()).collect()
-    }
-
-    fn size(&self) -> usize {
-        self.iter().map(|e| e.size()).sum()
     }
 
     fn assert_valid(&self) {
@@ -64,10 +52,6 @@ impl<L: Language, T: CoreVisit<L>> CoreVisit<L> for Option<T> {
         self.iter().flat_map(|e| e.free_variables()).collect()
     }
 
-    fn size(&self) -> usize {
-        self.as_ref().map(|e| e.size()).unwrap_or(0)
-    }
-
     fn assert_valid(&self) {
         self.iter().for_each(|e| e.assert_valid());
     }
@@ -76,10 +60,6 @@ impl<L: Language, T: CoreVisit<L>> CoreVisit<L> for Option<T> {
 impl<L: Language, T: CoreVisit<L> + ?Sized> CoreVisit<L> for Arc<T> {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         T::free_variables(self)
-    }
-
-    fn size(&self) -> usize {
-        T::size(self)
     }
 
     fn assert_valid(&self) {
@@ -92,20 +72,12 @@ impl<L: Language> CoreVisit<L> for bool {
         vec![]
     }
 
-    fn size(&self) -> usize {
-        1
-    }
-
     fn assert_valid(&self) {}
 }
 
 impl<L: Language> CoreVisit<L> for usize {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         vec![]
-    }
-
-    fn size(&self) -> usize {
-        1
     }
 
     fn assert_valid(&self) {}
@@ -116,20 +88,12 @@ impl<L: Language> CoreVisit<L> for u8 {
         vec![]
     }
 
-    fn size(&self) -> usize {
-        1
-    }
-
     fn assert_valid(&self) {}
 }
 
 impl<L: Language> CoreVisit<L> for u16 {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         vec![]
-    }
-
-    fn size(&self) -> usize {
-        1
     }
 
     fn assert_valid(&self) {}
@@ -140,20 +104,12 @@ impl<L: Language> CoreVisit<L> for u32 {
         vec![]
     }
 
-    fn size(&self) -> usize {
-        1
-    }
-
     fn assert_valid(&self) {}
 }
 
 impl<L: Language> CoreVisit<L> for u64 {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         vec![]
-    }
-
-    fn size(&self) -> usize {
-        1
     }
 
     fn assert_valid(&self) {}
@@ -164,20 +120,12 @@ impl<L: Language> CoreVisit<L> for u128 {
         vec![]
     }
 
-    fn size(&self) -> usize {
-        std::mem::size_of::<Self>()
-    }
-
     fn assert_valid(&self) {}
 }
 
 impl<L: Language> CoreVisit<L> for i8 {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         vec![]
-    }
-
-    fn size(&self) -> usize {
-        1
     }
 
     fn assert_valid(&self) {}
@@ -188,20 +136,12 @@ impl<L: Language> CoreVisit<L> for i16 {
         vec![]
     }
 
-    fn size(&self) -> usize {
-        1
-    }
-
     fn assert_valid(&self) {}
 }
 
 impl<L: Language> CoreVisit<L> for i32 {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         vec![]
-    }
-
-    fn size(&self) -> usize {
-        1
     }
 
     fn assert_valid(&self) {}
@@ -212,10 +152,6 @@ impl<L: Language> CoreVisit<L> for i64 {
         vec![]
     }
 
-    fn size(&self) -> usize {
-        1
-    }
-
     fn assert_valid(&self) {}
 }
 
@@ -224,20 +160,12 @@ impl<L: Language> CoreVisit<L> for isize {
         vec![]
     }
 
-    fn size(&self) -> usize {
-        1
-    }
-
     fn assert_valid(&self) {}
 }
 
 impl<L: Language> CoreVisit<L> for () {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         vec![]
-    }
-
-    fn size(&self) -> usize {
-        0
     }
 
     fn assert_valid(&self) {}
@@ -250,11 +178,6 @@ impl<L: Language, A: CoreVisit<L>, B: CoreVisit<L>> CoreVisit<L> for (A, B) {
         fv.extend(a.free_variables());
         fv.extend(b.free_variables());
         fv
-    }
-
-    fn size(&self) -> usize {
-        let (a, b) = self;
-        a.size() + b.size()
     }
 
     fn assert_valid(&self) {
@@ -274,11 +197,6 @@ impl<L: Language, A: CoreVisit<L>, B: CoreVisit<L>, C: CoreVisit<L>> CoreVisit<L
         fv
     }
 
-    fn size(&self) -> usize {
-        let (a, b, c) = self;
-        a.size() + b.size() + c.size()
-    }
-
     fn assert_valid(&self) {
         let (a, b, c) = self;
         a.assert_valid();
@@ -292,10 +210,6 @@ impl<L: Language, A: CoreVisit<L> + ?Sized> CoreVisit<L> for &A {
         A::free_variables(self)
     }
 
-    fn size(&self) -> usize {
-        A::size(self)
-    }
-
     fn assert_valid(&self) {
         A::assert_valid(self)
     }
@@ -304,10 +218,6 @@ impl<L: Language, A: CoreVisit<L> + ?Sized> CoreVisit<L> for &A {
 impl<L: Language, A: CoreVisit<L>> CoreVisit<L> for [A] {
     fn free_variables(&self) -> Vec<CoreVariable<L>> {
         self.iter().flat_map(|e| A::free_variables(e)).collect()
-    }
-
-    fn size(&self) -> usize {
-        self.iter().map(|e| A::size(e)).sum()
     }
 
     fn assert_valid(&self) {

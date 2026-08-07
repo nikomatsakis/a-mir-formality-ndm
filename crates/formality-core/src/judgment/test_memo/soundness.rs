@@ -90,7 +90,7 @@
 
 use std::sync::Arc;
 
-use crate::{cast_impl, judgment_fn};
+use crate::{cast_impl, judgment_fn, Size};
 
 use super::{memo, values};
 
@@ -100,6 +100,12 @@ struct FiniteGraph {
 }
 
 cast_impl!(FiniteGraph);
+
+impl Size for FiniteGraph {
+    fn size(&self) -> usize {
+        0
+    }
+}
 
 impl FiniteGraph {
     fn successors(&self, node: u32) -> Vec<u32> {
@@ -149,6 +155,12 @@ struct MonotoneSystem {
 }
 
 cast_impl!(MonotoneSystem);
+
+impl Size for MonotoneSystem {
+    fn size(&self) -> usize {
+        0
+    }
+}
 
 impl MonotoneSystem {
     /// Return the minimal satisfying sets for `node`'s function.

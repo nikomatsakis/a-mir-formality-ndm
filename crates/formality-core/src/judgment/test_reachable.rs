@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{cast_impl, judgment_fn};
+use crate::{cast_impl, judgment_fn, Size};
 use formality_macros::test;
 use std::sync::Arc;
 
@@ -10,6 +10,12 @@ struct Graph {
 }
 
 cast_impl!(Graph);
+
+impl Size for Graph {
+    fn size(&self) -> usize {
+        0
+    }
+}
 
 impl Graph {
     fn successors(&self, n: u32) -> Vec<u32> {

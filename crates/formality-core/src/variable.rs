@@ -1,6 +1,7 @@
 use crate::cast::Upcast;
 use crate::language::CoreKind;
 use crate::language::Language;
+use crate::size::Size;
 use crate::visit::CoreVisit;
 
 /// A term representing a variable.
@@ -127,11 +128,13 @@ impl<L: Language> CoreVisit<L> for CoreVariable<L> {
         }
     }
 
+    fn assert_valid(&self) {}
+}
+
+impl<L: Language> Size for CoreVariable<L> {
     fn size(&self) -> usize {
         1
     }
-
-    fn assert_valid(&self) {}
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -145,11 +148,13 @@ impl<L: Language> CoreVisit<L> for CoreExistentialVar<L> {
         vec![self.upcast()]
     }
 
+    fn assert_valid(&self) {}
+}
+
+impl<L: Language> Size for CoreExistentialVar<L> {
     fn size(&self) -> usize {
         1
     }
-
-    fn assert_valid(&self) {}
 }
 
 /// A *universal variable* is a dummy variable about which nothing is known except

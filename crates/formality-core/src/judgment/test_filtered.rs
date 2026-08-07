@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::cast_impl;
-use crate::judgment_fn;
+use crate::{judgment_fn, Size};
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug, Hash)]
 struct Graph {
@@ -11,6 +11,12 @@ struct Graph {
 }
 
 cast_impl!(Graph);
+
+impl Size for Graph {
+    fn size(&self) -> usize {
+        0
+    }
+}
 
 impl Graph {
     fn successors(&self, n: u32) -> Vec<u32> {

@@ -1,7 +1,7 @@
 use crate::grammar::{Substitution, Variable, Wcs};
 use crate::prove::prove::{Bias, Constraints, Env};
 use crate::rust::FormalityLang;
-use formality_core::judgment::FailureLocation;
+use formality_core::judgment::{FailureLocation, ProvenSetError};
 use formality_core::{fold::CoreFold, judgment::ProofTree, ProvenSet, Upcast};
 
 /// This succeeds if `f` definitely fails: there are no possible
@@ -114,12 +114,19 @@ pub fn negation_via_failure<T: CoreFold<FormalityLang, Output = T>>(
             }
         }
 
-        Err(err) => {
+        Err(ProvenSetError::Failed(err)) => {
             tracing::debug!("Proved `negation_via_failure`, error = {err}");
             // Negation succeeded because f failed
             let result = Constraints::none(env);
             let leaf = ProofTree::leaf(format!("negation succeeded: {}", err));
             ProvenSet::singleton((result, leaf))
+        }
+
+        Err(ProvenSetError::Incomplete(incomplete)) => {
+            // An interrupted search is not evidence that the inner judgment
+            // definitely failed, so it cannot establish negation.
+            let result = incomplete.into_result();
+            ProvenSet::from_incomplete_frontiers(result.incomplete_frontiers().clone())
         }
     }
 }

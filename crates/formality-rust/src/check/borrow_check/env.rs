@@ -7,8 +7,8 @@ use crate::grammar::{Binder, ExistentialVar, Relation, Ty, UniversalVar, Wcs};
 use crate::grammar::{Crates, Parameter};
 use crate::prove::prove::{prove_normalize, Constrained, Constraints, Env, Program};
 use crate::rust::Fold;
-use formality_core::judgment::{FailureLocation, ProofTree, Proven};
-use formality_core::{cast_impl, Downcast, DowncastTo, Set, Upcast};
+use formality_core::judgment::{FailureLocation, ProofTree, Proven, ProvenSetError};
+use formality_core::{cast_impl, Downcast, DowncastTo, Set, Size, Upcast};
 
 use crate::check::{Debug, ProvenSet, ToWcs, Visit};
 
@@ -24,6 +24,12 @@ pub struct TypeckEnv {
 }
 
 cast_impl!(TypeckEnv);
+
+impl Size for TypeckEnv {
+    fn size(&self) -> usize {
+        0
+    }
+}
 
 impl TypeckEnv {
     pub fn crates(&self) -> &Crates {
@@ -134,7 +140,14 @@ impl TypeckEnv {
         // i.e., `\forall c \in cs. (c => (assumptions => goal))`
         let cs = match cs.into_map() {
             Ok(cs) => cs,
-            Err(e) => return ProvenSet::from(*e),
+            Err(ProvenSetError::Failed(failure)) => return ProvenSet::from(*failure),
+            Err(ProvenSetError::Incomplete(incomplete)) => {
+                // Selecting the best constraints requires an exhaustive result set.
+                // Preserve the incomplete frontier without claiming that any one
+                // partial candidate is the deterministic answer.
+                let result = incomplete.into_result();
+                return ProvenSet::from_incomplete_frontiers(result.incomplete_frontiers().clone());
+            }
         };
 
         // The set of constraints is always non-empty or else the judgment is considered to have failed.
@@ -239,10 +252,16 @@ impl TypeckEnv {
         // variables are justified by the function's where-clause assumptions. This check
         // runs every time outlives may change, so unsound relationships are caught
         // immediately rather than only at return terminators.
-        if let Err(e) =
+        if let Err(error) =
             verify_universal_outlives(self, assumptions, &state.current.outlives).check_proven()
         {
-            return ProvenSet::from(*e);
+            return match error {
+                ProvenSetError::Failed(failure) => ProvenSet::from(*failure),
+                ProvenSetError::Incomplete(incomplete) => {
+                    let result = incomplete.into_result();
+                    ProvenSet::from_incomplete_frontiers(result.incomplete_frontiers().clone())
+                }
+            };
         }
 
         ProvenSet::singleton(((value.clone(), state), proof_tree.clone()))

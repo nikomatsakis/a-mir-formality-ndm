@@ -11,6 +11,7 @@ use crate::{
     fold::CoreFold,
     fold::SubstitutionFn,
     language::{CoreKind, CoreParameter, HasKind, Language},
+    size::Size,
     substitution::CoreSubstitution,
     variable::{CoreBoundVar, CoreVariable, DebruijnIndex, VarIndex},
     visit::CoreVisit,
@@ -189,12 +190,14 @@ impl<L: Language, T: CoreVisit<L>> CoreVisit<L> for CoreBinder<L, T> {
         self.term.free_variables()
     }
 
-    fn size(&self) -> usize {
-        self.term.size()
-    }
-
     fn assert_valid(&self) {
         self.term.assert_valid();
+    }
+}
+
+impl<L: Language, T: Size> Size for CoreBinder<L, T> {
+    fn size(&self) -> usize {
+        self.term.size()
     }
 }
 

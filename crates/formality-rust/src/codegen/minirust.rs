@@ -29,6 +29,12 @@ macro_rules! minirust_newtype {
     (@impls $name:ident, $inner:ty) => {
         formality_core::cast_impl!($name);
 
+        impl formality_core::Size for $name {
+            fn size(&self) -> usize {
+                1
+            }
+        }
+
         impl formality_core::UpcastFrom<$inner> for $name {
             fn upcast_from(v: $inner) -> Self {
                 $name(v)

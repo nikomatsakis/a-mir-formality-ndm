@@ -11,9 +11,6 @@ pub(crate) fn derive_visit(mut s: synstructure::Structure) -> TokenStream {
         |field| quote!(output.extend(<_ as CoreVisit<crate::FormalityLang>>::free_variables(#field))),
     );
 
-    let size_body =
-        s.each(|field| quote!(__sum += <_ as CoreVisit<crate::FormalityLang>>::size(#field)));
-
     let assert_valid_body =
         s.each(|field| quote!(<_ as CoreVisit<crate::FormalityLang>>::assert_valid(#field)));
 
@@ -28,15 +25,6 @@ pub(crate) fn derive_visit(mut s: synstructure::Structure) -> TokenStream {
                     #free_variables_body
                 }
                 output
-            }
-
-            fn size(&self) -> usize {
-                let mut __sum = 0;
-                __sum += 1;
-                match self {
-                    #size_body
-                }
-                __sum
             }
 
             fn assert_valid(&self) {

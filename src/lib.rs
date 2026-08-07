@@ -40,13 +40,17 @@ pub fn main() -> anyhow::Result<()> {
         eprintln!("{:#?}", program);
     }
 
-    let _proof_tree = check_all_crates(&program).check_proven()?;
+    let _proof_tree = check_all_crates(&program)
+        .check_proven()
+        .map_err(|error| error.into_anyhow())?;
     Ok(())
 }
 
 pub fn test_program_ok(input: &str) -> anyhow::Result<ProofTree> {
     let program: Crates = try_term(input)?;
-    let proof_tree = check_all_crates(&program).check_proven()?;
+    let proof_tree = check_all_crates(&program)
+        .check_proven()
+        .map_err(|error| error.into_anyhow())?;
     Ok(proof_tree)
 }
 

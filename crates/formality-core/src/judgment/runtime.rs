@@ -19,21 +19,22 @@
 //! judgment input, [`ExecutionStack::search`] returns that current approximation
 //! instead of recursing forever and marks the entry as having dependents.
 //!
-//! After a rule pass, [`ExecutionStack::update`] merges the newly proven values
-//! into the approximation. Judgment outputs must grow monotonically: a later
-//! pass may add proven values but may not remove one. Another pass is needed
-//! only when the value set grew *and* a recursive dependent observed an earlier
-//! approximation. Otherwise the current output is final.
+//! After a rule pass, [`ExecutionStack::update`] merges newly proven values and
+//! incomplete frontiers into the approximation. Both dimensions grow
+//! monotonically. Another pass is needed only when either set grew *and* a
+//! recursive dependent observed an earlier approximation. Otherwise the
+//! current output is final.
 //!
 //! Different proof trees for the same proven value do not affect convergence.
-//! Proofs are metadata, and [`merge_proven_outputs`] retains the smallest proof
-//! observed for each value.
+//! Proofs are metadata, and [`merge_judgment_results`] retains the smallest
+//! proof observed for each value without treating proof-only changes as growth.
 //!
 //! ## Completed-result memoization
 //!
 //! The active execution stack is separate from [`memo`]. The stack stores
 //! incomplete approximations used to break recursive cycles; the memo layer
-//! stores only completed positive results. Each call therefore checks, in order:
+//! stores completed results containing proofs or incomplete frontiers. Each call
+//! therefore checks, in order:
 //!
 //! 1. the active stack for a recursive cycle;
 //! 2. completed results from a still-valid enclosing iteration.
@@ -52,20 +53,86 @@
 //! [`memo::IterationGuard`] removes provisional memo state. This prevents a
 //! panic in a rule body from making later calls appear recursive or memoized.
 //!
-//! This module returns only proven values and proof trees. The generated
+//! This module returns genuine proofs plus incomplete frontiers. The generated
 //! judgment function separately accumulates failure diagnostics for a pass and
-//! uses them if the final [`ProofMap`] is empty. Empty results are not memoized,
-//! because the proof map does not contain enough information to reconstruct
-//! those diagnostics.
+//! uses them when no value was proven. Completely empty results are not
+//! memoized, because the runtime result does not contain enough information to
+//! reconstruct complete-failure diagnostics.
 
 use std::{cell::RefCell, fmt::Debug, hash::Hash, thread::LocalKey};
 
-use crate::Map;
+use crate::{Map, Set};
 
-use super::{insert_smallest_proof, memo, ProofTree};
+use super::{insert_smallest_proof, memo, IncompleteTree, ProofTree};
 
 /// The current proven values and smallest known proof for each value.
 type ProofMap<Output> = Map<Output, ProofTree>;
+
+/// The monotone semantic result accumulated by the fixed-point runtime.
+///
+/// Failure diagnostics remain in [`super::ProvenSet`], but incomplete
+/// frontiers participate in recursion and memoization alongside genuine proofs.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[doc(hidden)]
+pub struct JudgmentResult<Output> {
+    proofs: ProofMap<Output>,
+    incomplete: Set<IncompleteTree>,
+}
+
+impl<Output> Default for JudgmentResult<Output> {
+    fn default() -> Self {
+        Self {
+            proofs: Map::new(),
+            incomplete: Set::new(),
+        }
+    }
+}
+
+impl<Output: Ord + Clone> JudgmentResult<Output> {
+    /// Construct a complete runtime result from genuine proofs.
+    #[cfg(test)]
+    pub(crate) fn from_proofs(proofs: ProofMap<Output>) -> Self {
+        Self {
+            proofs,
+            incomplete: Set::new(),
+        }
+    }
+
+    /// Borrow the genuine proofs in this runtime result.
+    pub(crate) fn proofs(&self) -> &ProofMap<Output> {
+        &self.proofs
+    }
+
+    /// Borrow the incomplete frontiers in this runtime result.
+    pub(crate) fn incomplete(&self) -> &Set<IncompleteTree> {
+        &self.incomplete
+    }
+
+    /// Insert one genuine result, retaining the smallest proof for duplicate values.
+    pub fn insert_proof(&mut self, value: Output, proof: ProofTree) {
+        insert_smallest_proof(&mut self.proofs, value, proof);
+    }
+
+    /// Record an incomplete frontier reached during this rule pass.
+    pub fn insert_incomplete(&mut self, frontier: IncompleteTree) {
+        self.incomplete.insert(frontier);
+    }
+
+    /// Propagate incomplete frontiers from a nested premise.
+    pub fn extend_incomplete(&mut self, incomplete: Set<IncompleteTree>) {
+        self.incomplete.extend(incomplete);
+    }
+
+    /// True when this is the complete-empty active approximation.
+    pub fn is_empty(&self) -> bool {
+        self.proofs.is_empty() && self.incomplete.is_empty()
+    }
+
+    /// Split runtime metadata for construction of the public result.
+    pub fn into_parts(self) -> (ProofMap<Output>, Set<IncompleteTree>) {
+        (self.proofs, self.incomplete)
+    }
+}
 
 /// Per-judgment thread-local state generated by [`judgment_fn!`](crate::judgment_fn).
 ///
@@ -78,7 +145,7 @@ type ProofMap<Output> = Map<Output, ProofTree>;
 #[doc(hidden)]
 pub struct JudgmentCache<Input, Output> {
     /// Active calls to this judgment, ordered by recursive call depth.
-    active: RefCell<ExecutionStack<Input, ProofMap<Output>>>,
+    active: RefCell<ExecutionStack<Input, JudgmentResult<Output>>>,
 }
 
 impl<Input, Output> Default for JudgmentCache<Input, Output> {
@@ -90,7 +157,7 @@ impl<Input, Output> Default for JudgmentCache<Input, Output> {
     }
 }
 
-/// Execute one judgment's rules until its proven output values reach a fixed point.
+/// Execute one judgment's rules until its semantic result reaches a fixed point.
 ///
 /// `tracing_span` creates the span used for each rule pass. `cache` is the
 /// thread-local active stack generated for this particular judgment. `input`
@@ -98,8 +165,9 @@ impl<Input, Output> Default for JudgmentCache<Input, Output> {
 /// that input.
 ///
 /// Reentrant calls with the same input receive the approximation accumulated so
-/// far. A fresh call returns only after its semantic output stops changing, and
-/// the returned map contains the smallest proof observed for each proven value.
+/// far. A fresh call returns only after its proof keys and incomplete frontiers
+/// stop changing. Its result contains the smallest proof observed for each
+/// proven value.
 ///
 /// This function is public only because exported macro expansions must be able to call it.
 #[doc(hidden)]
@@ -107,8 +175,8 @@ pub fn execute_judgment<Input, Output>(
     tracing_span: impl Fn(&Input) -> tracing::Span,
     cache: &'static LocalKey<JudgmentCache<Input, Output>>,
     input: Input,
-    mut execute_rules: impl FnMut(Input) -> ProofMap<Output>,
-) -> ProofMap<Output>
+    mut execute_rules: impl FnMut(Input) -> JudgmentResult<Output>,
+) -> JudgmentResult<Output>
 where
     Input: Clone + Eq + Debug + Hash + 'static,
     Output: Clone + Eq + Debug + Hash + Ord + 'static,
@@ -119,16 +187,17 @@ where
     stacker::maybe_grow(32 * 1024, 1024 * 1024, || {
         // Recursive cycle: this exact judgment input is already being evaluated.
         // Return its current approximation to break the cycle. `search` also marks
-        // the active entry as having a dependent, so newly proven values will make
+        // the active entry as having a dependent, so semantic growth will make
         // the enclosing fixed-point loop run again.
         if let Some(output) = cache.with(|cache| cache.active.borrow_mut().search(&input)) {
             tracing::debug!("recursive call to {:?}, yielding {:?}", input, output);
             return output;
         }
 
-        // Completed in this fixed-point iteration: a nested call already proved a
-        // positive result for this input, and no enclosing approximation has grown
-        // since then. Reuse it until an iteration invalidation clears the table.
+        // Completed in this fixed-point iteration: a nested call already produced
+        // proofs or incomplete frontiers for this input, and no enclosing
+        // approximation has grown since then. Reuse it until an iteration
+        // invalidation clears the table.
         if let Some(output) = memo::lookup_iteration(&input) {
             tracing::debug!(
                 "iteration-memoized call to {:?}, yielding {:?}",
@@ -146,7 +215,12 @@ where
         // the parent's table. Whenever this judgment (or a parent) must run a second iteration,
         // it clears the intermediate cached results since they may change because recursive
         // calls will yield a new value.
-        cache.with(|cache| cache.active.borrow_mut().push(&input, Map::new()));
+        cache.with(|cache| {
+            cache
+                .active
+                .borrow_mut()
+                .push(&input, JudgmentResult::default())
+        });
         let active_guard = ActiveJudgmentGuard::new(cache, &input);
         let iteration_guard = memo::IterationGuard::begin();
         loop {
@@ -163,16 +237,16 @@ where
             let output = execute_rules(input.clone());
             tracing::debug!(?output);
 
-            // Merge this round's proven values into the active approximation.
-            // `update` requests another round only when the value set grew and
-            // a recursive call consumed an earlier approximation. If no such
-            // dependent exists, the newly computed result is already final.
+            // Merge this round's proofs and frontiers into the active
+            // approximation. `update` requests another round only when either
+            // semantic set grew and a recursive call consumed an earlier
+            // approximation. Otherwise the newly computed result is final.
             let repeat = cache.with(|cache| cache.active.borrow_mut().update(&input, output));
             if !repeat {
                 break;
             }
 
-            tracing::debug!("proven values changed, re-executing until a fixed point is reached");
+            tracing::debug!("judgment result grew, re-executing until a fixed point is reached");
 
             // Descendants completed in this round may have depended on the old
             // approximation. Clear them before evaluating the rules again so
@@ -180,10 +254,10 @@ where
             iteration_guard.invalidate();
         }
 
-        // Remove and return the final approximation, then transfer the positive
-        // entries completed in its last valid iteration into the parent memo
-        // scope. If this was the top-level judgment, completing its iteration
-        // instead discards the table so no cache survives the call.
+        // Remove and return the final approximation, then transfer the nonempty
+        // entries completed in its last valid iteration into the parent memo scope.
+        // If this was the top-level judgment, completing its iteration instead
+        // discards the table so no cache survives the call.
         let output = active_guard.pop();
         iteration_guard.complete(&input, &output);
         output
@@ -236,7 +310,7 @@ where
     ///
     /// Marking the guard inactive first prevents its subsequent `Drop` from
     /// trying to remove the same entry a second time.
-    fn pop(mut self) -> ProofMap<Output> {
+    fn pop(mut self) -> JudgmentResult<Output> {
         self.active = false;
         self.cache
             .with(|cache| cache.active.borrow_mut().pop(&self.input))
@@ -351,7 +425,7 @@ where
     }
 }
 
-impl<Input, Output> ExecutionStack<Input, ProofMap<Output>>
+impl<Input, Output> ExecutionStack<Input, JudgmentResult<Output>>
 where
     Input: RuntimeValue,
     Output: RuntimeValue + Ord,
@@ -361,35 +435,42 @@ where
     /// Semantic growth matters only if a recursive dependent previously consumed
     /// the old approximation. Without a dependent, the complete rule pass has
     /// already computed the final output and no observer needs to be revisited.
-    fn update(&mut self, input: &Input, output: ProofMap<Output>) -> bool {
+    fn update(&mut self, input: &Input, output: JudgmentResult<Output>) -> bool {
         let top = self.top(input);
-        merge_proven_outputs(&mut top.output, output) && top.has_dependents
+        merge_judgment_results(&mut top.output, output) && top.has_dependents
     }
 }
 
 /// Merge a new judgment result into its current approximation.
 ///
 /// Positive judgment outputs must grow monotonically, so every key in `current`
-/// must also occur in `next`. Given that subset invariant, a length change means
-/// that the pass proved at least one new value. Proof-only changes do not count
-/// as semantic growth, but the smallest proof observed for each value is retained.
+/// must also occur in `next`. Incomplete frontiers are unioned so they can never
+/// be lost between passes. Proof-only changes do not count as semantic growth,
+/// but the smallest proof observed for each value is retained.
 ///
-/// Returns `true` exactly when the set of proven values grew.
-fn merge_proven_outputs<Output: Ord + Clone>(
-    current: &mut ProofMap<Output>,
-    mut next: ProofMap<Output>,
+/// Returns `true` when the proven-value set or incomplete-frontier set grew.
+fn merge_judgment_results<Output: Ord + Clone>(
+    current: &mut JudgmentResult<Output>,
+    mut next: JudgmentResult<Output>,
 ) -> bool {
     assert!(
-        current.keys().all(|value| next.contains_key(value)),
+        current
+            .proofs
+            .keys()
+            .all(|value| next.proofs.contains_key(value)),
         "judgment fixed-point output lost a previously proven value",
     );
 
-    let values_changed = current.len() != next.len();
-    for (value, proof) in std::mem::take(current) {
-        insert_smallest_proof(&mut next, value, proof);
+    let values_changed = current.proofs.len() != next.proofs.len();
+    for (value, proof) in std::mem::take(&mut current.proofs) {
+        insert_smallest_proof(&mut next.proofs, value, proof);
     }
+    let old_frontier_count = current.incomplete.len();
+    next.incomplete
+        .extend(std::mem::take(&mut current.incomplete));
+    let frontiers_changed = next.incomplete.len() != old_frontier_count;
     *current = next;
-    values_changed
+    values_changed || frontiers_changed
 }
 
 #[cfg(test)]
@@ -403,7 +484,7 @@ mod tests {
         static ITERATIONS: Cell<usize> = const { Cell::new(0) };
     }
 
-    fn growing_proof() -> ProofMap<u32> {
+    fn growing_proof() -> JudgmentResult<u32> {
         execute_judgment(
             |_| tracing::Span::none(),
             &CACHE,
@@ -417,17 +498,21 @@ mod tests {
                 );
 
                 let previous = growing_proof();
-                let proof = match previous.get(&0) {
+                let proof = match previous.proofs().get(&0) {
                     Some(proof) => ProofTree::new("recursive", None, vec![proof.clone()]),
                     None => ProofTree::leaf("base"),
                 };
-                Map::from([(0, proof)])
+                JudgmentResult::from_proofs(Map::from([(0, proof)]))
             },
         )
     }
 
     fn large_proof() -> ProofTree {
         ProofTree::new("large", None, vec![ProofTree::leaf("child")])
+    }
+
+    fn incomplete_frontier(line: u32) -> IncompleteTree {
+        IncompleteTree::explicit("test", Vec::new(), "rule", file!(), line, 1)
     }
 
     #[test]
@@ -437,33 +522,58 @@ mod tests {
         let output = growing_proof();
 
         assert_eq!(ITERATIONS.get(), 2);
-        assert_eq!(output[&0].total_nodes(), 1);
+        assert_eq!(output.proofs()[&0].total_nodes(), 1);
     }
 
     #[test]
     fn merge_reports_only_new_values_and_keeps_the_smallest_proof() {
         let small = ProofTree::leaf("small");
-        let mut current = Map::from([(0, small.clone())]);
+        let mut current = JudgmentResult::from_proofs(Map::from([(0, small.clone())]));
 
-        assert!(!merge_proven_outputs(
+        assert!(!merge_judgment_results(
             &mut current,
-            Map::from([(0, large_proof())]),
+            JudgmentResult::from_proofs(Map::from([(0, large_proof())])),
         ));
-        assert_eq!(current, Map::from([(0, small.clone())]));
+        assert_eq!(current.proofs(), &Map::from([(0, small.clone())]));
 
-        assert!(merge_proven_outputs(
+        assert!(merge_judgment_results(
             &mut current,
-            Map::from([(0, large_proof()), (1, ProofTree::leaf("one"))]),
+            JudgmentResult::from_proofs(Map::from([
+                (0, large_proof()),
+                (1, ProofTree::leaf("one")),
+            ])),
         ));
-        assert_eq!(current.get(&0), Some(&small));
-        assert!(current.contains_key(&1));
+        assert_eq!(current.proofs().get(&0), Some(&small));
+        assert!(current.proofs().contains_key(&1));
+    }
+
+    #[test]
+    fn merge_reports_frontier_growth_and_never_loses_a_frontier() {
+        let first = incomplete_frontier(1);
+        let second = incomplete_frontier(2);
+        let mut current: JudgmentResult<u32> = JudgmentResult::default();
+
+        let mut next = JudgmentResult::default();
+        next.insert_incomplete(first.clone());
+        assert!(merge_judgment_results(&mut current, next));
+
+        assert!(!merge_judgment_results(
+            &mut current,
+            JudgmentResult::default(),
+        ));
+        assert_eq!(current.incomplete(), &Set::from([first.clone()]));
+
+        let mut next = JudgmentResult::default();
+        next.insert_incomplete(second.clone());
+        assert!(merge_judgment_results(&mut current, next));
+        assert_eq!(current.incomplete(), &Set::from([first, second]));
     }
 
     #[test]
     #[should_panic(expected = "lost a previously proven value")]
     fn merge_rejects_non_monotonic_outputs() {
-        let mut current = Map::from([(0, ProofTree::leaf("zero"))]);
+        let mut current = JudgmentResult::from_proofs(Map::from([(0, ProofTree::leaf("zero"))]));
 
-        merge_proven_outputs(&mut current, Map::new());
+        merge_judgment_results(&mut current, JudgmentResult::default());
     }
 }

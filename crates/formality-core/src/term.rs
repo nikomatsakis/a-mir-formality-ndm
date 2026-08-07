@@ -7,6 +7,7 @@ use crate::{
     fold::CoreFold,
     language::Language,
     parse::CoreParse,
+    size::Size,
 };
 
 pub trait CoreTerm<L: Language>:
@@ -19,6 +20,7 @@ pub trait CoreTerm<L: Language>:
     + Debug
     + Upcast<Self>
     + DowncastFrom<Self>
+    + Size
     + 'static
     + Sized
 {

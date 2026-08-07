@@ -1,7 +1,7 @@
 //! Root-scoped memoization for completed judgment evaluations.
 //!
 //! The judgment runtime computes recursive judgments by repeatedly executing
-//! their rules until the set of proven output values reaches a fixed point.
+//! their rules until proven outputs and incomplete frontiers reach a fixed point.
 //! During that process it distinguishes two kinds of reuse, checked in this
 //! order by [`execute_judgment`](super::execute_judgment):
 //!
@@ -15,14 +15,14 @@
 //!
 //! Every fresh judgment evaluation calls [`IterationGuard::begin`], which
 //! pushes an empty [`ErasedTables`] slot onto [`MemoContext::active_iterations`].
-//! Nested judgments accumulate their completed positive results in that slot.
-//! If the judgment discovers new output values and must execute its rules
+//! Nested judgments accumulate their completed nonempty semantic results in that slot.
+//! If the judgment discovers semantic growth and must execute its rules
 //! again, [`IterationGuard::invalidate`] replaces the slot with an empty table:
 //! descendants completed under the old approximation are no longer reusable.
 //!
 //! Once the judgment reaches a fixed point, [`IterationGuard::complete`] pops
 //! its slot. For a nested judgment, the valid descendant entries and the
-//! judgment's own positive result are merged into the parent's slot. For a
+//! judgment's own nonempty result are merged into the parent's slot. For a
 //! top-level judgment, the slot is discarded. Memoized results therefore live
 //! only for the duration of one top-level judgment call and cannot affect a
 //! later call or test.
@@ -33,9 +33,10 @@
 //!
 //! ## What is cached
 //!
-//! Only positive results are cached. An empty [`ProofMap`] means that no value
-//! was proven, but it does not contain the failure diagnostics needed to treat
-//! that result as a reusable negative fact.
+//! Results containing genuine proofs or incomplete frontiers are cached. A
+//! completely empty [`JudgmentResult`] does not contain the failure diagnostics
+//! needed to treat it as a reusable negative fact, so only that case is
+//! excluded.
 //!
 //! A `judgment_fn!` expansion creates a distinct input type for each judgment.
 //! [`ErasedTables`] uses that input type's [`TypeId`] as the judgment identity,
@@ -52,12 +53,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::Map;
-
-use super::{insert_smallest_proof, ProofTree};
-
-/// The proven values and their smallest known proof trees for one judgment input.
-type ProofMap<Output> = Map<Output, ProofTree>;
+use super::runtime::JudgmentResult;
 
 /// Common bounds required for values stored in a type-erased memo table.
 ///
@@ -107,7 +103,7 @@ fn with_context<R>(op: impl FnOnce(&mut MemoContext) -> R) -> R {
     MEMO_CONTEXT.with(|context| op(&mut context.borrow_mut()))
 }
 
-/// Look up a positive result completed in the current chain of valid iterations.
+/// Look up a nonempty result completed in the current chain of valid iterations.
 ///
 /// The search proceeds from the innermost active iteration to the outermost.
 /// This favors the entry established in the most local evaluation while still
@@ -117,7 +113,7 @@ fn with_context<R>(op: impl FnOnce(&mut MemoContext) -> R) -> R {
 ///
 /// Returns `None` when memoization is disabled, when no matching entry exists,
 /// or when the matching judgment previously failed (failures are not cached).
-pub(crate) fn lookup_iteration<Input, Output>(input: &Input) -> Option<ProofMap<Output>>
+pub(crate) fn lookup_iteration<Input, Output>(input: &Input) -> Option<JudgmentResult<Output>>
 where
     Input: Clone + Eq + Debug + Hash + 'static,
     Output: Clone + Eq + Debug + Hash + Ord + 'static,
@@ -246,8 +242,8 @@ impl IterationGuard {
 
     /// Discard entries completed under an obsolete fixed-point approximation.
     ///
-    /// The runtime calls this whenever the judgment gains proven output values
-    /// and has recursive dependents, just before executing its rules again. The
+    /// The runtime calls this whenever the judgment result grows and has
+    /// recursive dependents, just before executing its rules again. The
     /// stack slot itself remains in place so subsequent descendants can repopulate
     /// it under the new approximation.
     pub(crate) fn invalidate(&self) {
@@ -265,7 +261,7 @@ impl IterationGuard {
     /// for possible reuse by later nested calls. Otherwise this was a top-level
     /// evaluation, so `completed_descendants` is dropped and no memoized result
     /// survives the call. Empty outputs are ignored by [`ErasedTables::insert`].
-    pub(crate) fn complete<Input, Output>(mut self, input: &Input, output: &ProofMap<Output>)
+    pub(crate) fn complete<Input, Output>(mut self, input: &Input, output: &JudgmentResult<Output>)
     where
         Input: Clone + Eq + Debug + Hash + 'static,
         Output: Clone + Eq + Debug + Hash + Ord + 'static,
@@ -313,13 +309,13 @@ struct ErasedTables {
 }
 
 impl ErasedTables {
-    /// Find the completed positive result for one judgment input.
+    /// Find the completed nonempty result for one judgment input.
     ///
     /// The input type selects the concrete table and the input value selects an
     /// entry within it. A table's output type is fixed by its judgment; a failed
     /// downcast therefore indicates an internal identity/type mismatch rather
     /// than a normal cache miss.
-    fn get<Input, Output>(&self, input: &Input) -> Option<&ProofMap<Output>>
+    fn get<Input, Output>(&self, input: &Input) -> Option<&JudgmentResult<Output>>
     where
         Input: MemoValue,
         Output: MemoValue + Ord,
@@ -333,13 +329,16 @@ impl ErasedTables {
             .get(input)
     }
 
-    /// Insert or merge a completed positive judgment result.
+    /// Insert or merge a completed nonempty judgment result.
     ///
-    /// Empty proof maps are deliberately excluded because their failure diagnostics are not
-    /// represented in the map. Treating them as cached negative facts would be unsound.
-    /// Returns `true` when a positive entry was inserted or merged and `false`
-    /// when `output` was empty and therefore ignored.
-    fn insert<Input, Output>(&mut self, input: Input, output: ProofMap<Output>) -> bool
+    /// Completely empty results are deliberately excluded because their
+    /// failure diagnostics are not represented here. Treating them as cached
+    /// negative facts would be unsound. Incomplete-only results are nonempty
+    /// semantic information and are safe to cache.
+    ///
+    /// Returns `true` when an entry was inserted or merged and `false` when
+    /// `output` was completely empty and therefore ignored.
+    fn insert<Input, Output>(&mut self, input: Input, output: JudgmentResult<Output>) -> bool
     where
         Input: MemoValue,
         Output: MemoValue + Ord,
@@ -381,7 +380,7 @@ impl ErasedTables {
     /// Report whether this collection contains no concrete tables.
     ///
     /// Because empty outputs are never inserted, this also means it contains no
-    /// cached positive entries.
+    /// cached semantic entries.
     fn is_empty(&self) -> bool {
         self.by_judgment.is_empty()
     }
@@ -407,14 +406,14 @@ trait ErasedMemoTable: Any {
     fn merge(&mut self, other: Box<dyn ErasedMemoTable>);
 }
 
-/// Completed positive results for one concrete judgment.
+/// Completed nonempty results for one concrete judgment.
 ///
 /// `Input` is the unique generated judgment input type as well as the per-entry
 /// key. `Output` is the judgment's proven-value type. Each input maps to all
-/// proven outputs and the smallest proof tree retained for each output.
+/// proven outputs, their smallest proof trees, and incomplete frontiers.
 struct MemoTable<Input, Output> {
     /// Positive results indexed by the complete judgment input value.
-    entries: HashMap<Input, ProofMap<Output>>,
+    entries: HashMap<Input, JudgmentResult<Output>>,
 }
 
 impl<Input, Output> Default for MemoTable<Input, Output> {
@@ -436,7 +435,7 @@ where
     /// Two valid completions of the same judgment input must prove exactly the
     /// same output values. [`merge_equivalent_outputs`] asserts that invariant
     /// and retains the smaller proof tree for each value.
-    fn insert(&mut self, input: Input, output: ProofMap<Output>) {
+    fn insert(&mut self, input: Input, output: JudgmentResult<Output>) {
         match self.entries.entry(input) {
             std::collections::hash_map::Entry::Occupied(mut entry) => {
                 merge_equivalent_outputs(entry.get_mut(), output);
@@ -489,22 +488,29 @@ where
 /// entries are required to have identical ordered keys. Proof trees are metadata
 /// and may differ; for each value, this retains the smallest proof observed.
 fn merge_equivalent_outputs<Output: Ord + Clone>(
-    current: &mut ProofMap<Output>,
-    next: ProofMap<Output>,
+    current: &mut JudgmentResult<Output>,
+    next: JudgmentResult<Output>,
 ) {
     assert!(
-        current.keys().eq(next.keys()),
+        current.proofs().keys().eq(next.proofs().keys()),
         "equivalent memo entries have different proven values",
     );
+    assert_eq!(
+        current.incomplete(),
+        next.incomplete(),
+        "equivalent memo entries have different incomplete frontiers",
+    );
 
-    for (value, proof) in next {
-        insert_smallest_proof(current, value, proof);
+    let (proofs, _) = next.into_parts();
+    for (value, proof) in proofs {
+        current.insert_proof(value, proof);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{judgment::ProofTree, Map};
 
     #[derive(Clone, Debug, Eq, Hash, PartialEq)]
     struct InputA(u32);
@@ -520,47 +526,64 @@ mod tests {
         ProofTree::new("large", None, vec![ProofTree::leaf("child")])
     }
 
+    fn result(output: Map<u32, ProofTree>) -> JudgmentResult<u32> {
+        JudgmentResult::from_proofs(output)
+    }
+
     #[test]
     fn typed_table_round_trip_and_empty_exclusion() {
         let mut tables = ErasedTables::default();
 
-        assert!(!tables.insert::<InputA, u32>(InputA(0), Map::new()));
+        assert!(!tables.insert::<InputA, u32>(InputA(0), JudgmentResult::default()));
         assert!(tables.is_empty());
 
-        let output = Map::from([(22_u32, small_proof())]);
+        let output = result(Map::from([(22_u32, small_proof())]));
         assert!(tables.insert(InputA(0), output.clone()));
         assert_eq!(tables.get::<InputA, u32>(&InputA(0)), Some(&output));
+
+        let mut incomplete = JudgmentResult::default();
+        incomplete.insert_incomplete(crate::judgment::IncompleteTree::size(
+            "test",
+            vec![],
+            "memo.rs",
+            1,
+            1,
+            2,
+            1,
+        ));
+        assert!(tables.insert(InputA(1), incomplete.clone()));
+        assert_eq!(tables.get::<InputA, u32>(&InputA(1)), Some(&incomplete));
     }
 
     #[test]
     fn generated_input_type_isolates_judgment_identity() {
         let mut tables = ErasedTables::default();
 
-        tables.insert(InputA(0), Map::from([(22_u32, small_proof())]));
-        tables.insert(InputB(0), Map::from([(44_u32, small_proof())]));
+        tables.insert(InputA(0), result(Map::from([(22_u32, small_proof())])));
+        tables.insert(InputB(0), result(Map::from([(44_u32, small_proof())])));
 
         assert!(tables
             .get::<InputA, u32>(&InputA(0))
-            .is_some_and(|output| output.contains_key(&22)));
+            .is_some_and(|output| output.proofs().contains_key(&22)));
         assert!(tables
             .get::<InputB, u32>(&InputB(0))
-            .is_some_and(|output| output.contains_key(&44)));
+            .is_some_and(|output| output.proofs().contains_key(&44)));
     }
 
     #[test]
     fn table_merge_retains_the_smallest_proof() {
         let mut left = ErasedTables::default();
-        left.insert(InputA(0), Map::from([(22_u32, large_proof())]));
+        left.insert(InputA(0), result(Map::from([(22_u32, large_proof())])));
 
         let mut right = ErasedTables::default();
         let small = small_proof();
-        right.insert(InputA(0), Map::from([(22_u32, small.clone())]));
+        right.insert(InputA(0), result(Map::from([(22_u32, small.clone())])));
 
         left.merge(right);
 
         assert_eq!(
             left.get::<InputA, u32>(&InputA(0))
-                .and_then(|output| output.get(&22)),
+                .and_then(|output| output.proofs().get(&22)),
             Some(&small),
         );
     }
@@ -569,10 +592,10 @@ mod tests {
     #[should_panic(expected = "equivalent memo entries have different proven values")]
     fn table_merge_rejects_semantically_unequal_collision() {
         let mut left = ErasedTables::default();
-        left.insert(InputA(0), Map::from([(22_u32, small_proof())]));
+        left.insert(InputA(0), result(Map::from([(22_u32, small_proof())])));
 
         let mut right = ErasedTables::default();
-        right.insert(InputA(0), Map::from([(44_u32, small_proof())]));
+        right.insert(InputA(0), result(Map::from([(44_u32, small_proof())])));
 
         left.merge(right);
     }
@@ -582,12 +605,12 @@ mod tests {
         let _mode = TestModeGuard::new(true);
         let root = IterationGuard::begin();
         let child = IterationGuard::begin();
-        let child_output = Map::from([(22_u32, small_proof())]);
+        let child_output = result(Map::from([(22_u32, small_proof())]));
 
         child.complete(&InputA(0), &child_output);
         assert_eq!(lookup_iteration(&InputA(0)), Some(child_output));
 
-        root.complete(&InputB(0), &Map::from([(44_u32, small_proof())]));
+        root.complete(&InputB(0), &result(Map::from([(44_u32, small_proof())])));
         assert_eq!(active_iteration_count(), 0);
         assert_eq!(lookup_iteration::<InputA, u32>(&InputA(0)), None);
     }

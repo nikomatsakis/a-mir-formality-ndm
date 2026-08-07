@@ -6,23 +6,185 @@ use std::{
     panic::Location,
 };
 
-/// Represents a set of items that were successfully proven using a judgment.
-/// If the set is empty, then tracks the reason that the judgment failed for diagnostic purposes.
+/// The genuine outputs found while evaluating a judgment, together with
+/// orthogonal completeness and failure-diagnostic information.
+///
+/// An incomplete result may contain known proofs or no proofs. In either case,
+/// absence from the known output set does not establish non-provability.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[must_use]
 pub struct ProvenSet<J> {
     data: ProvenSetData<J>,
+    incomplete: Set<IncompleteTree>,
 }
 
 #[derive(Clone)]
 enum ProvenSetData<J> {
     Failure(Box<FailedJudgment>),
+    Empty,
     Success(Map<J, ProofTree>),
 }
 
+/// Why a consuming operation could not produce a complete logical answer.
+///
+/// The incomplete variant retains the entire partial result, including every
+/// genuine proof, so callers can inspect or propagate it without losing data.
+#[derive(Debug)]
+pub enum ProvenSetError<J> {
+    Failed(Box<FailedJudgment>),
+    Incomplete(IncompleteProvenSet<J>),
+}
+
+/// An incomplete typed result paired with its type-erased error-chain marker.
+///
+/// The fields are intentionally private so the marker cannot disagree with the
+/// frontiers in the typed result.
+#[derive(Debug)]
+pub struct IncompleteProvenSet<J> {
+    result: ProvenSet<J>,
+    source: IncompleteError,
+}
+
+impl<J> IncompleteProvenSet<J> {
+    /// Borrow the typed partial result, including every genuine proof found.
+    pub fn result(&self) -> &ProvenSet<J> {
+        &self.result
+    }
+
+    /// Recover the typed partial result, including every genuine proof found.
+    pub fn into_result(self) -> ProvenSet<J> {
+        self.result
+    }
+}
+
+impl<J> ProvenSetError<J> {
+    fn incomplete(result: ProvenSet<J>) -> Self {
+        let source = IncompleteError::from_result(&result);
+        Self::Incomplete(IncompleteProvenSet { result, source })
+    }
+
+    /// Returns the complete-failure diagnostic, if this was a complete failure.
+    pub fn as_failed(&self) -> Option<&FailedJudgment> {
+        match self {
+            Self::Failed(failed) => Some(failed),
+            Self::Incomplete(_) => None,
+        }
+    }
+
+    /// Recover the partial result when evaluation was incomplete.
+    pub fn into_incomplete(self) -> Option<ProvenSet<J>> {
+        match self {
+            Self::Failed(_) => None,
+            Self::Incomplete(incomplete) => Some(incomplete.into_result()),
+        }
+    }
+
+    /// Erase the logical output type while preserving completion metadata in
+    /// an [`anyhow::Error`].
+    ///
+    /// This is intended for legacy adapters that return [`crate::Fallible`].
+    /// Generated judgment premises recognize the erased incomplete marker and
+    /// propagate its frontiers instead of treating it as an ordinary failure.
+    pub fn into_anyhow(self) -> anyhow::Error {
+        match self {
+            Self::Failed(failed) => anyhow::Error::new(*failed),
+            Self::Incomplete(incomplete) => anyhow::Error::new(incomplete.source),
+        }
+    }
+
+    /// Format the most useful leaf-level diagnostic available.
+    pub fn format_leaves(&self) -> String
+    where
+        J: Debug,
+    {
+        match self {
+            Self::Failed(failed) => failed.format_leaves(),
+            Self::Incomplete(incomplete) => incomplete.result.to_string(),
+        }
+    }
+}
+
+impl<J: Debug> std::fmt::Display for ProvenSetError<J> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Failed(_) => f.write_str("judgment evaluation failed"),
+            Self::Incomplete(_) => f.write_str("judgment evaluation was incomplete"),
+        }
+    }
+}
+
+impl<J: Debug> std::error::Error for ProvenSetError<J> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Failed(failed) => Some(failed.as_ref()),
+            Self::Incomplete(incomplete) => Some(&incomplete.source),
+        }
+    }
+}
+
+/// Type-erased completion metadata transported through an `anyhow::Error`.
+///
+/// This exists for hand-written adapters whose return type cannot carry a
+/// typed [`ProvenSet`]. Judgment-macro plumbing recognizes it and restores the
+/// incomplete frontiers at the next premise boundary.
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub struct IncompleteError {
+    incomplete: Set<IncompleteTree>,
+    failure: Option<Box<FailedJudgment>>,
+}
+
+impl IncompleteError {
+    fn from_result<J>(result: &ProvenSet<J>) -> Self {
+        let failure = match &result.data {
+            ProvenSetData::Failure(failure) => Some(failure.clone()),
+            ProvenSetData::Empty | ProvenSetData::Success(_) => None,
+        };
+        Self {
+            incomplete: result.incomplete.clone(),
+            failure,
+        }
+    }
+
+    /// Recover an erased incomplete marker from an anyhow context chain.
+    pub fn from_anyhow(error: &anyhow::Error) -> Option<&Self> {
+        error
+            .downcast_ref::<Self>()
+            .or_else(|| error.chain().find_map(|cause| cause.downcast_ref::<Self>()))
+    }
+
+    /// The frontiers that must propagate to the enclosing judgment.
+    pub fn incomplete_frontiers(&self) -> &Set<IncompleteTree> {
+        &self.incomplete
+    }
+
+    /// A complete-failure diagnostic from alternative branches, if present.
+    pub fn failure(&self) -> Option<&FailedJudgment> {
+        self.failure.as_deref()
+    }
+}
+
+impl std::fmt::Display for IncompleteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(failure) = &self.failure {
+            writeln!(f, "{failure}")?;
+        }
+        writeln!(f, "judgment evaluation was incomplete:")?;
+        for frontier in &self.incomplete {
+            writeln!(f, "  {frontier}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for IncompleteError {}
+
 impl<J> From<ProvenSetData<J>> for ProvenSet<J> {
     fn from(data: ProvenSetData<J>) -> Self {
-        ProvenSet { data }
+        ProvenSet {
+            data,
+            incomplete: Set::new(),
+        }
     }
 }
 
@@ -43,6 +205,29 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
     pub fn proven(data: Map<J, ProofTree>) -> Self {
         assert!(!data.is_empty());
         ProvenSetData::Success(data).into()
+    }
+
+    /// Creates a result with no proven values whose evaluation stopped at the
+    /// given incomplete frontier.
+    pub fn incomplete(frontier: IncompleteTree) -> Self {
+        Self::from_incomplete_frontiers(std::iter::once(frontier).collect())
+    }
+
+    /// Creates a result with no proven values and one or more incomplete frontiers.
+    pub fn from_incomplete_frontiers(incomplete: Set<IncompleteTree>) -> Self {
+        assert!(!incomplete.is_empty());
+        Self {
+            data: ProvenSetData::Empty,
+            incomplete,
+        }
+    }
+
+    /// Adds incomplete frontiers without changing any genuinely proven values
+    /// or complete-failure diagnostics in this result.
+    #[doc(hidden)]
+    pub fn with_incomplete(mut self, incomplete: Set<IncompleteTree>) -> Self {
+        self.incomplete.extend(incomplete);
+        self
     }
 
     /// Creates a `JudgmentSet` from a Rust function that failed for the given reason.
@@ -75,7 +260,7 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
     /// True if the judgment whose result this set represents was proven at least once.
     pub fn is_proven(&self) -> bool {
         match &self.data {
-            ProvenSetData::Failure(_) => false,
+            ProvenSetData::Failure(_) | ProvenSetData::Empty => false,
             ProvenSetData::Success(s) => {
                 assert!(!s.is_empty());
                 true
@@ -83,10 +268,39 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
         }
     }
 
-    /// Convert to a non-empty set of proven results (if ok) or an error (otherwise).
-    pub fn into_map(self) -> Result<Map<J, ProofTree>, Box<FailedJudgment>> {
+    /// True if evaluation completed and established that there are no proofs.
+    pub fn is_failed(&self) -> bool {
+        self.is_complete() && matches!(&self.data, ProvenSetData::Failure(_))
+    }
+
+    /// True if every branch of this evaluation completed normally.
+    pub fn is_complete(&self) -> bool {
+        self.incomplete.is_empty()
+    }
+
+    /// True if one or more branches stopped before derivation enumeration completed.
+    pub fn is_incomplete(&self) -> bool {
+        !self.is_complete()
+    }
+
+    /// The identifiable frontiers at which proof search stopped.
+    pub fn incomplete_frontiers(&self) -> &Set<IncompleteTree> {
+        &self.incomplete
+    }
+
+    /// Convert a complete result to its non-empty map of proven values.
+    ///
+    /// An incomplete evaluation is rejected even when it contains genuine
+    /// proofs, because returning only the map would falsely imply that it is
+    /// exhaustive. The error retains the complete partial result.
+    pub fn into_map(self) -> Result<Map<J, ProofTree>, ProvenSetError<J>> {
+        if self.is_incomplete() {
+            return Err(ProvenSetError::incomplete(self));
+        }
+
         match self.data {
-            ProvenSetData::Failure(e) => Err(e),
+            ProvenSetData::Failure(e) => Err(ProvenSetError::Failed(e)),
+            ProvenSetData::Empty => unreachable!("a complete result cannot be empty"),
             ProvenSetData::Success(s) => {
                 assert!(!s.is_empty());
                 Ok(s)
@@ -96,10 +310,15 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
 
     /// Extract the single proven result from this set.
     /// Panics if the set contains more than one result.
-    /// Returns an error if the judgment failed.
-    pub fn into_singleton(self) -> Result<Proven<J>, Box<FailedJudgment>> {
+    /// Returns an error if the judgment failed or its evaluation was incomplete.
+    pub fn into_singleton(self) -> Result<Proven<J>, ProvenSetError<J>> {
+        if self.is_incomplete() {
+            return Err(ProvenSetError::incomplete(self));
+        }
+
         match self.data {
-            ProvenSetData::Failure(e) => Err(e),
+            ProvenSetData::Failure(e) => Err(ProvenSetError::Failed(e)),
+            ProvenSetData::Empty => unreachable!("a complete result cannot be empty"),
             ProvenSetData::Success(mut s) => {
                 assert!(s.len() == 1, "expected singleton, got {} results", s.len());
                 Ok(s.pop_first().unwrap())
@@ -107,10 +326,12 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
         }
     }
 
-    /// Iterate through all solutions.
+    /// Iterate through every genuine solution found so far.
+    ///
+    /// When [`Self::is_incomplete`] is true, this is not an exhaustive set.
     pub fn iter(&self) -> Box<dyn Iterator<Item = Proven<J>> + '_> {
         match &self.data {
-            ProvenSetData::Failure(_) => Box::new(std::iter::empty()),
+            ProvenSetData::Failure(_) | ProvenSetData::Empty => Box::new(std::iter::empty()),
             ProvenSetData::Success(s) => Box::new(
                 s.iter()
                     .map(|(judgment, tree)| (J::clone(judgment), tree.clone())),
@@ -129,27 +350,39 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
         Iterable: EachProof<Judgment = K>,
         K: Ord + Debug + Clone,
     {
-        match self.data {
+        let ProvenSet { data, incomplete } = self;
+        match data {
             ProvenSetData::Failure(e) => ProvenSet {
                 data: ProvenSetData::Failure(e),
+                incomplete,
+            },
+            ProvenSetData::Empty => ProvenSet {
+                data: ProvenSetData::Empty,
+                incomplete,
             },
             ProvenSetData::Success(proven_items) => {
                 let mut items = Map::default();
                 let mut failures = set![];
+                let mut incomplete = incomplete;
 
                 for proven_item in proven_items {
                     let collection = op(proven_item);
-                    if let Err(cause) = collection.each_proof(|(item, proof_tree)| {
+                    let report = collection.each_proof(|(item, proof_tree)| {
                         items.insert(item, proof_tree);
-                    }) {
+                    });
+                    incomplete.extend(report.incomplete);
+                    if let Some(cause) = report.failure {
                         failures.insert(FailedRule::new(cause));
                     }
                 }
 
                 if !items.is_empty() {
-                    ProvenSet::proven(items)
+                    ProvenSet::proven(items).with_incomplete(incomplete)
+                } else if failures.is_empty() && !incomplete.is_empty() {
+                    ProvenSet::from_incomplete_frontiers(incomplete)
                 } else {
                     ProvenSet::failed_rules("flat_map", FailureLocation::caller(), failures)
+                        .with_incomplete(incomplete)
                 }
             }
         }
@@ -177,8 +410,13 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
     /// and that the proof tree contains all the required strings.
     #[track_caller]
     pub fn assert_ok_with(&self, expect_values: expect_test::Expect, must_contain: &[&str]) {
+        assert!(
+            self.is_complete(),
+            "expected a complete successful proof, got an incomplete result: {self}"
+        );
         match &self.data {
             ProvenSetData::Failure(e) => panic!("expected a successful proof, got {e}"),
+            ProvenSetData::Empty => unreachable!("a complete result cannot be empty"),
             ProvenSetData::Success(map) => {
                 crate::judgment::coverage::record_coverage(map.values());
 
@@ -202,6 +440,10 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
     /// Shows only the leaf failures for a concise view.
     #[track_caller]
     pub fn assert_err(&self, expect: expect_test::Expect) {
+        assert!(
+            self.is_complete(),
+            "expected a complete failure, got an incomplete result: {self}"
+        );
         match &self.data {
             ProvenSetData::Failure(e) => {
                 crate::judgment::coverage::record_negative_coverage(std::iter::once(e.as_ref()));
@@ -210,15 +452,21 @@ impl<J: Ord + Debug + Clone> ProvenSet<J> {
             ProvenSetData::Success(_) => {
                 panic!("expected an error, got successful proofs: {self}");
             }
+            ProvenSetData::Empty => unreachable!("a complete result cannot be empty"),
         }
     }
 }
 
 impl ProvenSet<()> {
     /// For cases where the "value" is just `()`, we can just extract the singular proof-tree directly
-    pub fn check_proven(self) -> Result<ProofTree, Box<FailedJudgment>> {
+    pub fn check_proven(self) -> Result<ProofTree, ProvenSetError<()>> {
+        if self.is_incomplete() {
+            return Err(ProvenSetError::incomplete(self));
+        }
+
         match self.data {
-            ProvenSetData::Failure(e) => Err(e),
+            ProvenSetData::Failure(e) => Err(ProvenSetError::Failed(e)),
+            ProvenSetData::Empty => unreachable!("a complete result cannot be empty"),
             ProvenSetData::Success(mut map) => Ok(map.remove(&()).expect("non-empty")),
         }
     }
@@ -240,6 +488,7 @@ impl<J: PartialEq> PartialEq for ProvenSetData<J> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Failure(l0), Self::Failure(r0)) => format!("{l0:?}") == format!("{r0:?}"),
+            (Self::Empty, Self::Empty) => true,
             (Self::Success(l0), Self::Success(r0)) => l0 == r0,
             _ => false,
         }
@@ -248,8 +497,15 @@ impl<J: PartialEq> PartialEq for ProvenSetData<J> {
 
 impl<J: std::fmt::Debug> std::fmt::Debug for ProvenSet<J> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self { data } = self;
-        std::fmt::Debug::fmt(data, f)
+        let Self { data, incomplete } = self;
+        if incomplete.is_empty() {
+            std::fmt::Debug::fmt(data, f)
+        } else {
+            f.debug_struct("ProvenSet")
+                .field("data", data)
+                .field("incomplete", incomplete)
+                .finish()
+        }
     }
 }
 
@@ -257,6 +513,7 @@ impl<J: std::fmt::Debug> std::fmt::Debug for ProvenSetData<J> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Failure(arg0) => std::fmt::Debug::fmt(arg0, f),
+            Self::Empty => f.write_str("Empty"),
             Self::Success(arg0) => std::fmt::Debug::fmt(arg0, f),
         }
     }
@@ -273,6 +530,11 @@ impl<J: PartialOrd> PartialOrd for ProvenSetData<J> {
             (Self::Success(l0), Self::Success(r0)) => PartialOrd::partial_cmp(l0, r0),
             (Self::Failure(_), Self::Success(_)) => Some(std::cmp::Ordering::Less),
             (Self::Success(_), Self::Failure(_)) => Some(std::cmp::Ordering::Greater),
+            (Self::Failure(_), Self::Empty) => Some(std::cmp::Ordering::Less),
+            (Self::Empty, Self::Failure(_)) => Some(std::cmp::Ordering::Greater),
+            (Self::Empty, Self::Success(_)) => Some(std::cmp::Ordering::Less),
+            (Self::Success(_), Self::Empty) => Some(std::cmp::Ordering::Greater),
+            (Self::Empty, Self::Empty) => Some(std::cmp::Ordering::Equal),
         }
     }
 }
@@ -286,6 +548,11 @@ impl<J: Ord> Ord for ProvenSetData<J> {
             (Self::Success(l0), Self::Success(r0)) => Ord::cmp(l0, r0),
             (Self::Failure(_), Self::Success(_)) => std::cmp::Ordering::Less,
             (Self::Success(_), Self::Failure(_)) => std::cmp::Ordering::Greater,
+            (Self::Failure(_), Self::Empty) => std::cmp::Ordering::Less,
+            (Self::Empty, Self::Failure(_)) => std::cmp::Ordering::Greater,
+            (Self::Empty, Self::Success(_)) => std::cmp::Ordering::Less,
+            (Self::Success(_), Self::Empty) => std::cmp::Ordering::Greater,
+            (Self::Empty, Self::Empty) => std::cmp::Ordering::Equal,
         }
     }
 }
@@ -293,7 +560,8 @@ impl<J: Ord> Ord for ProvenSetData<J> {
 impl<J: Hash> Hash for ProvenSetData<J> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            ProvenSetData::Failure(e) => e.to_string().hash(state),
+            ProvenSetData::Failure(e) => format!("{e:?}").hash(state),
+            ProvenSetData::Empty => 1_u8.hash(state),
             ProvenSetData::Success(s) => s.hash(state),
         }
     }
@@ -325,6 +593,88 @@ pub struct ProofTree {
 
     /// ...with these subproofs.
     pub children: Vec<ProofTree>,
+}
+
+/// A branch at which derivation enumeration stopped without producing a
+/// logical output.
+///
+/// Frontiers are leaf records. Propagating a nested incomplete result preserves
+/// the original record instead of wrapping it at every caller, which keeps
+/// recursive fixed-point evaluation finite and leaves room for future
+/// frontier-specific subsumption.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct IncompleteTree {
+    /// Name of the judgment whose branch stopped.
+    pub judgment_name: String,
+
+    /// Debug attributes identifying that judgment invocation.
+    pub attributes: Vec<(String, String)>,
+
+    /// The rule containing an explicit incomplete premise, if applicable.
+    pub rule_name: Option<&'static str>,
+
+    /// Source location of the cutoff or explicit premise.
+    pub file: String,
+    pub line: u32,
+    pub column: u32,
+
+    /// Why enumeration stopped.
+    pub reason: IncompleteReason,
+}
+
+/// The operational reason that a judgment branch was incomplete.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum IncompleteReason {
+    /// The branch reached an explicit `(incomplete)` premise.
+    Explicit,
+
+    /// The complete judgment input exceeded the active structural-size cutoff.
+    Size { size: usize, cutoff: usize },
+}
+
+impl IncompleteTree {
+    /// Construct the frontier recorded by an explicit `(incomplete)` premise.
+    #[doc(hidden)]
+    pub fn explicit(
+        judgment_name: impl ToString,
+        attributes: Vec<(String, String)>,
+        rule_name: &'static str,
+        file: impl ToString,
+        line: u32,
+        column: u32,
+    ) -> Self {
+        Self {
+            judgment_name: judgment_name.to_string(),
+            attributes,
+            rule_name: Some(rule_name),
+            file: file.to_string(),
+            line,
+            column,
+            reason: IncompleteReason::Explicit,
+        }
+    }
+
+    /// Construct the frontier recorded when a judgment input exceeds its cutoff.
+    #[doc(hidden)]
+    pub fn size(
+        judgment_name: impl ToString,
+        attributes: Vec<(String, String)>,
+        file: impl ToString,
+        line: u32,
+        column: u32,
+        size: usize,
+        cutoff: usize,
+    ) -> Self {
+        Self {
+            judgment_name: judgment_name.to_string(),
+            attributes,
+            rule_name: None,
+            file: file.to_string(),
+            line,
+            column,
+            reason: IncompleteReason::Size { size, cutoff },
+        }
+    }
 }
 
 impl ProofTree {
@@ -799,6 +1149,14 @@ impl RuleFailureCause {
             RuleFailureCause::FailedJudgment(Box::new((**failed).clone()))
         } else if let Some(failed) = e.downcast_ref::<FailedJudgment>() {
             RuleFailureCause::FailedJudgment(Box::new(failed.clone()))
+        } else if let Some(failed) = e
+            .chain()
+            .find_map(|cause| cause.downcast_ref::<FailedJudgment>())
+        {
+            // Completion-aware extraction errors expose a complete failure as
+            // their source. Preserve the pre-incompleteness leaf diagnostic
+            // instead of embedding the wrapper's full anyhow chain.
+            RuleFailureCause::FailedJudgment(Box::new(failed.clone()))
         } else {
             RuleFailureCause::Inapplicable {
                 reason: format!("{e:?}"),
@@ -903,7 +1261,14 @@ impl std::fmt::Display for RuleFailureCause {
 impl<T: Debug> std::fmt::Display for ProvenSet<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.data {
-            ProvenSetData::Failure(err) => std::fmt::Display::fmt(err, f),
+            ProvenSetData::Failure(err) => {
+                std::fmt::Display::fmt(err, f)?;
+                if !self.incomplete.is_empty() {
+                    writeln!(f)?;
+                }
+                Ok(())
+            }
+            ProvenSetData::Empty => writeln!(f, "no proven outputs"),
             ProvenSetData::Success(set) => {
                 writeln!(f, "{{")?;
                 for (judgment, proof_tree) in set {
@@ -912,6 +1277,36 @@ impl<T: Debug> std::fmt::Display for ProvenSet<T> {
                 }
                 writeln!(f, "}}")?;
                 Ok(())
+            }
+        }?;
+
+        if !self.incomplete.is_empty() {
+            writeln!(f, "incomplete frontiers:")?;
+            for frontier in &self.incomplete {
+                writeln!(f, "  {frontier}")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for IncompleteTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let file_name = self.file.rsplit('/').next().unwrap_or(&self.file);
+        let rule = self
+            .rule_name
+            .map(|name| format!(" in rule {name:?}"))
+            .unwrap_or_default();
+        write!(
+            f,
+            "{}{} at {file_name}:{}:{}",
+            self.judgment_name, rule, self.line, self.column
+        )?;
+        match self.reason {
+            IncompleteReason::Explicit => write!(f, ": reached `(incomplete)`"),
+            IncompleteReason::Size { size, cutoff } => {
+                write!(f, ": input size {size} exceeds cutoff {cutoff}")
             }
         }
     }
@@ -975,40 +1370,45 @@ fn indent(s: impl std::fmt::Display) -> String {
     lines.join("\n")
 }
 
+/// Metadata produced while enumerating the genuine proofs of one premise.
+#[doc(hidden)]
+pub struct EachProofReport {
+    pub incomplete: Set<IncompleteTree>,
+    pub failure: Option<RuleFailureCause>,
+}
+
 /// This trait is used for the `(foo => bar)` patterns.
-///
-/// If `foo` evaluates to a non-empty set of `bar` elements,
-/// returns an `Ok` iterator.
-///
-/// Otherwise, returns returns an error.
 pub trait EachProof {
     type Judgment;
 
-    /// If the iterable is non-empty, invokes `each_proof` for each item and returns `Ok(())`.
-    /// Otherwise, returns `Err(_)` with a description of the failure;
-    /// `stringify_expr` is used to create that description, it should
-    /// return a string representing the expression being enumerated.
+    /// Invokes `each_proof` for each genuine proof and returns orthogonal
+    /// complete-failure and incomplete-frontier metadata.
     #[track_caller]
-    fn each_proof(
-        self,
-        each_proof: impl FnMut(Proven<Self::Judgment>),
-    ) -> Result<(), RuleFailureCause>;
+    fn each_proof(self, each_proof: impl FnMut(Proven<Self::Judgment>)) -> EachProofReport;
 }
 
 impl<T> EachProof for ProvenSet<T> {
     type Judgment = T;
 
-    fn each_proof(
-        self,
-        mut each_proof: impl FnMut(Proven<Self::Judgment>),
-    ) -> Result<(), RuleFailureCause> {
+    fn each_proof(self, mut each_proof: impl FnMut(Proven<Self::Judgment>)) -> EachProofReport {
+        let incomplete = self.incomplete;
         match self.data {
-            ProvenSetData::Failure(e) => Err(RuleFailureCause::FailedJudgment(e)),
+            ProvenSetData::Failure(e) => EachProofReport {
+                incomplete,
+                failure: Some(RuleFailureCause::FailedJudgment(e)),
+            },
+            ProvenSetData::Empty => EachProofReport {
+                incomplete,
+                failure: None,
+            },
             ProvenSetData::Success(s) => {
                 for item in s {
                     each_proof(item);
                 }
-                Ok(())
+                EachProofReport {
+                    incomplete,
+                    failure: None,
+                }
             }
         }
     }
@@ -1017,17 +1417,24 @@ impl<T> EachProof for ProvenSet<T> {
 impl<T: Clone> EachProof for &ProvenSet<T> {
     type Judgment = T;
 
-    fn each_proof(
-        self,
-        mut each_proof: impl FnMut(Proven<Self::Judgment>),
-    ) -> Result<(), RuleFailureCause> {
+    fn each_proof(self, mut each_proof: impl FnMut(Proven<Self::Judgment>)) -> EachProofReport {
         match &self.data {
-            ProvenSetData::Failure(e) => Err(RuleFailureCause::FailedJudgment(e.clone())),
+            ProvenSetData::Failure(e) => EachProofReport {
+                incomplete: self.incomplete.clone(),
+                failure: Some(RuleFailureCause::FailedJudgment(e.clone())),
+            },
+            ProvenSetData::Empty => EachProofReport {
+                incomplete: self.incomplete.clone(),
+                failure: None,
+            },
             ProvenSetData::Success(s) => {
                 for (key, proof) in s {
                     each_proof((key.clone(), proof.clone()));
                 }
-                Ok(())
+                EachProofReport {
+                    incomplete: self.incomplete.clone(),
+                    failure: None,
+                }
             }
         }
     }
@@ -1060,38 +1467,76 @@ pub fn member_of<T: Debug>(
     }
 }
 
+/// Result of checking a premise whose logical output type is `()`.
+#[doc(hidden)]
+pub struct CheckProvenReport {
+    pub proof: Option<ProofTree>,
+    pub incomplete: Set<IncompleteTree>,
+    pub failure: Option<RuleFailureCause>,
+}
+
 pub trait CheckProven {
-    /// If the iterable is non-empty, invokes `each_proof` for each item and returns `Ok(())`.
-    /// Otherwise, returns `Err(_)` with a description of the failure;
-    /// `stringify_expr` is used to create that description, it should
-    /// return a string representing the expression being enumerated.
+    /// Return the genuine unit proof, failure diagnostic, and incomplete
+    /// frontiers without conflating any of those dimensions.
     #[track_caller]
-    fn check_proven(self) -> Result<ProofTree, RuleFailureCause>;
+    fn check_proven(self) -> CheckProvenReport;
 }
 
 impl CheckProven for Fallible<ProofTree> {
     #[track_caller]
-    fn check_proven(self) -> Result<ProofTree, RuleFailureCause> {
+    fn check_proven(self) -> CheckProvenReport {
         match self {
-            Ok(proof_tree) => Ok(proof_tree),
-            Err(e) => Err(RuleFailureCause::from_anyhow(e)),
+            Ok(proof_tree) => CheckProvenReport {
+                proof: Some(proof_tree),
+                incomplete: Set::new(),
+                failure: None,
+            },
+            Err(e) => match IncompleteError::from_anyhow(&e) {
+                Some(incomplete) => CheckProvenReport {
+                    proof: None,
+                    incomplete: incomplete.incomplete_frontiers().clone(),
+                    failure: incomplete
+                        .failure()
+                        .cloned()
+                        .map(|failure| RuleFailureCause::FailedJudgment(Box::new(failure))),
+                },
+                None => CheckProvenReport {
+                    proof: None,
+                    incomplete: Set::new(),
+                    failure: Some(RuleFailureCause::from_anyhow(e)),
+                },
+            },
         }
     }
 }
 
 impl CheckProven for ProvenSet<()> {
     #[track_caller]
-    fn check_proven(self) -> Result<ProofTree, RuleFailureCause> {
-        self.check_proven()
-            .map_err(|e| RuleFailureCause::FailedJudgment(e.clone()))
+    fn check_proven(self) -> CheckProvenReport {
+        let incomplete = self.incomplete;
+        match self.data {
+            ProvenSetData::Failure(e) => CheckProvenReport {
+                proof: None,
+                incomplete,
+                failure: Some(RuleFailureCause::FailedJudgment(e)),
+            },
+            ProvenSetData::Empty => CheckProvenReport {
+                proof: None,
+                incomplete,
+                failure: None,
+            },
+            ProvenSetData::Success(mut map) => CheckProvenReport {
+                proof: Some(map.remove(&()).expect("non-empty")),
+                incomplete,
+                failure: None,
+            },
+        }
     }
 }
 
 impl CheckProven for &ProvenSet<()> {
     #[track_caller]
-    fn check_proven(self) -> Result<ProofTree, RuleFailureCause> {
-        self.clone()
-            .check_proven()
-            .map_err(|e| RuleFailureCause::FailedJudgment(e.clone()))
+    fn check_proven(self) -> CheckProvenReport {
+        <ProvenSet<()> as CheckProven>::check_proven(self.clone())
     }
 }

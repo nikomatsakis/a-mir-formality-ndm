@@ -5,14 +5,21 @@ use crate::grammar::{
     Ty, Wc, Wcs,
 };
 use crate::prove::ToWcs;
-use formality_core::{seq, Downcasted, Set, To, Upcast, Upcasted};
+use formality_core::{seq, Downcasted, Set, Size, To, Upcast, Upcasted};
 use formality_macros::term;
 use std::sync::Arc;
 
 #[term]
+#[customize(size)]
 pub struct Program {
     pub crates: Arc<Crates>,
     pub max_size: usize,
+}
+
+impl Size for Program {
+    fn size(&self) -> usize {
+        0
+    }
 }
 
 impl Program {

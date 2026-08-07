@@ -18,8 +18,7 @@ mod prove_wf;
 use crate::grammar::Wcs;
 pub use constraints::{Constrained, Constraints};
 use formality_core::judgment::{EachProof, FailedRule, FailureLocation, ProofTree};
-use formality_core::visit::CoreVisit;
-use formality_core::{map, set, ProvenSet, Upcast};
+use formality_core::{map, set, ProvenSet, Size, Upcast};
 use tracing::Level;
 
 use crate::prove::prove::decls::Program;
@@ -82,13 +81,21 @@ pub fn prove(
         }
     }
     let mut results = map![];
-    let result_set = if let Err(e) =
+    let report =
         prove_wc_list(decls, &env, assumptions, goal).each_proof(|(result, proof_tree)| {
             results.insert(result, proof_tree);
-        }) {
-        ProvenSet::failed_rules(label, FailureLocation::caller(), set![FailedRule::new(e)])
+        });
+    let result_set = if !results.is_empty() {
+        ProvenSet::proven(results).with_incomplete(report.incomplete)
+    } else if let Some(failure) = report.failure {
+        ProvenSet::failed_rules(
+            label,
+            FailureLocation::caller(),
+            set![FailedRule::new(failure)],
+        )
+        .with_incomplete(report.incomplete)
     } else {
-        ProvenSet::proven(results)
+        ProvenSet::from_incomplete_frontiers(report.incomplete)
     };
 
     tracing::debug!(?result_set);

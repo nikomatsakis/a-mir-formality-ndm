@@ -1,12 +1,21 @@
 use crate::grammar::{AdtId, AdtItem, Crate, CrateItem, Fn, Struct, Trait, ValueId};
 use crate::grammar::{Fallible, TraitId};
-use formality_core::term;
+use formality_core::{term, Size};
 
 #[term($crates)]
+#[customize(size)]
 pub struct Crates {
     /// List of all crates.
     /// The last crate in the list is the current crate.
     pub crates: Vec<Crate>,
+}
+
+// Like `Program`, this is a declaration database rather than a recursively
+// growing proof-search term.
+impl Size for Crates {
+    fn size(&self) -> usize {
+        0
+    }
 }
 
 impl Crates {
@@ -112,5 +121,28 @@ impl Crates {
         } else {
             Ok(adts.pop().unwrap())
         }
+    }
+}
+
+#[cfg(test)]
+mod size_tests {
+    use formality_core::{term, Size};
+
+    #[term]
+    struct SizeProbe {
+        first: u32,
+        rest: Vec<u32>,
+    }
+
+    #[test]
+    fn terms_derive_structural_size_and_contexts_can_override_it() {
+        let probe = SizeProbe {
+            first: 0,
+            rest: vec![1, 2],
+        };
+        assert_eq!(probe.size(), 4);
+
+        let declarations = super::Crates { crates: Vec::new() };
+        assert_eq!(declarations.size(), 0);
     }
 }
