@@ -51,11 +51,19 @@ pub enum TraitHeaderClause {
 pub struct AssociatedTyRequirement {
     pub id: AssociatedItemId,
 
-    /// The outer binder binds the associated type's parameters. The inner binder binds one type
-    /// variable representing the associated type value. Instantiating that value variable with a
-    /// projection yields implied bounds; instantiating it with an impl's concrete value yields
-    /// validation obligations.
-    pub binder: Binder<Binder<Wcs>>,
+    /// Binds the associated type's parameters.
+    pub binder: Binder<AssociatedTyRequirementData>,
+}
+
+#[term]
+pub struct AssociatedTyRequirementData {
+    /// Conditions under which the associated type may be projected.
+    pub where_clauses: Wcs,
+
+    /// Binds one type variable representing the associated type value. Instantiating that value
+    /// variable with a projection yields an implied-bound clause; instantiating it with an impl's
+    /// concrete value yields the impl's validation obligations.
+    pub value_bounds: Binder<Wcs>,
 }
 
 judgment_fn! {
@@ -116,6 +124,52 @@ judgment_fn! {
 }
 
 judgment_fn! {
+    /// One declared bound on an associated type, expressed as a logical clause.
+    ///
+    /// For `trait Family { type Item<T>: Bound where T: Condition; }`, this yields
+    ///
+    /// ```text
+    /// forall<T> (Self: Family, T: Condition) => <Self as Family>::Item<T>: Bound
+    /// ```
+    ///
+    /// Applying this clause to a goal transports the declared bound across either syntactic
+    /// equality or normalization of the projection.
+    pub(crate) fn associated_ty_bound(
+        source: TraitRef,
+        requirement: AssociatedTyRequirement,
+    ) => Wc {
+        debug(source, requirement)
+
+        (
+            (let (associated_variables, AssociatedTyRequirementData {
+                where_clauses,
+                value_bounds,
+            }) = associated_binder.open())
+            (let alias = AliasTy::associated_ty(
+                trait_id,
+                associated_id,
+                associated_variables.len(),
+                (trait_parameters, associated_variables),
+            ))
+            (let bounds = value_bounds.instantiate_with((alias,))?)
+            (bound in bounds)!
+            (let clause = Wc::implies((source, where_clauses), bound))
+            ----------------------------- ("associated type bound")
+            (associated_ty_bound(
+                source @ TraitRef {
+                    trait_id,
+                    parameters: trait_parameters,
+                },
+                AssociatedTyRequirement {
+                    id: associated_id,
+                    binder: associated_binder,
+                },
+            ) => Wc::for_all(Binder::new(associated_variables, clause)))
+        )
+    }
+}
+
+judgment_fn! {
     /// Use one structured requirement for ordinary implied-bound reasoning.
     pub fn prove_via_trait_requirement(
         _decls: Program,
@@ -128,14 +182,14 @@ judgment_fn! {
         debug(assumptions, trait_def, requirement, goal, env)
 
         (
-            (let (env, trait_subst) = env.existential_substitution(binder))
-            (let requirement = binder.instantiate_with(trait_subst)?)
+            (let (env, trait_subst) = env.existential_substitution(requirement_binder))
+            (let requirement = requirement_binder.instantiate_with(trait_subst)?)
+            (let source = TraitRef::new(trait_id, trait_subst))
             (prove_via_trait_requirement_bound(
                 decls,
                 env,
                 assumptions,
-                trait_def,
-                trait_subst,
+                source,
                 requirement,
                 goal,
             ) => c)
@@ -144,8 +198,12 @@ judgment_fn! {
                 decls,
                 env,
                 assumptions,
-                trait_def,
-                TraitRequirement { binder },
+                Trait {
+                    safety: _,
+                    id: trait_id,
+                    binder: _,
+                },
+                TraitRequirement { binder: requirement_binder },
                 goal,
             ) => c.pop_subst(trait_subst))
         )
@@ -158,12 +216,11 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
-        trait_def: Trait,
-        trait_subst: Vec<Parameter>,
+        source: TraitRef,
         requirement: TraitRequirementBoundData,
         goal: Wc,
     ) => Constraints {
-        debug(assumptions, trait_def, trait_subst, requirement, goal, env)
+        debug(assumptions, source, requirement, goal, env)
 
         (
             (prove_via_assumption(
@@ -177,68 +234,35 @@ judgment_fn! {
                 decls,
                 c,
                 assumptions,
-                TraitRef::new(trait_id, trait_subst),
+                source,
             ) => c)
             ----------------------------- ("supertrait")
             (prove_via_trait_requirement_bound(
                 decls,
                 env,
                 assumptions,
-                Trait {
-                    safety: _,
-                    id: trait_id,
-                    binder: _,
+                source @ TraitRef {
+                    trait_id: _,
+                    parameters: _,
                 },
-                trait_subst,
                 TraitRequirementBoundData::Supertrait(supertrait),
                 goal,
             ) => c)
         )
 
         (
-            (let (env, associated_subst) = env.existential_substitution(associated_binder))
-            (let value_template = associated_binder.instantiate_with(associated_subst)?)
-            (let alias = AliasTy::associated_ty(
-                trait_id,
-                associated_id,
-                associated_subst.len(),
-                (trait_subst, associated_subst),
-            ))
-            (let value_bounds = value_template.instantiate_with((alias,))?)
-            (required in value_bounds)!
-            (prove_via_assumption(decls, env, assumptions, required, goal) => c)
-
-            (let TraitBoundData {
-                where_clauses: _,
-                trait_items,
-            } = trait_binder.instantiate_with(trait_subst)?)
-            (trait_associated_ty(trait_items, associated_id) => AssociatedTy {
-                id: _,
-                binder: trait_associated_binder,
-            })
-            (let AssociatedTyBoundData {
-                ensures: _,
-                where_clauses,
-            } = trait_associated_binder.instantiate_with(associated_subst)?)
-            (let source = TraitRef::new(trait_id, trait_subst))
-            (prove_after(decls, c, assumptions, where_clauses) => c)
-            (prove_after(decls, c, assumptions, source) => c)
-            (let c = c.pop_subst(associated_subst))
+            (associated_ty_bound(source, associated_requirement) => clause)
+            (prove_via_assumption(decls, env, assumptions, clause, goal) => c)
             ----------------------------- ("associated type")
             (prove_via_trait_requirement_bound(
                 decls,
                 env,
                 assumptions,
-                Trait {
-                    safety: _,
-                    id: trait_id,
-                    binder: trait_binder,
+                source @ TraitRef {
+                    trait_id: _,
+                    parameters: _,
                 },
-                trait_subst,
-                AssociatedTyRequirement {
-                    id: associated_id,
-                    binder: associated_binder,
-                },
+                associated_requirement @ AssociatedTyRequirement { .. },
                 goal,
             ) => c)
         )
@@ -331,14 +355,16 @@ judgment_fn! {
         )
 
         (
-            (let (associated_variables, AssociatedTyBoundData { ensures, where_clauses: _ }) =
+            (let (associated_variables, AssociatedTyBoundData { ensures, where_clauses }) =
                 binder.open())
 
             (let value_variable = BoundVar::fresh(ParameterKind::Ty))
             (let value_bounds = Wcs::from_iter(
                 ensures.iter().map(|ensure| ensure.to_wc(value_variable))))
             (let value_binder = Binder::new(vec![value_variable], value_bounds))
-            (let associated_binder = Binder::new(associated_variables, value_binder))
+            (let associated_data =
+                AssociatedTyRequirementData::new(where_clauses, value_binder))
+            (let associated_binder = Binder::new(associated_variables, associated_data))
             (let associated_requirement =
                 AssociatedTyRequirement::new(id, associated_binder))
             (let requirement = TraitRequirement::new(Binder::new(
@@ -563,7 +589,7 @@ mod tests {
         let trait_def: Trait = term(
             "trait Family<A> where {
                 type Empty : [];
-                type Item<T, U> : [Foo, Bar];
+                type Item<T, U> : [Foo, Bar] where T: Baz;
             }",
         );
 
@@ -581,17 +607,18 @@ mod tests {
                 // then binds its GAT parameters, and the innermost binder binds exactly the
                 // associated type value.
                 assert_eq!(requirement.binder.len(), 2);
-                assert_eq!(associated.binder.peek().len(), 1);
+                assert_eq!(associated.binder.peek().value_bounds.len(), 1);
 
                 Some((
                     associated.binder.len(),
-                    associated.binder.peek().peek().iter().count(),
+                    associated.binder.peek().value_bounds.peek().iter().count(),
+                    associated.binder.peek().where_clauses.iter().count(),
                 ))
             })
             .collect::<Vec<_>>();
 
         shapes.sort();
-        assert_eq!(shapes, vec![(0, 0), (2, 2)]);
+        assert_eq!(shapes, vec![(0, 0, 0), (2, 2, 1)]);
     }
 
     #[test]

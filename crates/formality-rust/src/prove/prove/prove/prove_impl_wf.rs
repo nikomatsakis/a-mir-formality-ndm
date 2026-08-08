@@ -1,11 +1,11 @@
 use crate::grammar::{
-    AssociatedTy, AssociatedTyBoundData, AssociatedTyValue, AssociatedTyValueBoundData, Mode,
-    Relation, TraitBoundData, TraitImpl, TraitImplBoundData, TraitRef, Wc, Wcs,
+    AssociatedTyValue, AssociatedTyValueBoundData, Mode, Relation, TraitImpl, TraitImplBoundData,
+    TraitRef, Wc, Wcs,
 };
 use crate::prove::prove::decls::Program;
 use crate::prove::prove::prove::prove;
 use crate::prove::prove::{
-    trait_associated_ty, trait_requirement, AssociatedTyRequirement, TraitRequirement,
+    trait_requirement, AssociatedTyRequirement, AssociatedTyRequirementData, TraitRequirement,
     TraitRequirementBoundData,
 };
 use formality_core::judgment_fn;
@@ -112,23 +112,16 @@ judgment_fn! {
                 ty: impl_ty,
             } = value_binder.instantiate_with(gat_subst)?)
 
-            // Substitute that value into the bounds promised by the trait.
-            (let gat_goals = associated_binder
-                .instantiate_with(gat_subst)?
-                .instantiate_with((impl_ty,))?)
-
-            // Instantiate the declaration-side GAT conditions with the same arguments.
-            (impl_contract(trait_impl) => (impl_header, conditions))
-            (let TraitRef { trait_id, parameters } = impl_header)
-            (let trait_def = program.trait_def(trait_id))
-            (let TraitBoundData { trait_items, .. } =
-                trait_def.binder.instantiate_with(parameters)?)
-            (trait_associated_ty(trait_items, associated_id) =>
-                AssociatedTy { binder: trait_associated_binder, .. })
-            (let AssociatedTyBoundData {
-                ensures: _,
+            // Substitute that value into the bounds promised by the trait and instantiate the
+            // declaration-side GAT conditions with the same arguments.
+            (let AssociatedTyRequirementData {
                 where_clauses: trait_gat_wc,
-            } = trait_associated_binder.instantiate_with(gat_subst)?)
+                value_bounds,
+            } = associated_binder.instantiate_with(gat_subst)?)
+            (let gat_goals = value_bounds.instantiate_with((impl_ty,))?)
+
+            (impl_contract(trait_impl) => (impl_header, conditions))
+            (let TraitRef { trait_id, parameters: _ } = impl_header)
 
             // Associated values and supertrait fields are already available while constructing
             // the dictionaries promised by an associated type. The impl header and the impl/GAT

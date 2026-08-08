@@ -1,10 +1,9 @@
 use crate::grammar::{
-    AliasTy, AssociatedTy, AssociatedTyBoundData, AtomicPredicate, Mode, Parameter, Predicate,
-    Relation, Trait, TraitBoundData, TraitRef, Wc, Wcs,
+    AliasTy, AtomicPredicate, Mode, Parameter, Predicate, Relation, Trait, TraitRef, Wc, Wcs,
 };
 use crate::prove::prove::{
-    can_project_associated_bound, can_project_outlives, can_project_supertrait,
-    trait_associated_ty, trait_requirement, AssociatedTyRequirement, TraitRequirement,
+    associated_ty_bound, can_project_associated_bound, can_project_outlives,
+    can_project_supertrait, trait_requirement, AssociatedTyRequirement, TraitRequirement,
     TraitRequirementBoundData,
 };
 use formality_core::{judgment_fn, Downcast};
@@ -274,55 +273,14 @@ judgment_fn! {
                 source_trait_id,
                 goal_trait_id,
             ) => ())
-            (let (env, associated_subst) =
-                env.existential_substitution(associated_binder))
-            (let value_template = associated_binder.instantiate_with(associated_subst)?)
-            (let alias = AliasTy::associated_ty(
-                source_trait_id,
-                associated_id,
-                associated_subst.len(),
-                (source_parameters, associated_subst),
-            ))
-            (let value_bounds = value_template.instantiate_with((alias,))?)
-            (required in value_bounds)!
+            (associated_ty_bound(source_trait_ref, associated_requirement) => clause)
             (prove_via_assumption(
                 decls,
                 env,
                 assumptions,
-                required,
-                goal_trait_ref,
+                validation.apply_assumption(clause),
+                validation.apply_goal(goal_trait_ref),
             ) => c)
-
-            (let Trait {
-                safety: _,
-                id: _,
-                binder: trait_binder,
-            } = decls.trait_def(source_trait_id))
-            (let TraitBoundData {
-                where_clauses: _,
-                trait_items,
-            } = trait_binder.instantiate_with(source_parameters)?)
-            (trait_associated_ty(trait_items, associated_id) => AssociatedTy {
-                id: _,
-                binder: trait_associated_binder,
-            })
-            (let AssociatedTyBoundData {
-                ensures: _,
-                where_clauses,
-            } = trait_associated_binder.instantiate_with(associated_subst)?)
-            (prove_after(
-                decls,
-                c,
-                assumptions,
-                validation.apply_goals(where_clauses),
-            ) => c)
-            (prove_after(
-                decls,
-                c,
-                assumptions,
-                validation.apply_goal(source_trait_ref),
-            ) => c)
-            (let c = c.pop_subst(associated_subst))
             ----------------------------- ("associated type")
             (prove_validate_via_instantiated_trait_requirement(
                 decls,
@@ -331,12 +289,9 @@ judgment_fn! {
                 validation,
                 source_trait_ref @ TraitRef {
                     trait_id: source_trait_id,
-                    parameters: source_parameters,
+                    parameters: _,
                 },
-                AssociatedTyRequirement {
-                    id: associated_id,
-                    binder: associated_binder,
-                },
+                associated_requirement @ AssociatedTyRequirement { .. },
                 goal_trait_ref @ TraitRef {
                     trait_id: goal_trait_id,
                     parameters: _,
