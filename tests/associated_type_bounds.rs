@@ -4,7 +4,7 @@ use formality_core::test;
 #[test]
 fn early_normalization_reveals_value_inside_validation() {
     // While checking `Family for Z`, its where-clause supplies only a
-    // `Supertraits[Family]` view of `Y: Family`. That is enough to select the conditional
+    // `IfBelow[Family]` view of `Y: Family`. That is enough to select the conditional
     // `Family for X` impl and learn the value of `Family::Out`; learning the value does not
     // require the stronger dictionaries promised by `Family`'s GAT-bound frontier.
     //
@@ -13,7 +13,7 @@ fn early_normalization_reveals_value_inside_validation() {
     // `Base for Z` makes its projection-bearing condition well formed.
     //
     // The value-only normalization rule accepts this program without exposing any associated-
-    // bound evidence; ordinary normalization continues to require `GatBounds[Family]` inputs.
+    // bound evidence; ordinary normalization continues to require `IfBelowG[Family]` inputs.
     FormalityTest::new(crates![crate test {
         trait Marker {}
 
@@ -110,7 +110,7 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
     //     T: Foo => <T as Foo>::Bar: Ord
     //
     // to prove `Bad: Ord` from the very impl being validated. During validation, `X: Foo` is
-    // available only as `GatBounds[Foo](X: Foo)`, so its implied associated-type bound is not
+    // available only as `IfBelowG[Foo](X: Foo)`, so its implied associated-type bound is not
     // available.
     // The call in `main` exhibits how accepting the impl would expose that false proof to outside
     // code.
@@ -141,7 +141,7 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: GatBounds[Foo](X: Foo), assumptions: {GatBounds[Foo](X: Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: IfBelowG[Foo](X: Foo), assumptions: {IfBelowG[Foo](X: Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -174,27 +174,27 @@ fn rust_135011_diverging_associated_type_cannot_supply_its_own_bound() {
         }
     }])
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<<!ty_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), via: GatBounds[MetaImpossible](!ty_0: MetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<<!ty_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), via: IfBelowG[MetaImpossible](!ty_0: MetaImpossible), assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<<!ty_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), via: GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<<!ty_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), via: IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: GatBounds[MetaImpossible](!ty_0: MetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: IfBelowG[MetaImpossible](!ty_0: MetaImpossible), assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: GatBounds[MetaImpossible](!ty_0: MetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: IfBelowG[MetaImpossible](!ty_0: MetaImpossible), assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: MetaMetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: MetaMetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: MetaMetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: MetaMetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, via: GatBounds[MetaImpossible](!ty_0: MetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, via: IfBelowG[MetaImpossible](!ty_0: MetaImpossible), assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, via: GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, via: IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> MetaImpossible for ^ty0_0 where ^ty0_0 : MetaMetaImpossible { type Assoc = <<^ty1_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc ; } }, assumptions: {GatBounds[MetaImpossible](!ty_0: MetaImpossible), GatBounds[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: <!ty_0 as MetaMetaImpossible>::Assoc: MetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl <ty> MetaImpossible for ^ty0_0 where ^ty0_0 : MetaMetaImpossible { type Assoc = <<^ty1_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc ; } }, assumptions: {IfBelowG[MetaImpossible](!ty_0: MetaImpossible), IfBelowG[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -236,12 +236,12 @@ fn conditional_associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: GatBounds[MyTrait](X: MyTrait), assumptions: {GatBounds[MyTrait](X: MyTrait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: IfBelowG[MyTrait](X: MyTrait), assumptions: {IfBelowG[MyTrait](X: MyTrait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
 fn recursive_associated_type_bound_is_valid() {
-    // Closed `ImplWF` locally assumes the impl header at the `GatBounds[Foo]` frontier while
+    // Closed `ImplWF` locally assumes the impl header at the `IfBelowG[Foo]` frontier while
     // checking associated-type guarantees. Therefore the exact `u32: Foo` requirement on
     // `Bar = u32` is valid. The assumption remains wrapped, so it cannot be used as an ordinary
     // `Foo` implementation or expose `Foo`'s own associated-bound dictionaries.
@@ -319,20 +319,20 @@ fn impl_wf_is_checked_for_every_header_substitution() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<!ty_0>), via: GatBounds[Family]((): Family<!ty_0>), assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<!ty_0>), via: IfBelowG[Family]((): Family<!ty_0>), assumptions: {IfBelowG[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Required, via: GatBounds[Family]((): Family<!ty_0>), assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Required, via: IfBelowG[Family]((): Family<!ty_0>), assumptions: {IfBelowG[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {IfBelowG[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Required, via: GatBounds[Family]((): Family<!ty_0>), assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Required, via: IfBelowG[Family]((): Family<!ty_0>), assumptions: {IfBelowG[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {GatBounds[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {IfBelowG[Family]((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
 fn associated_type_value_wf_may_use_verified_impl_header() {
-    // The associated value is checked with the impl header available at `GatBounds[Foo]`. This
+    // The associated value is checked with the impl header available at `IfBelowG[Foo]`. This
     // establishes the exact `u32: Foo` requirement embedded in `NeedsFoo<u32>`.
     FormalityTest::new(crates![crate test {
         trait Foo {
@@ -392,11 +392,11 @@ fn associated_type_value_must_be_well_formed() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: GatBounds[Foo]((): Foo), assumptions: {GatBounds[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: IfBelowG[Foo]((): Foo), assumptions: {IfBelowG[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Required, via: GatBounds[Foo]((): Foo), assumptions: {GatBounds[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Required, via: IfBelowG[Foo]((): Foo), assumptions: {IfBelowG[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Required, via: GatBounds[Foo]((): Foo), assumptions: {GatBounds[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Required, via: IfBelowG[Foo]((): Foo), assumptions: {IfBelowG[Foo]((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -415,7 +415,7 @@ fn unused_invalid_associated_type_impl_is_rejected() {
             type Output = Bad;
         }
     }])
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: GatBounds[Family]((): Family), assumptions: {GatBounds[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: IfBelowG[Family]((): Family), assumptions: {IfBelowG[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -448,7 +448,7 @@ fn associated_type_projection_requires_a_valid_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: GatBounds[Foo](X: Foo), assumptions: {GatBounds[Foo](X: Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: IfBelowG[Foo](X: Foo), assumptions: {IfBelowG[Foo](X: Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -559,7 +559,7 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: GatBounds[Family]((): Family), assumptions: {GatBounds[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: IfBelowG[Family]((): Family), assumptions: {IfBelowG[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -601,7 +601,7 @@ fn validation_antecedent_does_not_leak_to_impl_where_clause() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Supertraits[Family]((): Family), assumptions: {Supertraits[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: IfBelow[Family]((): Family), assumptions: {IfBelow[Family]((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]
@@ -817,7 +817,7 @@ fn gat_value_may_project_from_validation_argument_bound() {
 
 #[test]
 fn gat_value_bound_may_normalize_using_validation_argument_bound() {
-    // Checking `Family::Assoc<T>: IsU32` starts with `GatBounds[Family]` evidence for
+    // Checking `Family::Assoc<T>: IsU32` starts with `IfBelowG[Family]` evidence for
     // `T: Marker`. Since `Marker` is observationally opaque at the `HasOut` frontier, that input
     // can validate the `HasOut for T` impl and expose `<T as HasOut>::Out = u32`.
     FormalityTest::new(crates![crate test {

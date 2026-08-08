@@ -1,6 +1,6 @@
 use crate::grammar::{
-    AliasTy, AssociatedTy, AssociatedTyBoundData, AtomicPredicate, Parameter, Predicate, Relation,
-    Trait, TraitBoundData, TraitRef, Upto, Wc, Wcs,
+    AliasTy, AssociatedTy, AssociatedTyBoundData, AtomicPredicate, Mode, Parameter, Predicate,
+    Relation, Trait, TraitBoundData, TraitRef, Wc, Wcs,
 };
 use crate::prove::prove::{
     can_project_associated_bound, can_project_outlives, can_project_supertrait,
@@ -55,7 +55,7 @@ judgment_fn! {
         decls: Program,
         env: Env,
         assumptions: Wcs,
-        validation: Upto,
+        validation: Mode,
         validate_goal: AtomicPredicate,
     ) => Constraints {
         debug(validation, validate_goal, assumptions, env)
@@ -162,7 +162,7 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
-        validation: Upto,
+        validation: Mode,
         trait_def: Trait,
         requirement: TraitRequirement,
         goal: AtomicPredicate,
@@ -209,7 +209,7 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
-        validation: Upto,
+        validation: Mode,
         source_trait_ref: TraitRef,
         requirement: TraitRequirementBoundData,
         goal: AtomicPredicate,

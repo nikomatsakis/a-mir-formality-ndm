@@ -6,8 +6,8 @@
 //! but `A` cannot reach `B`.
 
 use crate::grammar::{
-    AssociatedTyBoundData, CrateItem, Fallible, Trait, TraitBoundData, TraitId, TraitImplBoundData,
-    TraitItem, TraitRef, Ty, Upto, Variable, WhereBound, WhereClause,
+    AssociatedTyBoundData, CrateItem, Fallible, Mode, Trait, TraitBoundData, TraitId,
+    TraitImplBoundData, TraitItem, TraitRef, Ty, Variable, WhereBound, WhereClause,
 };
 use crate::prove::prove::{as_associated_ty, trait_header_clause, Program, TraitHeaderClause};
 use crate::prove::ToWcs;
@@ -126,7 +126,7 @@ judgment_fn! {
     /// A provisional `source` dictionary may expose its `result` supertrait at `upto`.
     pub(crate) fn can_project_supertrait(
         program: Program,
-        upto: Upto,
+        upto: Mode,
         source: TraitId,
         result: TraitId,
     ) => () {
@@ -138,7 +138,7 @@ judgment_fn! {
             -------------------------------------------- ("lower trait")
             (can_project_supertrait(
                 program,
-                Upto::Supertraits(root),
+                Mode::IfBelow(root),
                 source,
                 result,
             ) => ())
@@ -148,14 +148,14 @@ judgment_fn! {
             (if source == root)!
             (trait_less_than(program, result, root) => ())
             -------------------------------------------- ("root after supertraits")
-            (can_project_supertrait(program, Upto::GatBounds(root), source, result) => ())
+            (can_project_supertrait(program, Mode::IfBelowG(root), source, result) => ())
         )
 
         (
             (trait_less_than(program, source, root) => ())
             (trait_less_than(program, result, root) => ())
             -------------------------------------------- ("completed lower trait")
-            (can_project_supertrait(program, Upto::GatBounds(root), source, result) => ())
+            (can_project_supertrait(program, Mode::IfBelowG(root), source, result) => ())
         )
     }
 }
@@ -165,7 +165,7 @@ judgment_fn! {
     /// The owner must be strictly earlier: the root's own bound dictionaries are being built.
     pub(crate) fn can_project_associated_bound(
         program: Program,
-        upto: Upto,
+        upto: Mode,
         owner: TraitId,
         result: TraitId,
     ) => () {
@@ -177,7 +177,7 @@ judgment_fn! {
             -------------------------------------------- ("completed lower trait")
             (can_project_associated_bound(
                 program,
-                Upto::Supertraits(root) | Upto::GatBounds(root),
+                Mode::IfBelow(root) | Mode::IfBelowG(root),
                 owner,
                 result,
             ) => ())
@@ -189,7 +189,7 @@ judgment_fn! {
     /// An outlives field follows the same construction frontier as a supertrait field.
     pub(crate) fn can_project_outlives(
         program: Program,
-        upto: Upto,
+        upto: Mode,
         owner: TraitId,
     ) => () {
         debug(program, upto, owner)
@@ -197,19 +197,19 @@ judgment_fn! {
         (
             (trait_less_than(program, owner, root) => ())
             -------------------------------------------- ("lower trait")
-            (can_project_outlives(program, Upto::Supertraits(root), owner) => ())
+            (can_project_outlives(program, Mode::IfBelow(root), owner) => ())
         )
 
         (
             (if owner == root)!
             -------------------------------------------- ("root after supertraits")
-            (can_project_outlives(program, Upto::GatBounds(root), owner) => ())
+            (can_project_outlives(program, Mode::IfBelowG(root), owner) => ())
         )
 
         (
             (trait_less_than(program, owner, root) => ())
             -------------------------------------------- ("completed lower trait")
-            (can_project_outlives(program, Upto::GatBounds(root), owner) => ())
+            (can_project_outlives(program, Mode::IfBelowG(root), owner) => ())
         )
     }
 }
@@ -240,7 +240,7 @@ judgment_fn! {
 /// The logical fields of one trait dictionary that are observable at a validation frontier.
 ///
 /// This is intentionally proposition-indexed. For example, a `Bar` dictionary has an empty view
-/// at `Supertraits[Foo]` when `Bar` and `Foo` are unrelated, even though that same frontier has a
+/// at `IfBelow[Foo]` when `Bar` and `Foo` are unrelated, even though that same frontier has a
 /// nonempty view of a `Foo` dictionary.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct ValidationView {
@@ -258,32 +258,32 @@ impl ValidationView {
 }
 
 /// Compute the observable portion of a `subject` dictionary at `upto`.
-fn validation_view(program: &Program, upto: &Upto, subject: &TraitId) -> ValidationView {
+fn validation_view(program: &Program, upto: &Mode, subject: &TraitId) -> ValidationView {
     let fields = trait_validation_fields(program, subject);
 
     match upto {
-        Upto::Zero => ValidationView::default(),
+        Mode::Zero => ValidationView::default(),
 
-        Upto::Supertraits(root) if root == subject => ValidationView {
+        Mode::IfBelow(root) if root == subject => ValidationView {
             associated_type_values: fields.associated_type_values,
             ..ValidationView::default()
         },
 
-        Upto::GatBounds(root) if root == subject => ValidationView {
+        Mode::IfBelowG(root) if root == subject => ValidationView {
             associated_type_values: fields.associated_type_values,
             supertrait_requirements: fields.supertrait_requirements,
             associated_type_bounds: false,
         },
 
-        // FIXME(ndm): It is surprising to me that `Supertraits[root]` and `GatBounds[root]`
+        // FIXME(ndm): It is surprising to me that `IfBelow[root]` and `IfBelowG[root]`
         // are equivalent. I'd expect supertraits to set `associated_type_bounds: false`.
-        Upto::Supertraits(root) | Upto::GatBounds(root)
+        Mode::IfBelow(root) | Mode::IfBelowG(root)
             if is_trait_less_than(program, subject, root) =>
         {
             fields
         }
 
-        Upto::Supertraits(_) | Upto::GatBounds(_) => ValidationView::default(),
+        Mode::IfBelow(_) | Mode::IfBelowG(_) => ValidationView::default(),
     }
 }
 
@@ -328,8 +328,8 @@ judgment_fn! {
     /// Evidence for `subject` at `available` contains every field required at `required`.
     pub(crate) fn validation_evidence_suffices(
         program: Program,
-        available: Upto,
-        required: Upto,
+        available: Mode,
+        required: Mode,
         subject: TraitId,
     ) => () {
         debug(program, available, required, subject)
@@ -355,8 +355,8 @@ judgment_fn! {
     /// evidence at a stronger or unrelated construction frontier.
     pub(crate) fn validation_frontier_suffices(
         _program: Program,
-        available: Upto,
-        required: Upto,
+        available: Mode,
+        required: Mode,
     ) => () {
         debug(available, required)
 
@@ -369,7 +369,7 @@ judgment_fn! {
         (
             (if available_trait == required_trait)!
             -------------------------------------------- ("later frontier")
-            (validation_frontier_suffices(_program, Upto::GatBounds(available_trait), Upto::Supertraits(required_trait)) => ())
+            (validation_frontier_suffices(_program, Mode::IfBelowG(available_trait), Mode::IfBelow(required_trait)) => ())
         )
     }
 }
@@ -475,7 +475,7 @@ fn is_reachable(program: &Program, source: &TraitId, target: &TraitId) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{trait_edge, trait_less_than, validation_evidence_suffices};
-    use crate::grammar::{Crates, TraitId, Upto};
+    use crate::grammar::{Crates, Mode, TraitId};
     use crate::prove::prove::Program;
     use crate::rust::term;
 
@@ -496,8 +496,8 @@ mod tests {
 
     fn evidence_suffices(
         program: &Program,
-        available: &Upto,
-        required: &Upto,
+        available: &Mode,
+        required: &Mode,
         subject: &str,
     ) -> bool {
         validation_evidence_suffices(program, available, required, TraitId::new(subject))
@@ -524,9 +524,9 @@ mod tests {
                 }
             ]",
         );
-        let zero = Upto::Zero;
-        let supertraits = Upto::supertraits(TraitId::new("Root"));
-        let gat_bounds = Upto::gat_bounds(TraitId::new("Root"));
+        let zero = Mode::Zero;
+        let supertraits = Mode::if_below(TraitId::new("Root"));
+        let gat_bounds = Mode::if_below_g(TraitId::new("Root"));
 
         // No field of an unrelated dictionary is visible at Root's frontier.
         assert!(evidence_suffices(

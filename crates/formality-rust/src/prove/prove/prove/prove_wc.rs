@@ -298,7 +298,7 @@ judgment_fn! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::grammar::{Crates, TraitId, Upto};
+    use crate::grammar::{Crates, Mode, TraitId};
     use crate::rust::term;
 
     fn supertrait_program() -> Program {
@@ -328,8 +328,8 @@ mod tests {
     #[test]
     fn stronger_validation_assumption_uses_trivial_proof() {
         let inner: Wc = term("u32 = bool");
-        let assumption = Upto::gat_bounds(TraitId::new("ValidationRoot")).apply_assumption(&inner);
-        let goal = Upto::supertraits(TraitId::new("ValidationRoot")).apply_goal(inner);
+        let assumption = Mode::if_below_g(TraitId::new("ValidationRoot")).apply_assumption(&inner);
+        let goal = Mode::if_below(TraitId::new("ValidationRoot")).apply_goal(inner);
         let (_, proof) = prove_wc(Program::empty(), Env::default(), assumption, goal)
             .into_singleton()
             .unwrap();
@@ -352,10 +352,10 @@ mod tests {
     #[test]
     fn ranked_gat_bound_supertrait_assumption_elaborates() {
         let assumption =
-            Upto::gat_bounds(TraitId::new("ValidationRoot"))
+            Mode::if_below_g(TraitId::new("ValidationRoot"))
                 .apply_assumption(term::<Wc>("u32: Sub"));
         let goal =
-            Upto::supertraits(TraitId::new("ValidationRoot")).apply_goal(term::<Wc>("u32: Super"));
+            Mode::if_below(TraitId::new("ValidationRoot")).apply_goal(term::<Wc>("u32: Super"));
         let result = prove_wc(supertrait_program(), Env::default(), assumption, goal);
         assert!(result.is_proven(), "{result}");
     }

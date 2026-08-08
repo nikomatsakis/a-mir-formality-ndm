@@ -1,5 +1,5 @@
 use crate::grammar::{
-    ExistentialVar, Parameter, TraitImpl, TraitImplBoundData, TraitRef, Upto, Wcs,
+    ExistentialVar, Mode, Parameter, TraitImpl, TraitImplBoundData, TraitRef, Wcs,
 };
 use crate::prove::prove::decls::{ImplCandidate, Program};
 use crate::prove::prove::prove::{prove, prove_impl_wf};
@@ -75,7 +75,7 @@ judgment_fn! {
             (let trait_impl = candidate_binder.instantiate_with(impl_variables)?)
             (let TraitRef { parameters: impl_parameters, .. } = trait_impl.trait_ref())
             (let recursive_assumption =
-                Upto::Zero.apply_assumption(requested_trait_ref))
+                Mode::Zero.apply_assumption(requested_trait_ref))
             (prove(
                 decls,
                 env,

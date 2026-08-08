@@ -1,4 +1,4 @@
-use crate::grammar::{ExistentialVar, Parameter, TraitImplBoundData, TraitRef, Upto, Wcs};
+use crate::grammar::{ExistentialVar, Mode, Parameter, TraitImplBoundData, TraitRef, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::prove::{impl_contract, match_impl_candidate, prove_after};
 use crate::prove::prove::{Constrained, Constraints, Env};
@@ -73,12 +73,12 @@ judgment_fn! {
             // That view still cannot expose the root dictionary's own supertrait or associated-
             // bound fields.
             //
-            (let validation = Upto::supertraits(&impl_header.trait_id))
+            (let validation = Mode::if_below(&impl_header.trait_id))
             (let provisional_impl_header =
                 // There's something very subtle going on here!
                 //
-                // Adding `Supertraits[Trait](T: Trait)` as an assumption
-                // does not allow upcasting to `Supertraits[Trait](T: Supertrait)`.
+                // Adding `IfBelow[Trait](T: Trait)` as an assumption
+                // does not allow upcasting to `IfBelow[Trait](T: Supertrait)`.
                 validation.apply_assumption(impl_header))
             (prove_after(
                 decls,

@@ -145,28 +145,49 @@ impl DowncastTo<()> for Wcs {
     }
 }
 
-/// The index in a modal `Upto(P)` judgment that describes how much of the
+/// The index in a modal `Mode(P)` judgment that describes how much of the
 /// proposition `P` must be (or has been, for assumptions) proven.
 ///
 /// Alternatively, it can be viewed as describing what parts of the dictionary
 /// for `P` are initialized/accessible.
 #[term]
-pub enum Upto {
-    /// No implications of `P` are available.
-    /// An uninitialized dictionary.
+pub enum Mode {
+    /// Opaque evidence that `P` will hold.
+    ///
+    /// For a trait predicate, this represents a dictionary whose construction
+    /// has begun: the dictionary is known to exist if the enclosing proof
+    /// succeeds, but none of its fields may yet be inspected. It can close the
+    /// exact recursive occurrence of `P` without exposing associated values,
+    /// supertrait evidence, or associated-type-bound evidence.
     #[grammar(Zero)]
     Zero,
 
-    /// Supertrait bounds `Tr1: Tr2` implied by the proposition
-    /// are available if `Tr1 < $0` and `Tr2 < $0`.
-    #[grammar(Supertraits[$v0])]
-    Supertraits(TraitId),
+    /// `IfBelow[Root](P)` means that `P` holds completely when it refers to a trait
+    /// `T < Root`. If `T = Root`, the impl header has been matched but its trait
+    /// requirements have not yet been established. If `T` is unrelated to `Root`,
+    /// this is equivalent to `Zero(P)`.
+    ///
+    /// For example, assuming `trait A: B` and `trait B: C`,
+    /// then the predicates
+    ///
+    /// * `IfBelow[A](T: A)` promises an impl for `T: A`, without established trait requirements.
+    /// * `IfBelow[A](T: B)` says that `T: B` and all its trait requirements are established.
+    /// * `IfBelow[C](T: A)` is equivalent to `Zero(T: A)`.
+    #[grammar(IfBelow[$v0])]
+    IfBelow(TraitId),
 
-    /// All supertrait bounds implied by the proposition are available.
-    /// GAT bounds implied by the proposition are available if
-    /// they are declared on a trait `Tr < $0`.
-    #[grammar(GatBounds[$v0])]
-    GatBounds(TraitId),
+    /// `IfBelowG[Root](P)` also means that `P` holds completely when it refers to a
+    /// trait `T < Root`. If `T = Root`, its supertrait requirements have been
+    /// established, but its associated-type bounds have not. If `T` is unrelated
+    /// to `Root`, this is equivalent to `Zero(P)`.
+    ///
+    /// For example, assuming `trait A: B` and `trait B: C`:
+    ///
+    /// * `IfBelowG[A](T: A)` says that `T: A` and its supertrait requirements are established.
+    /// * `IfBelowG[A](T: B)` says that `T: B` and all its trait requirements are established.
+    /// * `IfBelowG[C](T: A)` is equivalent to `Zero(T: A)`.
+    #[grammar(IfBelowG[$v0])]
+    IfBelowG(TraitId),
 }
 
 #[derive(Copy, Clone)]
@@ -175,7 +196,7 @@ enum ModePosition {
     Assumption,
 }
 
-impl Upto {
+impl Mode {
     /// Interpret `wc` as a goal at this dictionary-construction frontier.
     ///
     /// Modes attach only to atomic predicates. Quantifiers preserve the current polarity, while
@@ -259,10 +280,10 @@ pub enum Wc {
     /// Prove (or assume) an atomic proposition at one dictionary-construction frontier.
     ///
     /// This constructor is internal to Rust's well-formedness semantics. Use
-    /// [`Upto::apply_goal`] or [`Upto::apply_assumption`] to apply a frontier to a compound
+    /// [`Mode::apply_goal`] or [`Mode::apply_assumption`] to apply a frontier to a compound
     /// where-clause in the corresponding logical position.
     #[grammar($v0($v1))]
-    Mode(Upto, AtomicPredicate),
+    Mode(Mode, AtomicPredicate),
 }
 
 /// Temporary alias for migration -- allows `WcData::Variant` to still compile.
@@ -300,21 +321,21 @@ cast_impl!((TraitRef) <: (Wc) <: (Wcs));
 
 #[cfg(test)]
 mod tests {
-    use super::{TraitId, Upto, Wc};
+    use super::{Mode, TraitId, Wc};
     use crate::rust::term;
 
     #[test]
     fn modes_use_constructor_notation() {
         let atom = term::<Wc>("u32: Debug");
         let cases = [
-            ("Zero(u32: Debug)", Upto::Zero.apply_goal(&atom)),
+            ("Zero(u32: Debug)", Mode::Zero.apply_goal(&atom)),
             (
-                "Supertraits[Root](u32: Debug)",
-                Upto::supertraits(TraitId::new("Root")).apply_goal(&atom),
+                "IfBelow[Root](u32: Debug)",
+                Mode::if_below(TraitId::new("Root")).apply_goal(&atom),
             ),
             (
-                "GatBounds[Root](u32: Debug)",
-                Upto::gat_bounds(TraitId::new("Root")).apply_goal(&atom),
+                "IfBelowG[Root](u32: Debug)",
+                Mode::if_below_g(TraitId::new("Root")).apply_goal(&atom),
             ),
         ];
 
@@ -327,7 +348,7 @@ mod tests {
 
     #[test]
     fn mode_application_distributes_through_implication() {
-        let mode = Upto::supertraits(TraitId::new("Root"));
+        let mode = Mode::if_below(TraitId::new("Root"));
         let condition = term::<Wc>("u32: Debug");
         let consequence = term::<Wc>("u32: Clone");
         let implication = Wc::implies(&condition, &consequence);
@@ -343,7 +364,7 @@ mod tests {
 
     #[test]
     fn mode_application_to_an_assumption_flips_implication_positions() {
-        let mode = Upto::supertraits(TraitId::new("Root"));
+        let mode = Mode::if_below(TraitId::new("Root"));
         let condition = term::<Wc>("u32: Debug");
         let consequence = term::<Wc>("u32: Clone");
         let implication = Wc::implies(&condition, &consequence);
@@ -359,7 +380,7 @@ mod tests {
 
     #[test]
     fn mode_application_distributes_through_binder() {
-        let mode = Upto::supertraits(TraitId::new("Root"));
+        let mode = Mode::if_below(TraitId::new("Root"));
         let Wc::ForAll(binder) = term::<Wc>("for<'a> 'a : 'a") else {
             unreachable!()
         };
@@ -373,7 +394,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "cannot apply a mode")]
     fn applying_a_mode_twice_is_rejected() {
-        let mode = Upto::supertraits(TraitId::new("Root"));
+        let mode = Mode::if_below(TraitId::new("Root"));
         let once = mode.apply_goal(term::<Wc>("u32: Debug"));
         mode.apply_goal(once);
     }

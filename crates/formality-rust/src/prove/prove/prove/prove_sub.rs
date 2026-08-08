@@ -85,7 +85,7 @@ judgment_fn! {
 mod test {
     use std::sync::Arc;
 
-    use crate::grammar::{Parameter, TraitId, Upto, Wc};
+    use crate::grammar::{Mode, Parameter, TraitId, Wc};
     use crate::prove::prove::decls::Program;
     use crate::rust::term;
     use formality_macros::test;
@@ -122,7 +122,7 @@ mod test {
         let from_validation = prove_sub(
             &program,
             (),
-            Upto::supertraits(TraitId::new("Family")).apply_assumption(term::<Wc>("u32: Marker")),
+            Mode::if_below(TraitId::new("Family")).apply_assumption(term::<Wc>("u32: Marker")),
             &alias,
             &target,
         );
@@ -137,7 +137,7 @@ mod test {
         let result = prove_sub(
             continuation_decls(),
             (),
-            Upto::supertraits(TraitId::new("Family")).apply_assumption(term::<Wc>("u32 = bool")),
+            Mode::if_below(TraitId::new("Family")).apply_assumption(term::<Wc>("u32 = bool")),
             term::<Parameter>("<u32 as Family>::Output"),
             term::<Parameter>("bool"),
         );

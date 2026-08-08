@@ -1,4 +1,4 @@
-use crate::grammar::{AtomicPredicate, Predicate, TraitRef, Upto, Wc, Wcs};
+use crate::grammar::{AtomicPredicate, Mode, Predicate, TraitRef, Wc, Wcs};
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
@@ -99,8 +99,8 @@ judgment_fn! {
         _decls: Program,
         env: Env,
         assumptions: Wcs,
-        via_validation: Upto,
-        goal_validation: Upto,
+        via_validation: Mode,
+        goal_validation: Mode,
         via: AtomicPredicate,
         goal: AtomicPredicate,
     ) => Constraints {

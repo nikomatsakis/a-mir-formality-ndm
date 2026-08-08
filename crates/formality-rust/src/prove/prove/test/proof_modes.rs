@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::grammar::{AliasTy, Const, Parameter, Predicate, Relation, TraitId, Ty, Upto, Wc, Wcs};
+use crate::grammar::{AliasTy, Const, Mode, Parameter, Predicate, Relation, TraitId, Ty, Wc, Wcs};
 use crate::prove::prove::{
     decls::Program,
     prove::{Constrained, Constraints, Env},
@@ -27,28 +27,28 @@ fn sub() -> Wc {
     term("u32: Sub")
 }
 
-fn validated_at(upto: Upto, wc: impl Upcast<Wc>) -> Wc {
+fn validated_at(upto: Mode, wc: impl Upcast<Wc>) -> Wc {
     upto.apply_goal(wc)
 }
 
 fn at_supertraits(wc: impl Upcast<Wc>) -> Wc {
-    validated_at(Upto::supertraits(TraitId::new("ValidationRoot")), wc)
+    validated_at(Mode::if_below(TraitId::new("ValidationRoot")), wc)
 }
 
 fn at_gat_bounds(wc: impl Upcast<Wc>) -> Wc {
-    validated_at(Upto::gat_bounds(TraitId::new("ValidationRoot")), wc)
+    validated_at(Mode::if_below_g(TraitId::new("ValidationRoot")), wc)
 }
 
-fn assumed_at(upto: Upto, wc: impl Upcast<Wc>) -> Wc {
+fn assumed_at(upto: Mode, wc: impl Upcast<Wc>) -> Wc {
     upto.apply_assumption(wc)
 }
 
 fn assumed_at_supertraits(wc: impl Upcast<Wc>) -> Wc {
-    assumed_at(Upto::supertraits(TraitId::new("ValidationRoot")), wc)
+    assumed_at(Mode::if_below(TraitId::new("ValidationRoot")), wc)
 }
 
 fn assumed_at_gat_bounds(wc: impl Upcast<Wc>) -> Wc {
-    assumed_at(Upto::gat_bounds(TraitId::new("ValidationRoot")), wc)
+    assumed_at(Mode::if_below_g(TraitId::new("ValidationRoot")), wc)
 }
 
 fn normalization_decls() -> Program {
@@ -176,8 +176,8 @@ fn normalization_can_use_a_sufficient_validated_input() {
 #[test]
 fn value_only_normalization_is_not_used_for_well_formedness() {
     // `Family for X` may define `Out = NeedsBound<Y>` because its `Y: Family` input is
-    // available at `GatBounds[Family]` during `ImplWF`, where `Family`'s `Y: Bound` supertrait
-    // field is visible. At the earlier `Supertraits[Family]` frontier, selecting the impl still
+    // available at `IfBelowG[Family]` during `ImplWF`, where `Family`'s `Y: Bound` supertrait
+    // field is visible. At the earlier `IfBelow[Family]` frontier, selecting the impl still
     // reveals the associated value, but it must not make `NeedsBound<Y>` well formed.
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
@@ -196,12 +196,12 @@ fn value_only_normalization_is_not_used_for_well_formedness() {
         ..Program::empty()
     };
     let assumptions =
-        Upto::supertraits(TraitId::new("Family")).apply_assumption(term::<Wc>("Y: Family"));
+        Mode::if_below(TraitId::new("Family")).apply_assumption(term::<Wc>("Y: Family"));
     let alias = term::<AliasTy>("<X as Family>::Out");
 
     assert!(!prove_normalize(&program, (), &assumptions, &alias).is_proven());
 
-    let wf_value = Upto::supertraits(TraitId::new("Family"))
+    let wf_value = Mode::if_below(TraitId::new("Family"))
         .apply_goal(Relation::well_formed(term::<Parameter>("NeedsBound<Y>")));
     assert!(!prove(program, (), assumptions, wf_value).is_proven());
 }
@@ -295,8 +295,8 @@ fn validation_evidence_is_not_ordinary_evidence() {
 
 #[test]
 fn observationally_zero_evidence_can_be_rebased() {
-    let source = Upto::supertraits(TraitId::new("SourceRoot")).apply_assumption(sub());
-    let goal = Upto::supertraits(TraitId::new("GoalRoot")).apply_goal(sub());
+    let source = Mode::if_below(TraitId::new("SourceRoot")).apply_assumption(sub());
+    let goal = Mode::if_below(TraitId::new("GoalRoot")).apply_goal(sub());
 
     let result = prove_after(decls(), Constraints::none(()), source, goal);
 

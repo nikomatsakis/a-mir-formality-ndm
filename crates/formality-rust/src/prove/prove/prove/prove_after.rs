@@ -1,4 +1,4 @@
-use crate::grammar::{Upto, Wc, Wcs};
+use crate::grammar::{Mode, Wc, Wcs};
 use formality_core::judgment::{EachProof, FailedRule, FailureLocation, ProofTree};
 use formality_core::visit::CoreVisit;
 use formality_core::{judgment_fn, map, set, ProvenSet, Upcast};
@@ -11,7 +11,7 @@ use super::{constraints::Constraints, env::Env, minimize::minimize, prove_wc_lis
 /// Measure the parts of a proof state whose structural growth can indicate divergence.
 ///
 /// Modes are administrative proof-search metadata. Qualifying an existing atomic proposition
-/// as `Upto(P)` does not make the proposition itself structurally larger, so charging the
+/// as `Mode(P)` does not make the proposition itself structurally larger, so charging the
 /// mode against `max_size` makes otherwise finite nested impl selection hit
 /// the overflow limit. We still count the wrapped proposition in full, except for opaque recursive
 /// assumptions as described below: recursive impls that grow from `T` to `Vec<T>` therefore
@@ -40,7 +40,7 @@ fn opaque_assumption_payload_size(assumptions: &Wcs) -> usize {
         .map(|assumption| match assumption {
             // `atomic.size()` is the logical `Wc` node plus the atomic payload once the
             // representational `AtomicPredicate` node has been discounted above.
-            Wc::Mode(Upto::Zero, atomic) => atomic.size(),
+            Wc::Mode(Mode::Zero, atomic) => atomic.size(),
             _ => 0,
         })
         .sum()
@@ -77,7 +77,7 @@ fn mode_metadata_size_wc(wc: &Wc) -> usize {
             mode_metadata_size(conditions) + mode_metadata_size_wc(consequence)
         }
         Wc::Mode(upto, _) => {
-            // `Mode` replaces the ordinary `Atomic` `Wc` constructor, so only `Upto` is
+            // `Mode` replaces the ordinary `Atomic` `Wc` constructor, so only `Mode` is
             // administrative metadata. The `Wc` and atomic proposition remain logical size.
             upto.size()
         }
@@ -88,7 +88,7 @@ fn mode_metadata_size_wc(wc: &Wc) -> usize {
 mod tests {
     use super::proof_search_size;
     use crate::{
-        grammar::{TraitId, Upto, Wc, Wcs},
+        grammar::{Mode, TraitId, Wc, Wcs},
         rust::term,
     };
     use formality_core::Upcast;
@@ -98,11 +98,11 @@ mod tests {
         let proposition = term::<Wc>("Vec<u32>: Debug");
         let goal: Wcs = proposition.clone().upcast();
         let empty = Wcs::t();
-        let zero_assumption: Wcs = Upto::Zero.apply_assumption(&proposition).upcast();
-        let ranked_assumption: Wcs = Upto::supertraits(TraitId::new("Root"))
+        let zero_assumption: Wcs = Mode::Zero.apply_assumption(&proposition).upcast();
+        let ranked_assumption: Wcs = Mode::if_below(TraitId::new("Root"))
             .apply_assumption(&proposition)
             .upcast();
-        let zero_goal: Wcs = Upto::Zero.apply_goal(&proposition).upcast();
+        let zero_goal: Wcs = Mode::Zero.apply_goal(&proposition).upcast();
 
         let baseline = proof_search_size(&empty, &goal);
         assert_eq!(proof_search_size(&zero_assumption, &goal), baseline);
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn overflow_size_still_observes_growth_inside_validation() {
-        let mode = Upto::supertraits(TraitId::new("Root"));
+        let mode = Mode::if_below(TraitId::new("Root"));
         let shallow: Wcs = mode.apply_goal(term::<Wc>("u32: Debug")).upcast();
         let deep: Wcs = mode.apply_goal(term::<Wc>("Vec<u32>: Debug")).upcast();
 

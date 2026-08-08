@@ -1,8 +1,8 @@
 use crate::{
     grammar::{
-        AliasName, AliasTy, AssociatedItemId, AssociatedTyName, ExistentialVar, Fallible,
-        Parameter, Predicate, Relation, RigidTy, TraitImplBoundData, TraitRef, Ty, TyData, Upto,
-        Wc, WcData, Wcs,
+        AliasName, AliasTy, AssociatedItemId, AssociatedTyName, ExistentialVar, Fallible, Mode,
+        Parameter, Predicate, Relation, RigidTy, TraitImplBoundData, TraitRef, Ty, TyData, Wc,
+        WcData, Wcs,
     },
     prove::prove::{Constrained, ProvedImpl},
 };
@@ -71,7 +71,7 @@ judgment_fn! {
         )
 
         (
-            (let impl_validation = Upto::gat_bounds(trait_id))
+            (let impl_validation = Mode::if_below_g(trait_id))
             (candidate in decls.raw_trait_impls_for(trait_id))
             (prove_normalize_via_impl_candidate(
                 decls,
@@ -113,7 +113,7 @@ judgment_fn! {
         debug(a, assumptions, env)
 
         (
-            (let impl_validation = Upto::supertraits(trait_id))
+            (let impl_validation = Mode::if_below(trait_id))
             (candidate in decls.raw_trait_impls_for(trait_id))
             (prove_normalize_via_impl_candidate(
                 decls,
@@ -148,7 +148,7 @@ judgment_fn! {
         env: Env,
         assumptions: Wcs,
         a: AliasTy,
-        impl_validation: Upto,
+        impl_validation: Mode,
         candidate: ImplCandidate,
     ) => Constrained<Parameter> {
         debug(a, impl_validation, candidate, assumptions, env)
@@ -183,17 +183,17 @@ judgment_fn! {
             (let provisional_alias_eq = Predicate::alias_eq(a, provisional_ty))
 
             // Selecting the impl makes its header available at the supertrait frontier. Ordinary
-            // normalization passes `GatBounds[ImplTrait]` as `impl_validation`, matching the
+            // normalization passes `IfBelowG[ImplTrait]` as `impl_validation`, matching the
             // stronger inputs assumed by the GAT contract checked in `ImplWF`. Value-only
-            // normalization passes `Supertraits[ImplTrait]` instead, but its result remains
+            // normalization passes `IfBelow[ImplTrait]` instead, but its result remains
             // confined to the surrounding validation proof.
             //
             // FIXME: Value-only normalization still requires declaration-side GAT conditions at
-            // `GatBounds[ImplTrait]`. Determine whether selecting the value should require those
+            // `IfBelowG[ImplTrait]`. Determine whether selecting the value should require those
             // conditions only at an earlier frontier too.
-            (let gat_validation = Upto::gat_bounds(impl_trait_id))
+            (let gat_validation = Mode::if_below_g(impl_trait_id))
             (let provisional_impl_header =
-                Upto::supertraits(impl_trait_id).apply_assumption(trait_impl.trait_ref()))
+                Mode::if_below(impl_trait_id).apply_assumption(trait_impl.trait_ref()))
             (prove_after(
                 decls,
                 c,
