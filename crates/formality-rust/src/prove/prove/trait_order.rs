@@ -483,9 +483,10 @@ mod tests {
             "Unrelated",
         ));
 
-        // Root's associated value is visible at its supertrait frontier, and its supertrait
-        // dictionary becomes visible at its GAT-bound frontier.
-        assert!(!evidence_suffices(&program, &zero, &supertraits, "Root",));
+        // At its own supertrait frontier, Root is still opaque: selecting an impl reveals its
+        // associated values through normalization, not through the trait-evidence view. Its
+        // supertrait dictionary becomes visible only at the GAT-bound frontier.
+        assert!(evidence_suffices(&program, &zero, &supertraits, "Root",));
         assert!(!evidence_suffices(
             &program,
             &supertraits,

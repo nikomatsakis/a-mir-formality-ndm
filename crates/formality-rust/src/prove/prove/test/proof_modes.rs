@@ -369,7 +369,7 @@ fn completed_impl_can_construct_evidence_at_either_frontier() {
 }
 
 #[test]
-fn opaque_validated_input_can_construct_an_opaque_result() {
+fn unrelated_validated_input_cannot_satisfy_a_lower_ranked_impl_condition() {
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Prerequisite where {}"),
@@ -393,7 +393,11 @@ fn opaque_validated_input_can_construct_an_opaque_result() {
         assumed_at_supertraits(term::<Wc>("u32: Prerequisite")),
         at_gat_bounds(term::<Wc>("u32: Marker")),
     );
-    assert!(from_validated.is_proven());
+    // The blanket impl makes `Prerequisite < Marker`, so applying it requires
+    // `IfBelow[Marker](u32: Prerequisite)`. Evidence rooted at the unrelated
+    // `ValidationRoot` is only opaque evidence for `Prerequisite` and cannot satisfy that
+    // stronger requirement, even though `Prerequisite` currently declares no fields.
+    assert!(!from_validated.is_proven());
 }
 
 #[test]
