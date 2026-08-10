@@ -23,24 +23,26 @@ fn proof_search_size(assumptions: &Wcs, goal: &Wcs) -> usize {
         - mode_metadata_size(goal)
         - atomic_metadata_size(assumptions)
         - atomic_metadata_size(goal)
-        - opaque_assumption_payload_size(assumptions)
+        - opaque_assumption_size_discount(assumptions)
 }
 
-/// Return the logical size hidden behind opaque recursive handles in `assumptions`.
+/// Return the size discount for opaque recursive handles in `assumptions`.
 ///
 /// `HasImpl(G)` is the handle introduced while constructing evidence for atomic `G`. It can
 /// close that exact recursive occurrence, but no rule can inspect `G` through the handle. Its
 /// payload is also already represented by the active obligation that caused the handle to be
-/// introduced, so charging it a second time makes finite nested impl selection overflow merely
-/// because it carries its Löb hypothesis. This exemption applies only to assumptions: a zero-
-/// qualified goal still has to pay for the proposition it asks us to prove.
-fn opaque_assumption_payload_size(assumptions: &Wcs) -> usize {
+/// introduced, so charge it less than an ordinary obligation. It cannot be free, however:
+/// accumulating distinct handles or growing the proposition inside one is proof-state growth and
+/// must eventually reach `max_size`. We therefore discount half its logical size, leaving the
+/// other half (rounded up) in the total. This discount applies only to assumptions: a
+/// zero-qualified goal still pays the full cost of the proposition it asks us to prove.
+fn opaque_assumption_size_discount(assumptions: &Wcs) -> usize {
     assumptions
         .iter()
         .map(|assumption| match assumption {
             // `atomic.size()` is the logical `Wc` node plus the atomic payload once the
             // representational `AtomicPredicate` node has been discounted above.
-            Wc::Mode(Mode::HasImpl, atomic) => atomic.size(),
+            Wc::Mode(Mode::HasImpl, atomic) => atomic.size() / 2,
             _ => 0,
         })
         .sum()
@@ -94,20 +96,35 @@ mod tests {
     use formality_core::Upcast;
 
     #[test]
-    fn overflow_size_treats_zero_assumptions_as_opaque() {
+    fn overflow_size_discounts_but_still_charges_opaque_assumptions() {
         let proposition = term::<Wc>("Vec<u32>: Debug");
+        let second_proposition = term::<Wc>("Vec<Vec<u32>>: Debug");
         let goal: Wcs = proposition.clone().upcast();
         let empty = Wcs::t();
         let zero_assumption: Wcs = Mode::HasImpl.apply_assumption(&proposition).upcast();
+        let larger_zero_assumption: Wcs =
+            Mode::HasImpl.apply_assumption(&second_proposition).upcast();
+        let two_zero_assumptions: Wcs = (
+            Mode::HasImpl.apply_assumption(&proposition),
+            Mode::HasImpl.apply_assumption(second_proposition),
+        )
+            .upcast();
         let ranked_assumption: Wcs = Mode::if_below(TraitId::new("Root"))
             .apply_assumption(&proposition)
             .upcast();
         let zero_goal: Wcs = Mode::HasImpl.apply_goal(&proposition).upcast();
 
         let baseline = proof_search_size(&empty, &goal);
-        assert_eq!(proof_search_size(&zero_assumption, &goal), baseline);
+        let opaque_size = proof_search_size(&zero_assumption, &goal);
+        let larger_opaque_size = proof_search_size(&larger_zero_assumption, &goal);
+        let two_opaque_size = proof_search_size(&two_zero_assumptions, &goal);
+        let full_size = proof_search_size(&ranked_assumption, &goal);
+
+        assert!(baseline < opaque_size);
+        assert!(opaque_size < full_size);
+        assert!(opaque_size < larger_opaque_size);
+        assert!(larger_opaque_size < two_opaque_size);
         assert_eq!(proof_search_size(&empty, &zero_goal), baseline);
-        assert!(proof_search_size(&ranked_assumption, &goal) > baseline);
     }
 
     #[test]
