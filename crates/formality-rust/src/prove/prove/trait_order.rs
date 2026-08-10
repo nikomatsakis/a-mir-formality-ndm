@@ -138,7 +138,7 @@ judgment_fn! {
             -------------------------------------------- ("lower trait")
             (can_project_supertrait(
                 program,
-                Mode::IfBelow(root),
+                Mode::IfBelow(root) | Mode::IfBelowG(root),
                 source,
                 result,
             ) => ())
@@ -148,13 +148,6 @@ judgment_fn! {
             (if source == root)!
             (trait_less_than(program, result, root) => ())
             -------------------------------------------- ("root after supertraits")
-            (can_project_supertrait(program, Mode::IfBelowG(root), source, result) => ())
-        )
-
-        (
-            (trait_less_than(program, source, root) => ())
-            (trait_less_than(program, result, root) => ())
-            -------------------------------------------- ("completed lower trait")
             (can_project_supertrait(program, Mode::IfBelowG(root), source, result) => ())
         )
     }
@@ -197,18 +190,12 @@ judgment_fn! {
         (
             (trait_less_than(program, owner, root) => ())
             -------------------------------------------- ("lower trait")
-            (can_project_outlives(program, Mode::IfBelow(root), owner) => ())
+            (can_project_outlives(program, Mode::IfBelow(root) | Mode::IfBelowG(root), owner) => ())
         )
 
         (
             (if owner == root)!
             -------------------------------------------- ("root after supertraits")
-            (can_project_outlives(program, Mode::IfBelowG(root), owner) => ())
-        )
-
-        (
-            (trait_less_than(program, owner, root) => ())
-            -------------------------------------------- ("completed lower trait")
             (can_project_outlives(program, Mode::IfBelowG(root), owner) => ())
         )
     }
