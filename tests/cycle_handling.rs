@@ -551,3 +551,51 @@ fn associated_type_supertrait_cycle_never_produces_unmonomorphizable_evidence() 
         }
     }]);
 }
+
+#[test]
+fn provisional_supertrait_cycle_cannot_invent_missing_impl() {
+    // While checking the `B` impl, `HasImpl(T: B)` can be used to apply the already-WF `A`
+    // impl. The resulting ordinary `T: A` evidence must not be projected back through `B` to
+    // invent `T: C`: no impl constructs the `C` dictionary or defines `C::probe`.
+    assert_monomorphizes_if_accepted(crates![crate test {
+        trait A
+        where
+            Self: B,
+        {}
+
+        trait B
+        where
+            Self: C,
+        {}
+
+        trait C
+        where
+            Self: A,
+        {
+            fn probe() -> i32;
+        }
+
+        impl<T> A for T
+        where
+            T: B,
+        {}
+
+        impl<T> B for T
+        where
+            T: A,
+        {}
+
+        struct Ground {}
+
+        fn require_a<T>() -> i32
+        where
+            T: A,
+        {
+            return <T as C>::probe();
+        }
+
+        fn main() -> () {
+            println!(require_a::<Ground>());
+        }
+    }]);
+}

@@ -272,6 +272,27 @@ fn is_trait_less_than(program: &Program, lower: &TraitId, upper: &TraitId) -> bo
 }
 
 judgment_fn! {
+    /// Evidence at `validation` contains a complete dictionary for `subject`.
+    pub(crate) fn validation_evidence_is_complete(
+        program: Program,
+        validation: Mode,
+        subject: TraitId,
+    ) => () {
+        debug(program, validation, subject)
+
+        (
+            (trait_less_than(program, subject, root) => ())
+            -------------------------------------------- ("strictly below")
+            (validation_evidence_is_complete(
+                program,
+                Mode::IfBelow(root) | Mode::IfBelowG(root),
+                subject,
+            ) => ())
+        )
+    }
+}
+
+judgment_fn! {
     /// Evidence for `subject` at `available` contains every field required at `required`.
     pub(crate) fn validation_evidence_suffices(
         program: Program,

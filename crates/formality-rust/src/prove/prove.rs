@@ -29,7 +29,7 @@ pub use prove::{Constrained, Constraints};
 pub use requirements::*;
 pub(crate) use trait_order::{
     can_project_associated_bound, can_project_outlives, can_project_supertrait,
-    validation_evidence_suffices, validation_frontier_suffices,
+    validation_evidence_is_complete, validation_evidence_suffices, validation_frontier_suffices,
 };
 
 #[cfg(test)]

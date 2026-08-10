@@ -282,7 +282,7 @@ fn normalizing_non_alias_uses_only_explicit_assumptions() {
 }
 
 #[test]
-fn validation_evidence_is_not_ordinary_evidence() {
+fn lower_ranked_validation_evidence_is_ordinary_evidence() {
     let assumed_sub = assumed_at_supertraits(sub());
     let goal_sub = at_supertraits(sub());
 
@@ -290,7 +290,7 @@ fn validation_evidence_is_not_ordinary_evidence() {
     assert!(validation_result.is_proven());
 
     let ordinary_result = prove_after(decls(), Constraints::none(()), assumed_sub, sub());
-    assert!(!ordinary_result.is_proven());
+    assert!(ordinary_result.is_proven());
 }
 
 #[test]
@@ -645,7 +645,7 @@ fn ordinary_associated_bound_requires_originating_trait_and_gat_conditions() {
 }
 
 #[test]
-fn validation_preserves_frontier_through_well_formedness() {
+fn completed_validation_propagates_through_well_formedness() {
     let assumed_sub = assumed_at_supertraits(sub());
     let wf: Wc = Relation::well_formed(term::<Parameter>("NeedsSub<u32>")).upcast();
     let validated_wf = at_supertraits(&wf);
@@ -654,7 +654,7 @@ fn validation_preserves_frontier_through_well_formedness() {
     assert!(validation_result.is_proven());
 
     let ordinary_result = prove_after(decls(), Constraints::none(()), assumed_sub, wf);
-    assert!(!ordinary_result.is_proven());
+    assert!(ordinary_result.is_proven());
 }
 
 #[test]

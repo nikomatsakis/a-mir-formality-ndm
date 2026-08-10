@@ -71,7 +71,7 @@ judgment_fn! {
                     Mode::HasImpl.apply_assumption(impl_header),
                     Mode::if_below(&impl_header.trait_id).apply_assumptions(conditions),
                 ),
-                Mode::if_below(&impl_header.trait_id).apply_goal(Wc::for_all(supertrait)),
+                Wc::for_all(supertrait),
             ) => c)
             ----------------------------- ("supertrait")
             (validate_impl_requirement(
@@ -91,7 +91,7 @@ judgment_fn! {
                     Mode::HasImpl.apply_assumption(impl_header),
                     Mode::if_below(&impl_header.trait_id).apply_assumptions(conditions),
                 ),
-                Mode::if_below(&impl_header.trait_id).apply_goal(Wc::for_all(outlives)),
+                Wc::for_all(outlives),
             ) => c)
             ----------------------------- ("outlives")
             (validate_impl_requirement(

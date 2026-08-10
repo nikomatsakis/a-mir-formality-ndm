@@ -2,7 +2,7 @@ use crate::grammar::{AtomicPredicate, Mode, Predicate, TraitRef, Wc, Wcs};
 use crate::prove::prove::{
     decls::Program,
     prove::{constraints::Constraints, env::Env, prove_after::prove_after},
-    validation_evidence_suffices, validation_frontier_suffices,
+    validation_evidence_is_complete, validation_evidence_suffices, validation_frontier_suffices,
 };
 use formality_core::judgment_fn;
 
@@ -39,6 +39,37 @@ judgment_fn! {
                 assumptions,
                 Wc::Mode(via_validation, via),
                 Wc::Mode(goal_validation, goal),
+            ) => c)
+        )
+
+        (
+            (validation_evidence_is_complete(
+                decls,
+                validation,
+                via_trait_id,
+            ) => ())!
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                via_trait_ref,
+                goal_trait_ref,
+            ) => c)
+            ----------------------------- ("completed validation evidence")
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                Wc::Mode(
+                    validation,
+                    AtomicPredicate::Predicate(Predicate::IsImplemented(
+                        via_trait_ref @ TraitRef {
+                            trait_id: via_trait_id,
+                            parameters: _,
+                        },
+                    )),
+                ),
+                goal_trait_ref @ TraitRef { .. },
             ) => c)
         )
 
