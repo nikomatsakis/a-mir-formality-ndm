@@ -25,6 +25,10 @@
 //! only when the value set grew *and* a recursive dependent observed an earlier
 //! approximation. Otherwise the current output is final.
 //!
+//! A judgment can also declare a terminal-output predicate with `cut(...)`.
+//! Once a rule pass produces a terminal value, later rules and further
+//! fixed-point iterations cannot improve the result and are skipped.
+//!
 //! Different proof trees for the same proven value do not affect convergence.
 //! Proofs are metadata, and [`merge_proven_outputs`] retains the smallest proof
 //! observed for each value.
@@ -100,8 +104,9 @@ impl<Input, Output> Default for JudgmentCache<Input, Output> {
 ///
 /// `tracing_span` creates the span used for each rule pass. `cache` is the
 /// thread-local active stack generated for this particular judgment. `input`
-/// identifies the call, and `execute_rules` performs one complete rule pass for
-/// that input.
+/// identifies the call, `cut` recognizes an output that makes further search
+/// unnecessary, and `execute_rules` performs one complete rule pass for that
+/// input.
 ///
 /// Reentrant calls with the same input receive the approximation accumulated so
 /// far. A fresh call returns only after its semantic output stops changing, and
@@ -113,6 +118,7 @@ pub fn execute_judgment<Input, Output>(
     tracing_span: impl Fn(&Input) -> tracing::Span,
     cache: &'static LocalKey<JudgmentCache<Input, Output>>,
     input: Input,
+    cut: fn(&Output) -> bool,
     mut execute_rules: impl FnMut(Input) -> ProofMap<Output>,
 ) -> ProofMap<Output>
 where
@@ -168,12 +174,28 @@ where
             let _guard = span.enter();
             let output = execute_rules(input.clone());
             tracing::debug!(?output);
+            let cut_reached = output.keys().any(cut);
 
             // Merge this round's proven values into the active approximation.
             // `update` requests another round only when the value set grew and
             // a recursive call consumed an earlier approximation. If no such
             // dependent exists, the newly computed result is already final.
-            let repeat = cache.with(|cache| cache.active.borrow_mut().update(&input, output));
+            let repeat = cache.with(|cache| {
+                cache
+                    .active
+                    .borrow_mut()
+                    .update(&input, output, cut_reached)
+            });
+            if cut_reached {
+                // Descendant memo entries may have observed the approximation from before this
+                // terminal answer was found. They are irrelevant to the terminal result and must
+                // not escape into the enclosing iteration as though they were still current.
+                if repeat {
+                    iteration_guard.invalidate();
+                }
+                break;
+            }
+
             if !repeat {
                 break;
             }
@@ -367,8 +389,23 @@ where
     /// Semantic growth matters only if a recursive dependent previously consumed
     /// the old approximation. Without a dependent, the complete rule pass has
     /// already computed the final output and no observer needs to be revisited.
-    fn update(&mut self, input: &Input, output: ProofMap<Output>) -> bool {
+    fn update(&mut self, input: &Input, mut output: ProofMap<Output>, cut_reached: bool) -> bool {
         let top = self.top(input);
+
+        if cut_reached {
+            // A terminal output subsumes every other answer. Discard nonterminal values from
+            // earlier rounds, retaining only a smaller proof for the same terminal value if one
+            // was already known. Recursive dependents observed the superseded approximation, so
+            // report their presence to let the caller invalidate descendant memo entries.
+            for (value, proof) in std::mem::take(&mut top.output) {
+                if output.contains_key(&value) {
+                    insert_smallest_proof(&mut output, value, proof);
+                }
+            }
+            top.output = output;
+            return top.has_dependents;
+        }
+
         merge_proven_outputs(&mut top.output, output) && top.has_dependents
     }
 }
@@ -414,6 +451,7 @@ mod tests {
             |_| tracing::Span::none(),
             &CACHE,
             (),
+            |_| false,
             |_| {
                 let iteration = ITERATIONS.get() + 1;
                 ITERATIONS.set(iteration);

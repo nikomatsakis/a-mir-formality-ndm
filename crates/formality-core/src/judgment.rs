@@ -17,6 +17,7 @@ mod runtime;
 #[doc(hidden)]
 pub use runtime::{execute_judgment, JudgmentCache};
 
+mod test_cut;
 mod test_explicit_fail;
 mod test_fallible;
 mod test_filtered;
@@ -60,6 +61,15 @@ mod test_reachable;
 /// You can place a `!` after a condition to mark it as a "match commit point".
 /// Rules that fail before reaching the match commit point will not be included
 /// in the failure result.
+///
+/// ## Cutting off search
+///
+/// A judgment may declare `cut(predicate)`, where `predicate` is a function
+/// from a reference to the judgment's output type to `bool`. Once a rule
+/// produces an output for which the predicate returns true, that output is
+/// considered terminal: later rules are skipped and recursive fixed-point
+/// iteration stops. The predicate is therefore a semantic promise that no
+/// answer produced later could improve on the matching output.
 #[macro_export]
 macro_rules! judgment_fn {
     (
@@ -68,6 +78,7 @@ macro_rules! judgment_fn {
             debug($($debug_input_name:ident),*)
             $(assert($assert_expr:expr))*
             $(trivial($trivial_expr:expr => $trivial_result:expr))*
+            $(cut($cut_expr:expr))?
             $(($($rule:tt)*))*
         }
     ) => {
@@ -137,6 +148,9 @@ macro_rules! judgment_fn {
 
             let mut failed_rules = $crate::set![];
             let input = __JudgmentStruct($($input_name),*);
+            #[allow(unused_variables)]
+            let cut: fn(&$output) -> bool = |_| false;
+            $(let cut: fn(&$output) -> bool = $cut_expr;)?
             let output = $crate::judgment::execute_judgment::<
                 __JudgmentStruct,
                 $output,
@@ -161,9 +175,13 @@ macro_rules! judgment_fn {
                 // Input:
                 input.clone(),
 
+                // Terminal-output predicate:
+                cut,
+
                 // Execute rules:
                 |input: __JudgmentStruct| {
                     let mut output: $crate::Map<$output, $crate::judgment::ProofTree> = $crate::Map::new();
+                    let mut cut_reached = false;
 
                     failed_rules.clear();
 
@@ -176,6 +194,8 @@ macro_rules! judgment_fn {
                         output,
                         failed_rules,
                         &input_string,
+                        cut,
+                        cut_reached,
                         ($($input_name),*) => $output,
                         $(($($rule)*))*
                     );
@@ -199,16 +219,20 @@ macro_rules! judgment_fn {
 
 #[macro_export]
 macro_rules! push_rules {
-    ($judgment_name:ident, $input_value:expr, $output:expr, $failed_rules:expr, $input_string:expr, $input_names:tt => $output_ty:ty, $($rule:tt)*) => {
-        $($crate::push_rules!(@rule ($judgment_name, $input_value, $output, $failed_rules, $input_string, $input_names => $output_ty) $rule);)*
+    ($judgment_name:ident, $input_value:expr, $output:expr, $failed_rules:expr, $input_string:expr, $cut:expr, $cut_reached:ident, $input_names:tt => $output_ty:ty, $($rule:tt)*) => {
+        $(
+            if !$cut_reached {
+                $crate::push_rules!(@rule ($judgment_name, $input_value, $output, $failed_rules, $input_string, $cut, $cut_reached, $input_names => $output_ty) $rule);
+            }
+        )*
     };
 
     // `@rule (builder) rule` phase: invoked for each rule, emits `push_rule` call
 
-    (@rule ($judgment_name:ident, $input_value:expr, $output:expr, $failed_rules:expr, $input_string:expr, $input_names:tt => $output_ty:ty) ($($m:tt)*)) => {
+    (@rule ($judgment_name:ident, $input_value:expr, $output:expr, $failed_rules:expr, $input_string:expr, $cut:expr, $cut_reached:ident, $input_names:tt => $output_ty:ty) ($($m:tt)*)) => {
         // Start accumulating.
         $crate::push_rules!(@accum
-            args($judgment_name, $input_value, $output, $failed_rules, $input_string, $input_names => $output_ty)
+            args($judgment_name, $input_value, $output, $failed_rules, $input_string, $cut, $cut_reached, $input_names => $output_ty)
             accum(true;)
             input($($m)*)
         );
@@ -221,7 +245,7 @@ macro_rules! push_rules {
     // at 0. The `current_index` is also expected to start as the expression `0`.
 
     (@accum
-        args($judgment_name:ident, $input_value:expr, $output:expr, $failed_rules:expr, $input_string:expr, ($($input_names:ident),*) => $output_ty:ty)
+        args($judgment_name:ident, $input_value:expr, $output:expr, $failed_rules:expr, $input_string:expr, $cut:expr, $cut_reached:ident, ($($input_names:ident),*) => $output_ty:ty)
         accum($match_default:tt; $($m:tt)*)
         input(
             ---$(-)* ($n:literal)
@@ -256,7 +280,7 @@ macro_rules! push_rules {
                     inputs($($input_names)*)
                     patterns($($patterns)*,)
                     args(@body
-                        ($judgment_name; $n; $v; $output);
+                        ($judgment_name; $n; $v; $output; $cut; $cut_reached);
                         ($failed_rules, __matched, (__judgment_name, __attributes), $n);
                         $($m)*
                     )
@@ -303,13 +327,13 @@ macro_rules! push_rules {
     // Matching phase: peel off the patterns one by one and match them against the values
     // extracted from the input. For anything that is not an identity pattern, invoke `downcast`.
 
-    (@match $conclusion_name:ident inputs() patterns() args(@body ($judgment_name:ident; $n:literal; $v:expr; $output:expr); $inputs:tt; $($m:tt)*)) => {
+    (@match $conclusion_name:ident inputs() patterns() args(@body ($judgment_name:ident; $n:literal; $v:expr; $output:expr; $cut:expr; $cut_reached:ident); $inputs:tt; $($m:tt)*)) => {
         tracing::trace_span!("matched rule", rule = $n, judgment = stringify!($judgment_name)).in_scope(|| {
             tracing::debug!("matched rule {:?}", $n);
             #[allow(unused_mut)]
             let mut child_proof_trees: Vec<$crate::judgment::ProofTree> = Vec::new();
             $crate::push_rules!(
-                @body ($judgment_name, $n, $v, $output); $inputs; child_proof_trees;
+                @body ($judgment_name, $n, $v, $output, $cut, $cut_reached); $inputs; child_proof_trees;
                 $($m)*
             );
         });
@@ -771,26 +795,33 @@ macro_rules! push_rules {
 
     (
         @body
-            ($judgment_name:ident, $rule_name:literal, $v:expr, $output:expr);
+            ($judgment_name:ident, $rule_name:literal, $v:expr, $output:expr, $cut:expr, $cut_reached:ident);
             ($_failed_rules:expr, $_match_var:ident, ($input_judgment_name:expr, $input_attributes:expr), $_rule_name:literal);
             $child_proof_trees:ident;
     ) => {
         {
-            let result = $crate::Upcast::upcast($v);
-            let mut attributes = $input_attributes.clone();
-            attributes.push(("result".to_string(), format!("{:?}", result)));
-            let (file, line, column) = $crate::respan!($rule_name ((file!(), line!(), column!())));
-            let proof_tree = $crate::judgment::ProofTree::with_all(
-                $input_judgment_name,
-                attributes,
-                Some($rule_name),
-                file,
-                line,
-                column,
-                $child_proof_trees.clone(),
-            );
-            tracing::debug!("produced {:?} from rule {:?} in judgment {:?}", result, $rule_name, stringify!($judgment_name));
-            $crate::judgment::insert_smallest_proof(&mut $output, result, proof_tree);
+            if !$cut_reached {
+                let result = $crate::Upcast::upcast($v);
+                let should_cut = $cut(&result);
+                let mut attributes = $input_attributes.clone();
+                attributes.push(("result".to_string(), format!("{:?}", result)));
+                let (file, line, column) = $crate::respan!($rule_name ((file!(), line!(), column!())));
+                let proof_tree = $crate::judgment::ProofTree::with_all(
+                    $input_judgment_name,
+                    attributes,
+                    Some($rule_name),
+                    file,
+                    line,
+                    column,
+                    $child_proof_trees.clone(),
+                );
+                tracing::debug!("produced {:?} from rule {:?} in judgment {:?}", result, $rule_name, stringify!($judgment_name));
+                if should_cut {
+                    $output.clear();
+                    $cut_reached = true;
+                }
+                $crate::judgment::insert_smallest_proof(&mut $output, result, proof_tree);
+            }
         }
     };
 
