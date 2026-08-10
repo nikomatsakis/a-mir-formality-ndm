@@ -191,20 +191,17 @@ judgment_fn! {
             // FIXME: Value-only normalization still requires declaration-side GAT conditions at
             // `IfBelowG[ImplTrait]`. Determine whether selecting the value should require those
             // conditions only at an earlier frontier too.
-            (let gat_validation = Mode::if_below_g(impl_trait_id))
-            (let provisional_impl_header =
-                Mode::if_below(impl_trait_id).apply_assumption(trait_impl.trait_ref()))
             (prove_after(
                 decls,
                 c,
                 (
                     assumptions,
-                    provisional_impl_header,
+                    Mode::if_below(impl_trait_id).apply_assumption(trait_impl.trait_ref()),
                     provisional_alias_eq,
                 ),
                 (
                     impl_validation.apply_goals(impl_where_clauses),
-                    gat_validation.apply_goals(gat_where_clauses),
+                    Mode::if_below_g(impl_trait_id).apply_goals(gat_where_clauses),
                 ),
             ) => c)
 

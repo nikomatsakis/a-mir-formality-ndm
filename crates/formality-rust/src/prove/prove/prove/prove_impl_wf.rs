@@ -64,13 +64,15 @@ judgment_fn! {
 
         (
             (impl_contract(trait_impl) => (impl_header, conditions))
-            (let validation = Mode::if_below(&impl_header.trait_id))
-            (let assumptions = (
-                validation.apply_assumption(impl_header),
-                validation.apply_assumptions(conditions),
-            ))
-            (let goal = validation.apply_goal(Wc::for_all(supertrait)))
-            (prove(program, env, assumptions, goal) => c)
+            (prove(
+                program,
+                env,
+                (
+                    Mode::HasImpl.apply_assumption(impl_header),
+                    Mode::if_below(&impl_header.trait_id).apply_assumptions(conditions),
+                ),
+                Mode::if_below(&impl_header.trait_id).apply_goal(Wc::for_all(supertrait)),
+            ) => c)
             ----------------------------- ("supertrait")
             (validate_impl_requirement(
                 program,
@@ -82,13 +84,15 @@ judgment_fn! {
 
         (
             (impl_contract(trait_impl) => (impl_header, conditions))
-            (let validation = Mode::if_below(&impl_header.trait_id))
-            (let assumptions = (
-                validation.apply_assumption(impl_header),
-                validation.apply_assumptions(conditions),
-            ))
-            (let goal = validation.apply_goal(Wc::for_all(outlives)))
-            (prove(program, env, assumptions, goal) => c)
+            (prove(
+                program,
+                env,
+                (
+                    Mode::HasImpl.apply_assumption(impl_header),
+                    Mode::if_below(&impl_header.trait_id).apply_assumptions(conditions),
+                ),
+                Mode::if_below(&impl_header.trait_id).apply_goal(Wc::for_all(outlives)),
+            ) => c)
             ----------------------------- ("outlives")
             (validate_impl_requirement(
                 program,
