@@ -1,5 +1,5 @@
 use crate::grammar::{
-    ExistentialVar, Mode, Parameter, TraitImpl, TraitImplBoundData, TraitRef, Wcs,
+    ExistentialVar, Mode::HasImpl, Parameter, TraitImpl, TraitImplBoundData, TraitRef, Wcs,
 };
 use crate::prove::prove::decls::{ImplCandidate, Program};
 use crate::prove::prove::prove::{prove, prove_impl_wf};
@@ -74,12 +74,10 @@ judgment_fn! {
                 env.existential_substitution(candidate_binder))
             (let trait_impl = candidate_binder.instantiate_with(impl_variables)?)
             (let TraitRef { parameters: impl_parameters, .. } = trait_impl.trait_ref())
-            (let recursive_assumption =
-                Mode::Zero.apply_assumption(requested_trait_ref))
             (prove(
                 decls,
                 env,
-                (assumptions, recursive_assumption),
+                (assumptions, HasImpl.apply_assumption(requested_trait_ref)),
                 Wcs::all_eq(requested_parameters, impl_parameters),
             ) => c)
             ----------------------------- ("match impl candidate")

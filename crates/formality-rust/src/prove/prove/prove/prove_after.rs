@@ -28,7 +28,7 @@ fn proof_search_size(assumptions: &Wcs, goal: &Wcs) -> usize {
 
 /// Return the logical size hidden behind opaque recursive handles in `assumptions`.
 ///
-/// `Zero(G)` is the handle introduced while constructing evidence for atomic `G`. It can
+/// `HasImpl(G)` is the handle introduced while constructing evidence for atomic `G`. It can
 /// close that exact recursive occurrence, but no rule can inspect `G` through the handle. Its
 /// payload is also already represented by the active obligation that caused the handle to be
 /// introduced, so charging it a second time makes finite nested impl selection overflow merely
@@ -40,7 +40,7 @@ fn opaque_assumption_payload_size(assumptions: &Wcs) -> usize {
         .map(|assumption| match assumption {
             // `atomic.size()` is the logical `Wc` node plus the atomic payload once the
             // representational `AtomicPredicate` node has been discounted above.
-            Wc::Mode(Mode::Zero, atomic) => atomic.size(),
+            Wc::Mode(Mode::HasImpl, atomic) => atomic.size(),
             _ => 0,
         })
         .sum()
@@ -98,11 +98,11 @@ mod tests {
         let proposition = term::<Wc>("Vec<u32>: Debug");
         let goal: Wcs = proposition.clone().upcast();
         let empty = Wcs::t();
-        let zero_assumption: Wcs = Mode::Zero.apply_assumption(&proposition).upcast();
+        let zero_assumption: Wcs = Mode::HasImpl.apply_assumption(&proposition).upcast();
         let ranked_assumption: Wcs = Mode::if_below(TraitId::new("Root"))
             .apply_assumption(&proposition)
             .upcast();
-        let zero_goal: Wcs = Mode::Zero.apply_goal(&proposition).upcast();
+        let zero_goal: Wcs = Mode::HasImpl.apply_goal(&proposition).upcast();
 
         let baseline = proof_search_size(&empty, &goal);
         assert_eq!(proof_search_size(&zero_assumption, &goal), baseline);

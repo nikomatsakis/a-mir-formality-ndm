@@ -262,7 +262,7 @@ fn validation_view(program: &Program, upto: &Mode, subject: &TraitId) -> Validat
     let fields = trait_validation_fields(program, subject);
 
     match upto {
-        Mode::Zero => ValidationView::default(),
+        Mode::HasImpl => ValidationView::default(),
 
         Mode::IfBelow(root) if root == subject => ValidationView {
             associated_type_values: fields.associated_type_values,
@@ -524,7 +524,7 @@ mod tests {
                 }
             ]",
         );
-        let zero = Mode::Zero;
+        let zero = Mode::HasImpl;
         let supertraits = Mode::if_below(TraitId::new("Root"));
         let gat_bounds = Mode::if_below_g(TraitId::new("Root"));
 

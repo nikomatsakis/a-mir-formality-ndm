@@ -159,33 +159,33 @@ pub enum Mode {
     /// succeeds, but none of its fields may yet be inspected. It can close the
     /// exact recursive occurrence of `P` without exposing associated values,
     /// supertrait evidence, or associated-type-bound evidence.
-    #[grammar(Zero)]
-    Zero,
+    #[grammar(HasImpl)]
+    HasImpl,
 
     /// `IfBelow[Root](P)` means that `P` holds completely when it refers to a trait
     /// `T < Root`. If `T = Root`, the impl header has been matched but its trait
     /// requirements have not yet been established. If `T` is unrelated to `Root`,
-    /// this is equivalent to `Zero(P)`.
+    /// this is equivalent to `HasImpl(P)`.
     ///
     /// For example, assuming `trait A: B` and `trait B: C`,
     /// then the predicates
     ///
     /// * `IfBelow[A](T: A)` promises an impl for `T: A`, without established trait requirements.
     /// * `IfBelow[A](T: B)` says that `T: B` and all its trait requirements are established.
-    /// * `IfBelow[C](T: A)` is equivalent to `Zero(T: A)`.
+    /// * `IfBelow[C](T: A)` is equivalent to `HasImpl(T: A)`.
     #[grammar(IfBelow[$v0])]
     IfBelow(TraitId),
 
     /// `IfBelowG[Root](P)` also means that `P` holds completely when it refers to a
     /// trait `T < Root`. If `T = Root`, its supertrait requirements have been
     /// established, but its associated-type bounds have not. If `T` is unrelated
-    /// to `Root`, this is equivalent to `Zero(P)`.
+    /// to `Root`, this is equivalent to `HasImpl(P)`.
     ///
     /// For example, assuming `trait A: B` and `trait B: C`:
     ///
     /// * `IfBelowG[A](T: A)` says that `T: A` and its supertrait requirements are established.
     /// * `IfBelowG[A](T: B)` says that `T: B` and all its trait requirements are established.
-    /// * `IfBelowG[C](T: A)` is equivalent to `Zero(T: A)`.
+    /// * `IfBelowG[C](T: A)` is equivalent to `HasImpl(T: A)`.
     #[grammar(IfBelowG[$v0])]
     IfBelowG(TraitId),
 }
@@ -328,7 +328,7 @@ mod tests {
     fn modes_use_constructor_notation() {
         let atom = term::<Wc>("u32: Debug");
         let cases = [
-            ("Zero(u32: Debug)", Mode::Zero.apply_goal(&atom)),
+            ("HasImpl(u32: Debug)", Mode::HasImpl.apply_goal(&atom)),
             (
                 "IfBelow[Root](u32: Debug)",
                 Mode::if_below(TraitId::new("Root")).apply_goal(&atom),
