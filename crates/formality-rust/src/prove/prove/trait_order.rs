@@ -7,7 +7,7 @@
 
 use crate::grammar::{
     AssociatedTyBoundData, CrateItem, Fallible, Mode, Trait, TraitBoundData, TraitId,
-    TraitImplBoundData, TraitItem, TraitRef, Ty, Variable, WhereBound, WhereClause,
+    TraitImplBoundData, TraitRef, Ty, Variable, WhereBound, WhereClause,
 };
 use crate::prove::prove::{as_associated_ty, trait_header_clause, Program, TraitHeaderClause};
 use crate::prove::ToWcs;
@@ -246,64 +246,24 @@ impl ValidationView {
 
 /// Compute the observable portion of a `subject` dictionary at `upto`.
 fn validation_view(program: &Program, upto: &Mode, subject: &TraitId) -> ValidationView {
-    let fields = trait_validation_fields(program, subject);
-
     match upto {
-        Mode::HasImpl => ValidationView::default(),
-
-        Mode::IfBelow(root) if root == subject => ValidationView {
-            associated_type_values: fields.associated_type_values,
-            ..ValidationView::default()
-        },
-
         Mode::IfBelowG(root) if root == subject => ValidationView {
-            associated_type_values: fields.associated_type_values,
-            supertrait_requirements: fields.supertrait_requirements,
+            associated_type_values: true,
+            supertrait_requirements: true,
             associated_type_bounds: false,
         },
 
-        // FIXME(ndm): It is surprising to me that `IfBelow[root]` and `IfBelowG[root]`
-        // are equivalent. I'd expect supertraits to set `associated_type_bounds: false`.
         Mode::IfBelow(root) | Mode::IfBelowG(root)
             if is_trait_less_than(program, subject, root) =>
         {
-            fields
+            ValidationView {
+                associated_type_values: true,
+                supertrait_requirements: true,
+                associated_type_bounds: true,
+            }
         }
 
-        Mode::IfBelow(_) | Mode::IfBelowG(_) => ValidationView::default(),
-    }
-}
-
-fn trait_validation_fields(program: &Program, trait_id: &TraitId) -> ValidationView {
-    let Some(trait_def) = trait_def(program, trait_id) else {
-        // Unknown/builtin traits are conservatively treated as having every kind of field.
-        return ValidationView {
-            associated_type_values: true,
-            supertrait_requirements: true,
-            associated_type_bounds: true,
-        };
-    };
-
-    // FIXME(ndm): It's interesting that we use the actual contents of the trait here.
-    // Is this...necessary/important? If so, that has semver implications that make me a bit
-    // nervous. Do we have tests around this?
-    let trait_data = trait_def.binder.explicit_binder.peek();
-    ValidationView {
-        associated_type_values: trait_data
-            .trait_items
-            .iter()
-            .any(|item| matches!(item, TraitItem::AssociatedTy(_))),
-        // Trait-header clauses on `Self` produce the supertrait/outlives portion of the
-        // dictionary. Treating other header clauses as fields is conservative: it can reject an
-        // otherwise harmless recursive view but cannot expose provisional evidence too early.
-        supertrait_requirements: !trait_data.where_clauses.is_empty(),
-        associated_type_bounds: trait_data.trait_items.iter().any(|item| {
-            matches!(
-                item,
-                TraitItem::AssociatedTy(associated)
-                    if !associated.binder.peek().ensures.is_empty()
-            )
-        }),
+        Mode::HasImpl | Mode::IfBelow(_) | Mode::IfBelowG(_) => ValidationView::default(),
     }
 }
 

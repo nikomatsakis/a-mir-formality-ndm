@@ -128,6 +128,7 @@ judgment_fn! {
         goal: Wcs,
     ) => Constraints {
         debug(constraints, goal, assumptions)
+        cut(Constraints::unconditionally_true)
 
         (
             (let (assumptions, goal) = c1.substitution().apply((assumptions, goal)))

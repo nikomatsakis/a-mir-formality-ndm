@@ -58,6 +58,7 @@ judgment_fn! {
         validate_goal: AtomicPredicate,
     ) => Constraints {
         debug(validation, validate_goal, assumptions, env)
+        cut(Constraints::unconditionally_true)
 
         (
             (wf_requirements(decls, parameter) => requirements)

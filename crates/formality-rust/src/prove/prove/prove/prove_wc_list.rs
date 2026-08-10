@@ -19,6 +19,7 @@ judgment_fn! {
         debug(goals, assumptions, env)
 
         assert(env.encloses((assumptions, goals)))
+        cut(Constraints::unconditionally_true)
 
         (
             --- ("none")

@@ -84,6 +84,7 @@ judgment_fn! {
             has_unconditional_proof_from_assumptions(&decls, &assumptions, &goal)
             => Constraints::none(env)
         )
+        cut(Constraints::unconditionally_true)
 
         (
             (let (env, subst) = env.universal_substitution(binder))
