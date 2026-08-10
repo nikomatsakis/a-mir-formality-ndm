@@ -73,18 +73,11 @@ judgment_fn! {
             // That view still cannot expose the root dictionary's own supertrait or associated-
             // bound fields.
             //
-            (let validation = Mode::if_below(&impl_header.trait_id))
-            (let provisional_impl_header =
-                // There's something very subtle going on here!
-                //
-                // Adding `IfBelow[Trait](T: Trait)` as an assumption
-                // does not allow upcasting to `IfBelow[Trait](T: Supertrait)`.
-                validation.apply_assumption(impl_header))
             (prove_after(
                 decls,
                 c,
-                (assumptions, provisional_impl_header),
-                validation.apply_goals(conditions),
+                (assumptions, Mode::HasImpl.apply_assumption(impl_header)),
+                Mode::if_below(&impl_header.trait_id).apply_goals(conditions),
             ) => c)
 
             // Snapshot everything learned about the impl before removing its fresh variables.
