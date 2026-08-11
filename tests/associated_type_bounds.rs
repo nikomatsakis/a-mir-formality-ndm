@@ -609,7 +609,9 @@ fn validation_antecedent_does_not_leak_to_impl_where_clause() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later((): Family), assumptions: {Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later((): Family), assumptions: {for Later(<() as Family>::Introduce, ()), Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later(<() as Family>::Introduce, ()), assumptions: {for Later(<() as Family>::Introduce, ()), Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]

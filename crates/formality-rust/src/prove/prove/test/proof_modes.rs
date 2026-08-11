@@ -248,6 +248,56 @@ fn associated_type_equality_normalizes_only_from_alias_to_value() {
 }
 
 #[test]
+fn later_associated_type_definition_can_be_used_for_normalization() {
+    let program = Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Marker where {}"),
+            term("impl Marker for bool {}"),
+            term("trait Family where { type Output : []; }"),
+            term("trait ValidationRoot where {}"),
+        ])),
+        ..Program::empty()
+    };
+    let alias = term::<AliasTy>("<u32 as Family>::Output");
+    let definition =
+        Mode::Later.apply_assumption(Predicate::AliasEq(alias.clone(), term::<Ty>("bool")));
+
+    let ordinary = prove_normalize(&program, (), &definition, &alias);
+    assert!(ordinary.is_proven());
+
+    let validated = prove_after(
+        program,
+        Constraints::none(()),
+        definition,
+        at_supertraits(term::<Wc>("<u32 as Family>::Output: Marker")),
+    );
+    assert!(validated.is_proven());
+}
+
+#[test]
+fn later_gat_definition_requires_its_conditions() {
+    let program = Program {
+        crates: Arc::new(Program::program_from_items(vec![
+            term("trait Bound where {}"),
+            term(
+                "trait Family where {
+                    type Item<T> : [] where T: Bound;
+                }",
+            ),
+            term("struct Missing {}"),
+        ])),
+        ..Program::empty()
+    };
+    let alias = term::<AliasTy>("<u32 as Family>::Item<Missing>");
+    let definition =
+        Mode::Later.apply_assumption(Predicate::AliasEq(alias.clone(), term::<Ty>("bool")));
+
+    let result = prove_normalize(program, (), definition, alias);
+
+    assert!(!result.is_proven());
+}
+
+#[test]
 fn normalizing_non_alias_uses_only_explicit_assumptions() {
     let result = prove_normalize(
         Program::empty(),

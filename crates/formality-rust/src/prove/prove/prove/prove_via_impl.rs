@@ -65,7 +65,7 @@ judgment_fn! {
                 MatchedImpl { impl_variables, trait_impl, .. },
                 c,
             ))!
-            (impl_contract(trait_impl) => (impl_header, conditions))
+            (impl_contract(trait_impl) => (impl_header, conditions, definitions))
 
             // `prove_impl_wf` certifies a constructor
             //
@@ -78,7 +78,11 @@ judgment_fn! {
             (prove_after(
                 decls,
                 c,
-                (assumptions, Mode::Later.apply_assumption(requested_trait_ref)),
+                (
+                    assumptions,
+                    Mode::Later.apply_assumption(requested_trait_ref),
+                    Mode::Later.apply_assumptions(definitions),
+                ),
                 Mode::if_below(&impl_header.trait_id).apply_goals(conditions),
             ) => c)
 

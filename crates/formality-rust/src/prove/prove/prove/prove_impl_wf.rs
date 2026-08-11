@@ -67,7 +67,7 @@ judgment_fn! {
         debug(trait_impl, requirement, env, program)
 
         (
-            (impl_contract(trait_impl) => (impl_header, conditions))
+            (impl_contract(trait_impl) => (impl_header, conditions, _definitions))
             (prove(
                 program,
                 env,
@@ -87,7 +87,7 @@ judgment_fn! {
         )
 
         (
-            (impl_contract(trait_impl) => (impl_header, conditions))
+            (impl_contract(trait_impl) => (impl_header, conditions, _definitions))
             (prove(
                 program,
                 env,
@@ -128,7 +128,7 @@ judgment_fn! {
             } = associated_binder.instantiate_with(gat_subst)?)
             (let gat_goals = value_bounds.instantiate_with((impl_ty,))?)
 
-            (impl_contract(trait_impl) => (impl_header, impl_wc))
+            (impl_contract(trait_impl) => (impl_header, impl_wc, _definitions))
 
             // A GAT contract is a function from the impl where-clauses and declaration-side GAT
             // conditions to the value's WF and promised bounds. The impl where-clauses remain

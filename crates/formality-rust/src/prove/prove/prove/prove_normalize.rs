@@ -112,6 +112,24 @@ judgment_fn! {
         debug(a, assumptions, env)
 
         (
+            (definition in assumptions)!
+            (prove_normalize_via_later_alias_eq(
+                decls,
+                env,
+                assumptions,
+                definition,
+                a,
+            ) => normalized)
+            ----------------------------- ("normalize value via later definition")
+            (prove_normalize_for_validation(
+                decls,
+                env,
+                assumptions,
+                a,
+            ) => normalized)
+        )
+
+        (
             (candidate in decls.raw_trait_impls_for(trait_id))
             (prove_normalize_via_impl_candidate(
                 decls,
@@ -213,21 +231,15 @@ judgment_fn! {
     ) => Constrained<Parameter> {
         debug(goal, via, assumptions, env)
 
-        // An associated-type equality is an oriented normalization witness. Unlike a general
-        // equality, it may rewrite only its alias (the left-hand side) to the selected value. In
-        // particular, it cannot rewrite that value back to the alias or use an existential in the
-        // value as a pattern for an unrelated normalization goal.
         (
-            (prove_syntactically_eq(
+            (prove_normalize_via_alias_eq(
                 decls,
                 env,
                 assumptions,
                 via_alias,
+                via_ty,
                 goal_alias,
-            ) => c)
-            (let ty = c.substitution().apply(via_ty))
-            (let goal = c.substitution().apply(TyData::alias_ty(goal_alias)))
-            (if goal != ty)!
+            ) => normalized)
             ----------------------------- ("alias-eq")
             (prove_normalize_via(
                 decls,
@@ -235,7 +247,7 @@ judgment_fn! {
                 assumptions,
                 Predicate::AliasEq(via_alias, via_ty),
                 goal_alias @ AliasTy { .. },
-            ) => Constrained(ty, c))
+            ) => normalized)
         )
 
         (
@@ -251,6 +263,36 @@ judgment_fn! {
         )
 
         // These rules handle the the ∀ and ⇒ cases.
+
+        // An impl fixes its associated values as soon as its header has matched. During impl
+        // application those equalities are available only as `Later`: the application still has
+        // to prove the impl's where-clauses before they become ordinary, well-formed equalities.
+        // Their computational content is nevertheless fixed, so normalization may inspect it
+        // while retaining the candidate branch that owns the eventual proof. For a GAT, require
+        // its declaration-side conditions at the same frontier before revealing the value.
+        (
+            (prove_normalize_via_later_alias_eq(
+                decls,
+                env,
+                assumptions,
+                definition,
+                goal_alias,
+            ) => normalized)
+            ----------------------------- ("later alias-eq")
+            (prove_normalize_via(
+                decls,
+                env,
+                assumptions,
+                definition @ WcData::Mode(
+                    Mode::Later,
+                    crate::grammar::AtomicPredicate::Predicate(Predicate::AliasEq(
+                        _,
+                        _,
+                    )),
+                ),
+                goal_alias @ AliasTy { .. },
+            ) => normalized)
+        )
 
         (
             (let (env, subst) = env.existential_substitution(binder))
@@ -268,6 +310,88 @@ judgment_fn! {
             (let p = c.substitution().apply(p))
             ----------------------------- ("implies")
             (prove_normalize_via(decls, env, assumptions, WcData::Implies(wc_condition, wc_consequence), goal) => Constrained(p, c))
+        )
+    }
+}
+
+judgment_fn! {
+    /// Reveal the value promised by an impl's application-scoped associated-type definition.
+    fn prove_normalize_via_later_alias_eq(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        definition: Wc,
+        goal_alias: AliasTy,
+    ) => Constrained<Parameter> {
+        debug(definition, goal_alias, assumptions, env)
+
+        (
+            (prove_normalize_via_alias_eq(
+                decls,
+                env,
+                assumptions,
+                via_alias,
+                via_ty,
+                goal_alias,
+            ) => Constrained(ty, c))
+            (let (_, gat_where_clauses) = decls.associated_ty_requirements(via_alias)?)
+            (prove_after(
+                decls,
+                c,
+                assumptions,
+                Mode::Later.apply_goals(gat_where_clauses),
+            ) => c)
+            (let ty = c.substitution().apply(ty))
+            ----------------------------- ("later alias-eq")
+            (prove_normalize_via_later_alias_eq(
+                decls,
+                env,
+                assumptions,
+                WcData::Mode(
+                    Mode::Later,
+                    crate::grammar::AtomicPredicate::Predicate(Predicate::AliasEq(
+                        via_alias,
+                        via_ty,
+                    )),
+                ),
+                goal_alias @ AliasTy { .. },
+            ) => Constrained(ty, c))
+        )
+    }
+}
+
+judgment_fn! {
+    /// Use an associated-type equality as an oriented normalization witness.
+    fn prove_normalize_via_alias_eq(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        via_alias: AliasTy,
+        via_ty: Ty,
+        goal_alias: AliasTy,
+    ) => Constrained<Parameter> {
+        debug(via_alias, via_ty, goal_alias, assumptions, env)
+
+        (
+            (prove_syntactically_eq(
+                decls,
+                env,
+                assumptions,
+                via_alias,
+                goal_alias,
+            ) => c)
+            (let ty = c.substitution().apply(via_ty))
+            (let goal = c.substitution().apply(TyData::alias_ty(goal_alias)))
+            (if goal != ty)!
+            ----------------------------- ("alias-eq")
+            (prove_normalize_via_alias_eq(
+                decls,
+                env,
+                assumptions,
+                via_alias,
+                via_ty,
+                goal_alias,
+            ) => Constrained(ty, c))
         )
     }
 }

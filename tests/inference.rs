@@ -136,7 +136,7 @@ fn existential_cannot_name_a_later_universal_in_alias_assumption() {
             the rule "existential-universal" at (prove_eq.rs) failed because
               condition evaluated to false: `env.universe(p) < env.universe(v)`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:278:1: no applicable rules for prove_normalize_via_eq { goal: ?ty_1, left: <!ty_0 as Iterator>::Item, right: u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:399:1: no applicable rules for prove_normalize_via_eq { goal: ?ty_1, left: <!ty_0 as Iterator>::Item, right: u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
             crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: u32 = <?ty_1 as Iterator>::Item, via: <!ty_0 as Iterator>::Item = u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
@@ -163,7 +163,7 @@ fn existential_cannot_name_a_later_universal_in_alias_assumption() {
             the rule "existential-universal" at (prove_eq.rs) failed because
               condition evaluated to false: `env.universe(p) < env.universe(v)`
 
-            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:278:1: no applicable rules for prove_normalize_via_eq { goal: ?ty_1, left: <!ty_0 as Iterator>::Item, right: u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+            crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:399:1: no applicable rules for prove_normalize_via_eq { goal: ?ty_1, left: <!ty_0 as Iterator>::Item, right: u32, assumptions: {<!ty_0 as Iterator>::Item = u32}, env: Env { variables: [?ty_1, !ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
             the rule "existential-nonvar" at (prove_eq.rs) failed because
               pattern `None` did not match value `Some(!ty_0)`
