@@ -16,13 +16,17 @@ judgment_fn! {
     /// Prove that an impl declaration satisfies every requirement imposed by its trait.
     ///
     /// This is a closed judgment: its caller supplies neither an environment nor assumptions.
-    /// The impl binder is instantiated universally. While checking the dictionary's supertrait
-    /// fields, the impl header is available at `IfBelow[ImplTrait]`. While checking an
-    /// associated value and its promised dictionaries, it is available at
-    /// `IfBelowG[ImplTrait]`. It never becomes an ordinary trait assumption. Program checking
-    /// establishes this judgment for every impl. Selection and projection normalization repeat it
-    /// defensively because lower-level solver entry points can be invoked on an unchecked
-    /// `Program`.
+    /// The impl binder is instantiated universally. The impl header is available as `Later`
+    /// evidence while checking the dictionary body: it is the guarded recursive handle to the
+    /// dictionary currently being constructed. Completing this closed judgment discharges that
+    /// handle and certifies a constructor from `IfBelow[ImplTrait](ImplConditions)` to ordinary,
+    /// completed evidence for the impl header. `Later` never becomes an ordinary trait
+    /// assumption. Impl application introduces its own branch-local `Later` handle when tying the
+    /// fixed point around this certified constructor.
+    ///
+    /// Program checking establishes this judgment for every impl. Selection and projection
+    /// normalization repeat it defensively because lower-level solver entry points can be invoked
+    /// on an unchecked `Program`.
     pub(crate) fn prove_impl_wf(
         program: Program,
         trait_impl: TraitImpl,
@@ -68,10 +72,10 @@ judgment_fn! {
                 program,
                 env,
                 (
-                    Mode::HasImpl.apply_assumption(impl_header),
+                    Mode::Later.apply_assumption(impl_header),
                     Mode::if_below(&impl_header.trait_id).apply_assumptions(conditions),
                 ),
-                Wc::for_all(supertrait),
+                Mode::Later.apply_goal(Wc::for_all(supertrait)),
             ) => c)
             ----------------------------- ("supertrait")
             (validate_impl_requirement(
@@ -88,7 +92,7 @@ judgment_fn! {
                 program,
                 env,
                 (
-                    Mode::HasImpl.apply_assumption(impl_header),
+                    Mode::Later.apply_assumption(impl_header),
                     Mode::if_below(&impl_header.trait_id).apply_assumptions(conditions),
                 ),
                 Wc::for_all(outlives),

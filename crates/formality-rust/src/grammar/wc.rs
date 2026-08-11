@@ -152,40 +152,44 @@ impl DowncastTo<()> for Wcs {
 /// for `P` are initialized/accessible.
 #[term]
 pub enum Mode {
-    /// Opaque evidence that `P` will hold.
+    /// Evidence that `P` will hold after the current guarded dictionary construction completes.
     ///
-    /// For a trait predicate, this represents a dictionary whose construction
-    /// has begun: the dictionary is known to exist if the enclosing proof
-    /// succeeds, but none of its fields may yet be inspected. It can close the
-    /// exact recursive occurrence of `P` without exposing associated values,
-    /// supertrait evidence, or associated-type-bound evidence.
-    #[grammar(HasImpl)]
-    HasImpl,
+    /// For a trait predicate, this is a recursive handle to the dictionary constructor being
+    /// checked or applied. The dictionary is known to exist if that branch succeeds, but none of
+    /// its fields may yet be inspected. `ImplWF` uses the handle to validate a constructor body;
+    /// impl application uses it as the scoped hypothesis of Löb induction. It never escapes the
+    /// judgment that introduces it.
+    #[grammar(Later)]
+    Later,
 
     /// `IfBelow[Root](P)` means that `P` holds completely when it refers to a trait
     /// `T < Root`. If `T = Root`, the impl header has been matched but its trait
     /// requirements have not yet been established. If `T` is unrelated to `Root`,
-    /// this is equivalent to `HasImpl(P)`.
+    /// it exposes no fields of `P`; unlike `Later(P)`, it does not promise that complete
+    /// evidence for `P` will eventually exist.
     ///
     /// For example, assuming `trait A: B` and `trait B: C`,
     /// then the predicates
     ///
-    /// * `IfBelow[A](T: A)` promises an impl for `T: A`, without established trait requirements.
+    /// * `IfBelow[A](T: A)` establishes the selected impl header at this frontier, without
+    ///   promising completion or establishing its trait requirements.
     /// * `IfBelow[A](T: B)` says that `T: B` and all its trait requirements are established.
-    /// * `IfBelow[C](T: A)` is equivalent to `HasImpl(T: A)`.
+    /// * `IfBelow[C](T: A)` exposes no fields of the `A` dictionary and does not promise that it
+    ///   will eventually be completed.
     #[grammar(IfBelow[$v0])]
     IfBelow(TraitId),
 
     /// `IfBelowG[Root](P)` also means that `P` holds completely when it refers to a
     /// trait `T < Root`. If `T = Root`, its supertrait requirements have been
     /// established, but its associated-type bounds have not. If `T` is unrelated
-    /// to `Root`, this is equivalent to `HasImpl(P)`.
+    /// to `Root`, it exposes no fields of `P` but does not promise eventual completion.
     ///
     /// For example, assuming `trait A: B` and `trait B: C`:
     ///
     /// * `IfBelowG[A](T: A)` says that `T: A` and its supertrait requirements are established.
     /// * `IfBelowG[A](T: B)` says that `T: B` and all its trait requirements are established.
-    /// * `IfBelowG[C](T: A)` is equivalent to `HasImpl(T: A)`.
+    /// * `IfBelowG[C](T: A)` exposes no fields of the `A` dictionary and does not promise that it
+    ///   will eventually be completed.
     #[grammar(IfBelowG[$v0])]
     IfBelowG(TraitId),
 }
@@ -328,7 +332,7 @@ mod tests {
     fn modes_use_constructor_notation() {
         let atom = term::<Wc>("u32: Debug");
         let cases = [
-            ("HasImpl(u32: Debug)", Mode::HasImpl.apply_goal(&atom)),
+            ("Later(u32: Debug)", Mode::Later.apply_goal(&atom)),
             (
                 "IfBelow[Root](u32: Debug)",
                 Mode::if_below(TraitId::new("Root")).apply_goal(&atom),

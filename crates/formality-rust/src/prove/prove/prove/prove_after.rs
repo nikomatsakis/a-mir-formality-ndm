@@ -28,21 +28,22 @@ fn proof_search_size(assumptions: &Wcs, goal: &Wcs) -> usize {
 
 /// Return the size discount for opaque recursive handles in `assumptions`.
 ///
-/// `HasImpl(G)` is the handle introduced while constructing evidence for atomic `G`. It can
-/// close that exact recursive occurrence, but no rule can inspect `G` through the handle. Its
-/// payload is also already represented by the active obligation that caused the handle to be
-/// introduced, so charge it less than an ordinary obligation. It cannot be free, however:
+/// `Later(G)` is the guarded handle introduced while checking or applying the dictionary
+/// constructor for atomic `G`. It can close that exact recursive occurrence, but no rule can
+/// inspect `G` through the handle. Its payload is also already represented by the active
+/// obligation that caused the handle to be introduced, so charge it less than an ordinary
+/// obligation. It cannot be free, however:
 /// accumulating distinct handles or growing the proposition inside one is proof-state growth and
 /// must eventually reach `max_size`. We therefore discount half its logical size, leaving the
 /// other half (rounded up) in the total. This discount applies only to assumptions: a
-/// zero-qualified goal still pays the full cost of the proposition it asks us to prove.
+/// later-qualified goal still pays the full cost of the proposition it asks us to prove.
 fn opaque_assumption_size_discount(assumptions: &Wcs) -> usize {
     assumptions
         .iter()
         .map(|assumption| match assumption {
             // `atomic.size()` is the logical `Wc` node plus the atomic payload once the
             // representational `AtomicPredicate` node has been discounted above.
-            Wc::Mode(Mode::HasImpl, atomic) => atomic.size() / 2,
+            Wc::Mode(Mode::Later, atomic) => atomic.size() / 2,
             _ => 0,
         })
         .sum()
@@ -101,30 +102,30 @@ mod tests {
         let second_proposition = term::<Wc>("Vec<Vec<u32>>: Debug");
         let goal: Wcs = proposition.clone().upcast();
         let empty = Wcs::t();
-        let zero_assumption: Wcs = Mode::HasImpl.apply_assumption(&proposition).upcast();
-        let larger_zero_assumption: Wcs =
-            Mode::HasImpl.apply_assumption(&second_proposition).upcast();
-        let two_zero_assumptions: Wcs = (
-            Mode::HasImpl.apply_assumption(&proposition),
-            Mode::HasImpl.apply_assumption(second_proposition),
+        let later_assumption: Wcs = Mode::Later.apply_assumption(&proposition).upcast();
+        let larger_later_assumption: Wcs =
+            Mode::Later.apply_assumption(&second_proposition).upcast();
+        let two_later_assumptions: Wcs = (
+            Mode::Later.apply_assumption(&proposition),
+            Mode::Later.apply_assumption(second_proposition),
         )
             .upcast();
         let ranked_assumption: Wcs = Mode::if_below(TraitId::new("Root"))
             .apply_assumption(&proposition)
             .upcast();
-        let zero_goal: Wcs = Mode::HasImpl.apply_goal(&proposition).upcast();
+        let later_goal: Wcs = Mode::Later.apply_goal(&proposition).upcast();
 
         let baseline = proof_search_size(&empty, &goal);
-        let opaque_size = proof_search_size(&zero_assumption, &goal);
-        let larger_opaque_size = proof_search_size(&larger_zero_assumption, &goal);
-        let two_opaque_size = proof_search_size(&two_zero_assumptions, &goal);
+        let opaque_size = proof_search_size(&later_assumption, &goal);
+        let larger_opaque_size = proof_search_size(&larger_later_assumption, &goal);
+        let two_opaque_size = proof_search_size(&two_later_assumptions, &goal);
         let full_size = proof_search_size(&ranked_assumption, &goal);
 
         assert!(baseline < opaque_size);
         assert!(opaque_size < full_size);
         assert!(opaque_size < larger_opaque_size);
         assert!(larger_opaque_size < two_opaque_size);
-        assert_eq!(proof_search_size(&empty, &zero_goal), baseline);
+        assert_eq!(proof_search_size(&empty, &later_goal), baseline);
     }
 
     #[test]

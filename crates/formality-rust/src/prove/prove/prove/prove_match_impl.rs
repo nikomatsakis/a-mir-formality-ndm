@@ -1,6 +1,4 @@
-use crate::grammar::{
-    ExistentialVar, Mode::HasImpl, Parameter, TraitImpl, TraitImplBoundData, TraitRef, Wcs,
-};
+use crate::grammar::{ExistentialVar, Parameter, TraitImpl, TraitImplBoundData, TraitRef, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, Program};
 use crate::prove::prove::prove::{prove, prove_impl_wf};
 use crate::prove::prove::{Constrained, Constraints, Env};
@@ -52,8 +50,8 @@ judgment_fn! {
     /// Open `candidate` with fresh existential variables and match its header against
     /// `requested_trait_ref`.
     ///
-    /// Matching takes place with a zero-capability recursive handle for the requested trait-ref.
-    /// This judgment never promotes that handle into an ordinary assumption. The caller remains
+    /// Matching uses only the caller's assumptions; it does not introduce either a recursive
+    /// `Later` handle or completed evidence for the requested trait-ref. The caller remains
     /// responsible for proving the returned impl's where-clauses in the appropriate context. The
     /// returned [`Constrained`] value carries both the environment extended with the impl variables
     /// and the substitution learned by matching; [`MatchedImpl`] carries the opened impl body those
@@ -77,7 +75,7 @@ judgment_fn! {
             (prove(
                 decls,
                 env,
-                (assumptions, HasImpl.apply_assumption(requested_trait_ref)),
+                assumptions,
                 Wcs::all_eq(requested_parameters, impl_parameters),
             ) => c)
             ----------------------------- ("match impl candidate")

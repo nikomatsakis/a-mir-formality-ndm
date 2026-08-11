@@ -42,6 +42,11 @@ judgment_fn! {
             ) => c)
         )
 
+        // Validated trait evidence can be used as ordinary evidence once the subject trait is
+        // complete at that validation frontier. For example, `IfBelow[A](B: C)` is complete when
+        // `C < A`. This also makes every dictionary projectable from `C` available: the trait
+        // dependency graph overapproximates projection, and the traits below `A` are closed under
+        // its edges (see the module-level invariant in `trait_order`).
         (
             (validation_evidence_is_complete(
                 decls,
@@ -137,9 +142,9 @@ judgment_fn! {
     ) => Constraints {
         debug(goal_validation, goal, via_validation, via, assumptions, env)
 
-        // Validation strength is indexed by the trait inside the proposition. In particular,
-        // `Valid(Zero, P)` can establish a seemingly nonzero view when that frontier exposes no
-        // fields of `P` (for example, when `P` is unrelated to the frontier's root trait).
+        // Validation strength is indexed by the trait inside the proposition. `Later(P)` can
+        // satisfy an `IfBelow` goal that exposes no fields of `P`, and two such opaque `IfBelow`
+        // frontiers can be rerooted. Neither conversion turns `IfBelow(P)` into `Later(P)`.
         (
             (validation_evidence_suffices(
                 decls,

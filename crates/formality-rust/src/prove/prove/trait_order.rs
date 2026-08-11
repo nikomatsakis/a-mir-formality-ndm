@@ -4,6 +4,18 @@
 //! graph is permitted to contain cycles. We order two traits only when they are
 //! in distinct strongly connected components: `A < B` when `B` can reach `A`
 //! but `A` cannot reach `B`.
+//!
+//! The graph must overapproximate dictionary projection: whenever evidence for
+//! trait `C` can expose evidence for trait `D`, there must be a path `C ->* D`.
+//! This makes the traits below any cutoff closed under projection. In
+//! particular, if `C < A` and `C ->* D`, then `A ->* C ->* D`. Moreover,
+//! `D ->* A` would imply `C ->* A`, contradicting `C < A`; hence `D < A`.
+//!
+//! This closure property is what permits `IfBelow[A](B: C)` to be used as
+//! complete evidence for `B: C` when `C < A`: every dictionary reachable from
+//! the `C` dictionary is also below `A`. Any new way of projecting trait
+//! evidence must therefore be reflected in the edges constructed by this
+//! module.
 
 use crate::grammar::{
     AssociatedTyBoundData, CrateItem, Fallible, Mode, Trait, TraitBoundData, TraitId,
@@ -224,51 +236,28 @@ judgment_fn! {
     }
 }
 
-/// The logical fields of one trait dictionary that are observable at a validation frontier.
-///
-/// This is intentionally proposition-indexed. For example, a `Bar` dictionary has an empty view
-/// at `IfBelow[Foo]` when `Bar` and `Foo` are unrelated, even though that same frontier has a
-/// nonempty view of a `Foo` dictionary.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct ValidationView {
-    associated_type_values: bool,
-    supertrait_requirements: bool,
-    associated_type_bounds: bool,
-}
-
-impl ValidationView {
-    fn is_subset_of(&self, available: &Self) -> bool {
-        (!self.associated_type_values || available.associated_type_values)
-            && (!self.supertrait_requirements || available.supertrait_requirements)
-            && (!self.associated_type_bounds || available.associated_type_bounds)
-    }
-}
-
-/// Compute the observable portion of a `subject` dictionary at `upto`.
-fn validation_view(program: &Program, upto: &Mode, subject: &TraitId) -> ValidationView {
-    match upto {
-        Mode::IfBelowG(root) if root == subject => ValidationView {
-            associated_type_values: true,
-            supertrait_requirements: true,
-            associated_type_bounds: false,
-        },
-
-        Mode::IfBelow(root) | Mode::IfBelowG(root)
-            if is_trait_less_than(program, subject, root) =>
-        {
-            ValidationView {
-                associated_type_values: true,
-                supertrait_requirements: true,
-                associated_type_bounds: true,
-            }
-        }
-
-        Mode::HasImpl | Mode::IfBelow(_) | Mode::IfBelowG(_) => ValidationView::default(),
-    }
-}
-
 fn is_trait_less_than(program: &Program, lower: &TraitId, upper: &TraitId) -> bool {
     trait_less_than(program, lower, upper).is_proven()
+}
+
+judgment_fn! {
+    /// `lower` is not strictly below `upper` in the program's immutable trait-order graph.
+    ///
+    /// This negative premise is stratified: the trait order depends only on declarations and does
+    /// not depend on validation evidence.
+    fn trait_not_less_than(
+        program: Program,
+        lower: TraitId,
+        upper: TraitId,
+    ) => () {
+        debug(program, lower, upper)
+
+        (
+            (if !is_trait_less_than(program, lower, upper))
+            -------------------------------------------- ("not less than")
+            (trait_not_less_than(program, lower, upper) => ())
+        )
+    }
 }
 
 judgment_fn! {
@@ -303,11 +292,88 @@ judgment_fn! {
         debug(program, available, required, subject)
 
         (
-            (let available_view = validation_view(program, available, subject))
-            (let required_view = validation_view(program, required, subject))
-            (if required_view.is_subset_of(available_view))!
-            -------------------------------------------- ("observable fields")
+            (if available == required)
+            -------------------------------------------- ("equal")
             (validation_evidence_suffices(program, available, required, subject) => ())
+        )
+
+        // `Later(P)` promises that complete evidence for `P` will eventually exist. It can
+        // therefore satisfy an `IfBelow` goal that exposes no fields of `P` at this cutoff. The
+        // converse does not hold: opaque `IfBelow` evidence does not promise eventual completion.
+        (
+            (trait_not_less_than(program, subject, required) => ())
+            -------------------------------------------- ("later to opaque if-below")
+            (validation_evidence_suffices(
+                program,
+                Mode::Later,
+                Mode::IfBelow(required),
+                subject,
+            ) => ())
+        )
+
+        (
+            (trait_less_than(program, required, available) => ())
+            -------------------------------------------- ("ordered if-below")
+            (validation_evidence_suffices(program, Mode::IfBelow(available), Mode::IfBelow(required), subject) => ())
+        )
+
+        // When neither cutoff exposes fields of `subject`, an `IfBelow` assumption may be
+        // rerooted. This preserves its conditional nature; in particular, it does not produce
+        // `Later(subject)`.
+        (
+            (trait_not_less_than(program, subject, available) => ())
+            (trait_not_less_than(program, subject, required) => ())
+            -------------------------------------------- ("opaque if-below")
+            (validation_evidence_suffices(
+                program,
+                Mode::IfBelow(available),
+                Mode::IfBelow(required),
+                subject,
+            ) => ())
+        )
+
+        (
+            (validation_evidence_suffices(program, Mode::if_below(available), Mode::if_below(required), subject) => ())
+            -------------------------------------------- ("if-below-g1")
+            (validation_evidence_suffices(program, Mode::IfBelowG(available), Mode::IfBelow(required), subject) => ())
+        )
+
+        // Below both roots, either frontier contains the complete subject dictionary. In
+        // particular, an `IfBelow` assumption can satisfy an `IfBelowG` goal without exposing any
+        // field that was not already complete.
+        (
+            (trait_less_than(program, subject, available) => ())
+            (trait_less_than(program, subject, required) => ())
+            -------------------------------------------- ("complete if-below to if-below-g")
+            (validation_evidence_suffices(
+                program,
+                Mode::IfBelow(available),
+                Mode::IfBelowG(required),
+                subject,
+            ) => ())
+        )
+
+        // `IfBelowG(required)` also exposes no fields of an unrelated `subject`. In that case an
+        // opaque `IfBelow` assumption can cross into the GAT-bound frontier without gaining any
+        // evidence. The inequality guard matters: at its own `IfBelowG` frontier, `subject` has
+        // observable fields even though the strict order is irreflexive.
+        (
+            (if subject != required)
+            (trait_not_less_than(program, subject, available) => ())
+            (trait_not_less_than(program, subject, required) => ())
+            -------------------------------------------- ("opaque if-below to if-below-g")
+            (validation_evidence_suffices(
+                program,
+                Mode::IfBelow(available),
+                Mode::IfBelowG(required),
+                subject,
+            ) => ())
+        )
+
+        (
+            (trait_less_than(program, required, available) => ())
+            -------------------------------------------- ("if-below-g")
+            (validation_evidence_suffices(program, Mode::IfBelowG(available), Mode::IfBelowG(required), subject) => ())
         )
     }
 }
@@ -489,31 +555,53 @@ mod tests {
                     }
 
                     trait Unrelated {}
+                    trait Other {}
                 }
             ]",
         );
-        let zero = Mode::HasImpl;
+        let later = Mode::Later;
         let supertraits = Mode::if_below(TraitId::new("Root"));
         let gat_bounds = Mode::if_below_g(TraitId::new("Root"));
+        let other = Mode::if_below(TraitId::new("Other"));
 
         // No field of an unrelated dictionary is visible at Root's frontier.
         assert!(evidence_suffices(
             &program,
-            &zero,
+            &later,
             &supertraits,
+            "Unrelated",
+        ));
+        assert!(!evidence_suffices(
+            &program,
+            &supertraits,
+            &later,
+            "Unrelated",
+        ));
+        assert!(evidence_suffices(
+            &program,
+            &supertraits,
+            &other,
+            "Unrelated",
+        ));
+        assert!(evidence_suffices(
+            &program,
+            &supertraits,
+            &gat_bounds,
             "Unrelated",
         ));
 
         // At its own supertrait frontier, Root is still opaque: selecting an impl reveals its
         // associated values through normalization, not through the trait-evidence view. Its
         // supertrait dictionary becomes visible only at the GAT-bound frontier.
-        assert!(evidence_suffices(&program, &zero, &supertraits, "Root",));
+        assert!(evidence_suffices(&program, &later, &supertraits, "Root",));
+        assert!(!evidence_suffices(&program, &supertraits, &later, "Root",));
         assert!(!evidence_suffices(
             &program,
             &supertraits,
             &gat_bounds,
             "Root",
         ));
+        assert!(!evidence_suffices(&program, &later, &gat_bounds, "Root",));
         assert!(evidence_suffices(
             &program,
             &gat_bounds,
@@ -528,7 +616,7 @@ mod tests {
             &gat_bounds,
             "Lower",
         ));
-        assert!(!evidence_suffices(&program, &zero, &supertraits, "Lower",));
+        assert!(!evidence_suffices(&program, &later, &supertraits, "Lower",));
     }
 
     #[test]

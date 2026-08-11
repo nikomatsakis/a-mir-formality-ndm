@@ -58,7 +58,7 @@ judgment_fn! {
             (match_impl_candidate(
                 decls,
                 env,
-                assumptions,
+                (assumptions, Mode::Later.apply_assumption(requested_trait_ref)),
                 requested_trait_ref,
                 candidate,
             ) => Constrained(
@@ -67,16 +67,18 @@ judgment_fn! {
             ))!
             (impl_contract(trait_impl) => (impl_header, conditions))
 
-            // A well-formed impl is a dictionary constructor from validated inputs to ordinary,
-            // completed `Implemented` evidence. Selecting the impl fixes its associated-type
-            // values, so its header is available at the supertrait frontier within this branch.
-            // That view still cannot expose the root dictionary's own supertrait or associated-
-            // bound fields.
+            // `prove_impl_wf` certifies a constructor
             //
+            //     IfBelow[ImplTrait](conditions) -> Implemented(impl_header).
+            //
+            // If the application-scoped `Later(requested_trait_ref)` handle establishes those
+            // inputs, composing the two gives `Later(Header) -> Implemented(Header)`. Löb
+            // induction closes that guarded cycle and yields the completed evidence returned by
+            // this rule.
             (prove_after(
                 decls,
                 c,
-                (assumptions, Mode::HasImpl.apply_assumption(impl_header)),
+                (assumptions, Mode::Later.apply_assumption(requested_trait_ref)),
                 Mode::if_below(&impl_header.trait_id).apply_goals(conditions),
             ) => c)
 
