@@ -222,9 +222,8 @@ judgment_fn! {
         //     --------------------------------
         //     verify(S, Impl, T: Super)
         //
-        // only when that supertrait field is available at `S`. At the supertrait frontier this
-        // requires both `Stronger < Impl` and `Super < Impl`; at the GAT-bound frontier the root
-        // trait's own supertrait fields are available too.
+        // only when that supertrait field is available at `S`. This requires both
+        // `Stronger < Impl` and `Super < Impl`.
         (
             (can_project_supertrait(
                 decls,

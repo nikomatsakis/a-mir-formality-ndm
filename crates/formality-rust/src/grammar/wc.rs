@@ -178,20 +178,6 @@ pub enum Mode {
     ///   will eventually be completed.
     #[grammar(IfBelow[$v0])]
     IfBelow(TraitId),
-
-    /// `IfBelowG[Root](P)` also means that `P` holds completely when it refers to a
-    /// trait `T < Root`. If `T = Root`, its supertrait requirements have been
-    /// established, but its associated-type bounds have not. If `T` is unrelated
-    /// to `Root`, it exposes no fields of `P` but does not promise eventual completion.
-    ///
-    /// For example, assuming `trait A: B` and `trait B: C`:
-    ///
-    /// * `IfBelowG[A](T: A)` says that `T: A` and its supertrait requirements are established.
-    /// * `IfBelowG[A](T: B)` says that `T: B` and all its trait requirements are established.
-    /// * `IfBelowG[C](T: A)` exposes no fields of the `A` dictionary and does not promise that it
-    ///   will eventually be completed.
-    #[grammar(IfBelowG[$v0])]
-    IfBelowG(TraitId),
 }
 
 #[derive(Copy, Clone)]
@@ -336,10 +322,6 @@ mod tests {
             (
                 "IfBelow[Root](u32: Debug)",
                 Mode::if_below(TraitId::new("Root")).apply_goal(&atom),
-            ),
-            (
-                "IfBelowG[Root](u32: Debug)",
-                Mode::if_below_g(TraitId::new("Root")).apply_goal(&atom),
             ),
         ];
 

@@ -146,6 +146,7 @@ judgment_fn! {
         // satisfy an `IfBelow` goal that exposes no fields of `P`, and two such opaque `IfBelow`
         // frontiers can be rerooted. Neither conversion turns `IfBelow(P)` into `Later(P)`.
         (
+            (if &goal_trait_ref.trait_id == via_trait_id)!
             (validation_evidence_suffices(
                 decls,
                 via_validation,

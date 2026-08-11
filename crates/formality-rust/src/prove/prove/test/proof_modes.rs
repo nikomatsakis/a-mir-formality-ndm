@@ -35,20 +35,12 @@ fn at_supertraits(wc: impl Upcast<Wc>) -> Wc {
     validated_at(Mode::if_below(TraitId::new("ValidationRoot")), wc)
 }
 
-fn at_gat_bounds(wc: impl Upcast<Wc>) -> Wc {
-    validated_at(Mode::if_below_g(TraitId::new("ValidationRoot")), wc)
-}
-
 fn assumed_at(upto: Mode, wc: impl Upcast<Wc>) -> Wc {
     upto.apply_assumption(wc)
 }
 
 fn assumed_at_supertraits(wc: impl Upcast<Wc>) -> Wc {
     assumed_at(Mode::if_below(TraitId::new("ValidationRoot")), wc)
-}
-
-fn assumed_at_gat_bounds(wc: impl Upcast<Wc>) -> Wc {
-    assumed_at(Mode::if_below_g(TraitId::new("ValidationRoot")), wc)
 }
 
 fn normalization_decls() -> Program {
@@ -116,18 +108,6 @@ fn higher_ranked_supertrait_decls() -> Program {
     }
 }
 
-fn transitive_supertrait_decls() -> Program {
-    Program {
-        crates: Arc::new(Program::program_from_items(vec![
-            term("trait Super where {}"),
-            term("trait Mid where Self : Super {}"),
-            term("trait Sub where Self : Mid {}"),
-            term("trait ValidationRoot where Self : Sub {}"),
-        ])),
-        ..Program::empty()
-    }
-}
-
 fn implication_validation_decls() -> Program {
     Program {
         crates: Arc::new(Program::program_from_items(vec![
@@ -175,10 +155,8 @@ fn normalization_can_use_a_sufficient_validated_input() {
 
 #[test]
 fn value_only_normalization_is_not_used_for_well_formedness() {
-    // `Family for X` may define `Out = NeedsBound<Y>` because its `Y: Family` input is
-    // available at `IfBelowG[Family]` during `ImplWF`, where `Family`'s `Y: Bound` supertrait
-    // field is visible. At the earlier `IfBelow[Family]` frontier, selecting the impl still
-    // reveals the associated value, but it must not make `NeedsBound<Y>` well formed.
+    // Selecting the impl reveals `Out = NeedsBound<Y>`, but that value alone must not make
+    // `NeedsBound<Y>` well formed. The selected value does not carry implied bound evidence.
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Bound where {}"),
@@ -306,33 +284,7 @@ fn observationally_zero_evidence_can_be_rebased() {
 }
 
 #[test]
-fn gat_bound_frontier_can_discharge_supertrait_frontier() {
-    let root = term::<Wc>("u32: ValidationRoot");
-    let result = prove_after(
-        decls(),
-        Constraints::none(()),
-        assumed_at_gat_bounds(&root),
-        at_supertraits(root),
-    );
-
-    assert!(result.is_proven());
-}
-
-#[test]
-fn supertrait_frontier_cannot_discharge_gat_bound_frontier() {
-    let root = term::<Wc>("u32: ValidationRoot");
-    let result = prove_after(
-        decls(),
-        Constraints::none(()),
-        assumed_at_supertraits(&root),
-        at_gat_bounds(root),
-    );
-
-    assert!(!result.is_proven());
-}
-
-#[test]
-fn completed_impl_can_construct_evidence_at_either_frontier() {
+fn completed_impl_can_construct_validation_evidence() {
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Prerequisite where {}"),
@@ -351,19 +303,11 @@ fn completed_impl_can_construct_evidence_at_either_frontier() {
     );
     assert!(supertrait_result.is_proven());
 
-    let gat_bound_result = prove_after(
-        &program,
-        Constraints::none(()),
-        (),
-        at_gat_bounds(term::<Wc>("u32: Marker")),
-    );
-    assert!(gat_bound_result.is_proven());
-
     let unsatisfied = prove_after(
         program,
         Constraints::none(()),
         (),
-        at_gat_bounds(term::<Wc>("bool: Marker")),
+        at_supertraits(term::<Wc>("bool: Marker")),
     );
     assert!(!unsatisfied.is_proven());
 }
@@ -383,7 +327,7 @@ fn unrelated_validated_input_cannot_satisfy_a_lower_ranked_impl_condition() {
         &program,
         Constraints::none(()),
         term::<Wc>("u32: Prerequisite"),
-        at_gat_bounds(term::<Wc>("u32: Marker")),
+        at_supertraits(term::<Wc>("u32: Marker")),
     );
     assert!(from_ordinary.is_proven());
 
@@ -391,69 +335,13 @@ fn unrelated_validated_input_cannot_satisfy_a_lower_ranked_impl_condition() {
         program,
         Constraints::none(()),
         assumed_at_supertraits(term::<Wc>("u32: Prerequisite")),
-        at_gat_bounds(term::<Wc>("u32: Marker")),
+        at_supertraits(term::<Wc>("u32: Marker")),
     );
     // The blanket impl makes `Prerequisite < Marker`, so applying it requires
     // `IfBelow[Marker](u32: Prerequisite)`. Evidence rooted at the unrelated
     // `ValidationRoot` is only opaque evidence for `Prerequisite` and cannot satisfy that
     // stronger requirement, even though `Prerequisite` currently declares no fields.
     assert!(!from_validated.is_proven());
-}
-
-#[test]
-fn ordinary_evidence_can_discharge_gat_bound_goal() {
-    let result = prove_after(decls(), Constraints::none(()), sub(), at_gat_bounds(sub()));
-
-    assert!(result.is_proven());
-}
-
-#[test]
-fn ranked_gat_bound_evidence_elaborates_supertrait() {
-    let result = prove_after(
-        decls(),
-        Constraints::none(()),
-        assumed_at_gat_bounds(sub()),
-        at_supertraits(term::<Wc>("u32: Super")),
-    );
-
-    assert!(result.is_proven());
-}
-
-#[test]
-fn gat_bound_validation_preserves_frontier_through_implication() {
-    let implication = Wc::implies(sub(), term::<Wc>("u32: Super"));
-    let result = prove_after(
-        decls(),
-        Constraints::none(()),
-        (),
-        at_gat_bounds(implication),
-    );
-
-    assert!(result.is_proven());
-}
-
-#[test]
-fn ranked_gat_bound_evidence_elaborates_transitive_supertrait() {
-    let result = prove_after(
-        transitive_supertrait_decls(),
-        Constraints::none(()),
-        assumed_at_gat_bounds(sub()),
-        at_supertraits(term::<Wc>("u32: Super")),
-    );
-
-    assert!(result.is_proven());
-}
-
-#[test]
-fn ranked_gat_bound_evidence_elaborates_higher_ranked_supertrait() {
-    let result = prove_after(
-        higher_ranked_supertrait_decls(),
-        Constraints::none(()),
-        assumed_at_gat_bounds(sub()),
-        at_supertraits(term::<Wc>("for<'a> u32: Super<'a>")),
-    );
-
-    assert!(result.is_proven());
 }
 
 #[test]
@@ -684,12 +572,12 @@ fn failed_impl_candidate_validation_assumptions_do_not_leak() {
 }
 
 #[test]
-fn failed_normalization_candidate_does_not_leak_its_provisional_alias_equality() {
-    // The first `X: Family` candidate temporarily fixes `Family::Output` to `Bad`, but its
+fn failed_normalization_candidate_does_not_leak_its_selected_value() {
+    // The first `X: Family` candidate temporarily selects `Family::Output = Bad`, but its
     // `Missing: Required` residual fails. The second candidate could satisfy its recursive
-    // `Family::Output: Marker` residual only if that first candidate's provisional equation
-    // escaped into the sibling branch. Its own provisional equation fixes the output to `Good`,
-    // which deliberately does not implement `Marker`.
+    // `Family::Output: Marker` residual only if that first candidate's selected value escaped
+    // into the sibling branch. Its own selected value is `Good`, which deliberately does not
+    // implement `Marker`.
     let program = Program {
         crates: Arc::new(Program::program_from_items(vec![
             term("trait Required where {}"),

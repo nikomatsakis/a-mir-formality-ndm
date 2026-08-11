@@ -1,6 +1,6 @@
 use crate::grammar::{
     AssociatedTyValue, AssociatedTyValueBoundData, Mode, Relation, TraitImpl, TraitImplBoundData,
-    TraitRef, Wc, Wcs,
+    TraitRef, Wc,
 };
 use crate::prove::prove::decls::Program;
 use crate::prove::prove::prove::prove;
@@ -128,25 +128,22 @@ judgment_fn! {
             } = associated_binder.instantiate_with(gat_subst)?)
             (let gat_goals = value_bounds.instantiate_with((impl_ty,))?)
 
-            (impl_contract(trait_impl) => (impl_header, conditions))
-            (let TraitRef { trait_id, parameters: _ } = impl_header)
+            (impl_contract(trait_impl) => (impl_header, impl_wc))
 
-            // Associated values and supertrait fields are already available while constructing
-            // the dictionaries promised by an associated type. The impl header and the impl/GAT
-            // conditions are therefore viewed at `IfBelowG[ImplTrait]` while checking both the
-            // concrete value's WF and each promised bound.
-            (let gat_bounds = Mode::if_below_g(trait_id))
-            (let conditions =
-                gat_bounds.apply_assumptions((conditions, trait_gat_wc)))
-            (let goals =
-                gat_bounds.apply_goals((Relation::well_formed(impl_ty), gat_goals)))
-            (let goals = Wcs::from_iter(
-                goals.iter().map(|goal| Wc::implies(conditions, goal))))
+            // A GAT contract is a function from the impl where-clauses and declaration-side GAT
+            // conditions to the value's WF and promised bounds. The impl where-clauses remain
+            // ranked assumptions; the GAT conditions are ordinary inputs to that function.
+            // Supertrait and outlives facts established while checking the impl can be derived
+            // again from these same premises when they are needed here.
             (prove(
                 program,
                 env,
-                gat_bounds.apply_assumption(impl_header),
-                goals,
+                (
+                    Mode::Later.apply_assumption(impl_header),
+                    Mode::if_below(&impl_header.trait_id).apply_assumptions(impl_wc),
+                    trait_gat_wc,
+                ),
+                Mode::Later.apply_goals((Relation::well_formed(impl_ty), gat_goals)),
             ) => c)
             ----------------------------- ("associated type")
             (validate_impl_requirement(
@@ -395,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn gat_bound_frontier_verifies_an_associated_bound() {
+    fn impl_header_can_verify_its_associated_bound() {
         let program = program(
             "[
                 crate test {
@@ -410,9 +407,9 @@ mod tests {
             ]",
         );
 
-        // The header is local `IfBelowG[Foo]` evidence while checking this associated-type
-        // guarantee, so it can satisfy the exact `u32: Foo` bound without becoming an ordinary
-        // trait assumption.
+        // This ought to be valid: the dictionary under construction will satisfy the exact
+        // recursive `u32: Foo` occurrence. A replacement for the old GAT frontier must express
+        // that without making the impl header an arbitrary ordinary trait assumption.
         assert!(impl_wf(&program, "Foo"));
     }
 

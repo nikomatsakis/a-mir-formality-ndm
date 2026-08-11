@@ -51,10 +51,11 @@ fn associated_ty_value(
 }
 
 judgment_fn! {
-    /// Normalize `p` one step using exactly the assumptions supplied by the caller.
+    /// Select the value of `p` one step using exactly the assumptions supplied by the caller.
     ///
-    /// Returns constraints and a semantically equivalent parameter `q`. For example,
-    /// `<Vec<T> as IntoIterator>::Item` normalizes to `T`.
+    /// Returns constraints and the value selected by the applicable impl. For example,
+    /// `<Vec<T> as IntoIterator>::Item` selects `T`. This judgment does not by itself establish
+    /// that the selected value is well formed or satisfies the associated type's declared bounds.
     pub fn prove_normalize(
         _decls: Program,
         env: Env,
@@ -71,14 +72,12 @@ judgment_fn! {
         )
 
         (
-            (let impl_validation = Mode::if_below_g(trait_id))
             (candidate in decls.raw_trait_impls_for(trait_id))
             (prove_normalize_via_impl_candidate(
                 decls,
                 env,
                 assumptions,
                 a,
-                impl_validation,
                 candidate,
             ) => normalized)
             ----------------------------- ("normalize-via-impl")
@@ -99,11 +98,11 @@ judgment_fn! {
 }
 
 judgment_fn! {
-    /// Reveal an associated value for use within a validation proof.
+    /// Select an associated value for use within a validation proof.
     ///
-    /// Unlike [`prove_normalize`], this does not establish that the selected value is well formed
-    /// or satisfies its declared bounds. Its result must therefore remain inside the validation
-    /// judgment that requested it.
+    /// Like [`prove_normalize`], this establishes only which value the impl selected, not that the
+    /// value is well formed or satisfies its declared bounds. Its result remains inside the
+    /// validation judgment that requested it.
     pub(super) fn prove_normalize_for_validation(
         _decls: Program,
         env: Env,
@@ -113,14 +112,12 @@ judgment_fn! {
         debug(a, assumptions, env)
 
         (
-            (let impl_validation = Mode::if_below(trait_id))
             (candidate in decls.raw_trait_impls_for(trait_id))
             (prove_normalize_via_impl_candidate(
                 decls,
                 env,
                 assumptions,
                 a,
-                impl_validation,
                 candidate,
             ) => normalized)
             ----------------------------- ("normalize value via impl")
@@ -141,17 +138,15 @@ judgment_fn! {
 }
 
 judgment_fn! {
-    /// Normalize an associated type through an impl whose where-clauses must be available at
-    /// `impl_validation`.
+    /// Select an associated type's value through an applicable impl.
     fn prove_normalize_via_impl_candidate(
         _decls: Program,
         env: Env,
         assumptions: Wcs,
         a: AliasTy,
-        impl_validation: Mode,
         candidate: ImplCandidate,
     ) => Constrained<Parameter> {
-        debug(a, impl_validation, candidate, assumptions, env)
+        debug(a, candidate, assumptions, env)
 
         (
             (let (gat_parameters, requested_trait_ref, gat_where_clauses) =
@@ -164,50 +159,26 @@ judgment_fn! {
                 requested_trait_ref,
                 candidate,
             ) => Constrained(
-                ProvedImpl {
-                    trait_impl: trait_impl @ TraitImplBoundData {
-                        trait_id: impl_trait_id,
-                        where_clauses: impl_where_clauses,
-                        ..
-                    },
-                    ..
-                },
+                ProvedImpl { trait_impl, .. },
                 c,
             ))
 
-            // The selected impl fixes its associated value before any dictionaries witnessing
-            // that value's bounds exist. Make that equation available only inside this candidate
-            // branch, then commit it only after every residual obligation below succeeds.
-            (let provisional_ty =
-                associated_ty_value(trait_impl, item_id, gat_parameters)?)
-            (let provisional_alias_eq = Predicate::alias_eq(a, provisional_ty))
-
-            // Selecting the impl makes its header available at the supertrait frontier. Ordinary
-            // normalization passes `IfBelowG[ImplTrait]` as `impl_validation`, matching the
-            // stronger inputs assumed by the GAT contract checked in `ImplWF`. Value-only
-            // normalization passes `IfBelow[ImplTrait]` instead, but its result remains
-            // confined to the surrounding validation proof.
-            //
-            // FIXME: Value-only normalization still requires declaration-side GAT conditions at
-            // `IfBelowG[ImplTrait]`. Determine whether selecting the value should require those
-            // conditions only at an earlier frontier too.
+            // Selecting the impl makes its header available only as `Later`. Prove the
+            // declaration-side GAT conditions before returning the selected value. In particular,
+            // do not assume `a = provisional_ty` while proving those conditions: this judgment is
+            // deliberately not an implied-bounds rule for the selected value.
             (prove_after(
                 decls,
                 c,
-                (
-                    assumptions,
-                    Mode::if_below(impl_trait_id).apply_assumption(trait_impl.trait_ref()),
-                    provisional_alias_eq,
-                ),
-                (
-                    impl_validation.apply_goals(impl_where_clauses),
-                    Mode::if_below_g(impl_trait_id).apply_goals(gat_where_clauses),
-                ),
+                (assumptions, Mode::Later.apply_assumption(trait_impl.trait_ref())),
+                gat_where_clauses,
             ) => c)
 
-            // The stronger impl and GAT obligations may have further constrained caller variables
+            // Impl selection and the GAT conditions may have further constrained caller variables
             // appearing in the selected value, so apply the latest substitution before returning.
+            (let provisional_ty = associated_ty_value(trait_impl, item_id, gat_parameters)?)
             (let ty = c.substitution().apply(provisional_ty))
+
             // Rust's constrained-impl-parameter rules guarantee that an impl-local variable cannot
             // escape through the associated value after the impl conditions have been proven.
             // a-mir-formality does not enforce those rules yet; see
@@ -226,7 +197,6 @@ judgment_fn! {
                     }),
                     ..
                 },
-                impl_validation,
                 candidate,
             ) => Constrained(ty, c))
         )

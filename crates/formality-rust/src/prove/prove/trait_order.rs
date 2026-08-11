@@ -150,17 +150,10 @@ judgment_fn! {
             -------------------------------------------- ("lower trait")
             (can_project_supertrait(
                 program,
-                Mode::IfBelow(root) | Mode::IfBelowG(root),
+                Mode::IfBelow(root),
                 source,
                 result,
             ) => ())
-        )
-
-        (
-            (if source == root)!
-            (trait_less_than(program, result, root) => ())
-            -------------------------------------------- ("root after supertraits")
-            (can_project_supertrait(program, Mode::IfBelowG(root), source, result) => ())
         )
     }
 }
@@ -182,7 +175,7 @@ judgment_fn! {
             -------------------------------------------- ("completed lower trait")
             (can_project_associated_bound(
                 program,
-                Mode::IfBelow(root) | Mode::IfBelowG(root),
+                Mode::IfBelow(root),
                 owner,
                 result,
             ) => ())
@@ -202,13 +195,7 @@ judgment_fn! {
         (
             (trait_less_than(program, owner, root) => ())
             -------------------------------------------- ("lower trait")
-            (can_project_outlives(program, Mode::IfBelow(root) | Mode::IfBelowG(root), owner) => ())
-        )
-
-        (
-            (if owner == root)!
-            -------------------------------------------- ("root after supertraits")
-            (can_project_outlives(program, Mode::IfBelowG(root), owner) => ())
+            (can_project_outlives(program, Mode::IfBelow(root), owner) => ())
         )
     }
 }
@@ -274,7 +261,7 @@ judgment_fn! {
             -------------------------------------------- ("strictly below")
             (validation_evidence_is_complete(
                 program,
-                Mode::IfBelow(root) | Mode::IfBelowG(root),
+                Mode::IfBelow(root),
                 subject,
             ) => ())
         )
@@ -332,49 +319,6 @@ judgment_fn! {
             ) => ())
         )
 
-        (
-            (validation_evidence_suffices(program, Mode::if_below(available), Mode::if_below(required), subject) => ())
-            -------------------------------------------- ("if-below-g1")
-            (validation_evidence_suffices(program, Mode::IfBelowG(available), Mode::IfBelow(required), subject) => ())
-        )
-
-        // Below both roots, either frontier contains the complete subject dictionary. In
-        // particular, an `IfBelow` assumption can satisfy an `IfBelowG` goal without exposing any
-        // field that was not already complete.
-        (
-            (trait_less_than(program, subject, available) => ())
-            (trait_less_than(program, subject, required) => ())
-            -------------------------------------------- ("complete if-below to if-below-g")
-            (validation_evidence_suffices(
-                program,
-                Mode::IfBelow(available),
-                Mode::IfBelowG(required),
-                subject,
-            ) => ())
-        )
-
-        // `IfBelowG(required)` also exposes no fields of an unrelated `subject`. In that case an
-        // opaque `IfBelow` assumption can cross into the GAT-bound frontier without gaining any
-        // evidence. The inequality guard matters: at its own `IfBelowG` frontier, `subject` has
-        // observable fields even though the strict order is irreflexive.
-        (
-            (if subject != required)
-            (trait_not_less_than(program, subject, available) => ())
-            (trait_not_less_than(program, subject, required) => ())
-            -------------------------------------------- ("opaque if-below to if-below-g")
-            (validation_evidence_suffices(
-                program,
-                Mode::IfBelow(available),
-                Mode::IfBelowG(required),
-                subject,
-            ) => ())
-        )
-
-        (
-            (trait_less_than(program, required, available) => ())
-            -------------------------------------------- ("if-below-g")
-            (validation_evidence_suffices(program, Mode::IfBelowG(available), Mode::IfBelowG(required), subject) => ())
-        )
     }
 }
 
@@ -383,10 +327,9 @@ judgment_fn! {
     ///
     /// Unlike trait evidence, these propositions have no dictionary whose observable fields can
     /// be compared. Keep them rooted at the frontier where they were established: identical
-    /// frontiers are interchangeable, and a same-root `GatBounds` fact can satisfy an earlier
-    /// `Supertraits` goal. This is intentionally incomplete for facts that might happen to be
-    /// observationally fieldless (such as equality across unrelated roots), but it cannot expose
-    /// evidence at a stronger or unrelated construction frontier.
+    /// frontiers are interchangeable. This is intentionally incomplete for facts that might
+    /// happen to be observationally fieldless (such as equality across unrelated roots), but it
+    /// cannot expose evidence at a different construction frontier.
     pub(crate) fn validation_frontier_suffices(
         _program: Program,
         available: Mode,
@@ -398,12 +341,6 @@ judgment_fn! {
             (if available == required)!
             -------------------------------------------- ("equal")
             (validation_frontier_suffices(_program, available, required) => ())
-        )
-
-        (
-            (if available_trait == required_trait)!
-            -------------------------------------------- ("later frontier")
-            (validation_frontier_suffices(_program, Mode::IfBelowG(available_trait), Mode::IfBelow(required_trait)) => ())
         )
     }
 }
@@ -508,8 +445,8 @@ fn is_reachable(program: &Program, source: &TraitId, target: &TraitId) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{trait_edge, trait_less_than, validation_evidence_suffices};
-    use crate::grammar::{Crates, Mode, TraitId};
+    use super::{trait_edge, trait_less_than};
+    use crate::grammar::{Crates, TraitId};
     use crate::prove::prove::Program;
     use crate::rust::term;
 
@@ -526,97 +463,6 @@ mod tests {
 
     fn less_than(program: &Program, lower: &str, upper: &str) -> bool {
         trait_less_than(program, TraitId::new(lower), TraitId::new(upper)).is_proven()
-    }
-
-    fn evidence_suffices(
-        program: &Program,
-        available: &Mode,
-        required: &Mode,
-        subject: &str,
-    ) -> bool {
-        validation_evidence_suffices(program, available, required, TraitId::new(subject))
-            .is_proven()
-    }
-
-    #[test]
-    fn frontier_strength_is_indexed_by_the_subject_trait() {
-        let program = program(
-            "[
-                crate test {
-                    trait Bound {}
-                    trait Super {}
-
-                    trait Lower where Self: Super {
-                        type Item: [Bound];
-                    }
-
-                    trait Root where Self: Lower {
-                        type Own: [];
-                    }
-
-                    trait Unrelated {}
-                    trait Other {}
-                }
-            ]",
-        );
-        let later = Mode::Later;
-        let supertraits = Mode::if_below(TraitId::new("Root"));
-        let gat_bounds = Mode::if_below_g(TraitId::new("Root"));
-        let other = Mode::if_below(TraitId::new("Other"));
-
-        // No field of an unrelated dictionary is visible at Root's frontier.
-        assert!(evidence_suffices(
-            &program,
-            &later,
-            &supertraits,
-            "Unrelated",
-        ));
-        assert!(!evidence_suffices(
-            &program,
-            &supertraits,
-            &later,
-            "Unrelated",
-        ));
-        assert!(evidence_suffices(
-            &program,
-            &supertraits,
-            &other,
-            "Unrelated",
-        ));
-        assert!(evidence_suffices(
-            &program,
-            &supertraits,
-            &gat_bounds,
-            "Unrelated",
-        ));
-
-        // At its own supertrait frontier, Root is still opaque: selecting an impl reveals its
-        // associated values through normalization, not through the trait-evidence view. Its
-        // supertrait dictionary becomes visible only at the GAT-bound frontier.
-        assert!(evidence_suffices(&program, &later, &supertraits, "Root",));
-        assert!(!evidence_suffices(&program, &supertraits, &later, "Root",));
-        assert!(!evidence_suffices(
-            &program,
-            &supertraits,
-            &gat_bounds,
-            "Root",
-        ));
-        assert!(!evidence_suffices(&program, &later, &gat_bounds, "Root",));
-        assert!(evidence_suffices(
-            &program,
-            &gat_bounds,
-            &supertraits,
-            "Root",
-        ));
-
-        // Lower < Root, so Lower's dictionary is complete at either Root frontier.
-        assert!(evidence_suffices(
-            &program,
-            &supertraits,
-            &gat_bounds,
-            "Lower",
-        ));
-        assert!(!evidence_suffices(&program, &later, &supertraits, "Lower",));
     }
 
     #[test]
