@@ -469,7 +469,7 @@ fn validated_relation_is_exact_and_not_ordinary_evidence() {
 }
 
 #[test]
-fn validated_outlives_is_not_ordinary_evidence() {
+fn if_below_outlives_is_ordinary_evidence() {
     let Wc::ForAll(binder) = term::<Wc>("for<'a, 'b> 'a : 'b") else {
         unreachable!()
     };
@@ -492,7 +492,7 @@ fn validated_outlives_is_not_ordinary_evidence() {
         assumed_outlives,
         outlives,
     );
-    assert!(!ordinary_result.is_proven());
+    assert!(ordinary_result.is_proven());
 }
 
 #[test]

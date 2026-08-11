@@ -1,7 +1,7 @@
-use crate::grammar::{AtomicPredicate, Mode, Predicate, TraitRef, Wc, Wcs};
+use crate::grammar::{AtomicPredicate, Mode, Predicate, Relation, TraitRef, Wc, Wcs};
 use crate::prove::prove::{
     decls::Program,
-    prove::{constraints::Constraints, env::Env, prove_after::prove_after},
+    prove::{constraints::Constraints, env::Env, prove_after::prove_after, prove_validate},
     validation_evidence_is_complete, validation_evidence_suffices, validation_frontier_suffices,
 };
 use formality_core::judgment_fn;
@@ -75,6 +75,31 @@ judgment_fn! {
                     )),
                 ),
                 goal_trait_ref @ TraitRef { .. },
+            ) => c)
+        )
+
+        // `IfBelow` is the identity transformation for outlives relations. A partial trait
+        // assumption can therefore establish an ordinary outlives goal when that field is
+        // available at its frontier. The validation root comes from the assumption itself;
+        // an unrelated or insufficiently constructed trait cannot satisfy the projection.
+        (
+            (prove_validate::prove_validate(
+                decls,
+                env,
+                assumptions,
+                Mode::if_below(root),
+                Relation::outlives(a, b),
+            ) => c)
+            ----------------------------- ("partial outlives requirement")
+            (prove_via_assumption(
+                decls,
+                env,
+                assumptions,
+                Wc::Mode(
+                    Mode::IfBelow(root),
+                    AtomicPredicate::Predicate(Predicate::IsImplemented(TraitRef { .. })),
+                ),
+                Relation::Outlives(a, b),
             ) => c)
         )
 

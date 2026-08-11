@@ -176,6 +176,9 @@ pub enum Mode {
     /// * `IfBelow[A](T: B)` says that `T: B` and all its trait requirements are established.
     /// * `IfBelow[C](T: A)` exposes no fields of the `A` dictionary and does not promise that it
     ///   will eventually be completed.
+    ///
+    /// Outlives relations have no partially constructed dictionary. Applying `IfBelow` to an
+    /// outlives relation is therefore the identity operation.
     #[grammar(IfBelow[$v0])]
     IfBelow(TraitId),
 }
@@ -189,8 +192,9 @@ enum ModePosition {
 impl Mode {
     /// Interpret `wc` as a goal at this dictionary-construction frontier.
     ///
-    /// Modes attach only to atomic predicates. Quantifiers preserve the current polarity, while
-    /// the premise of an implication flips between goal and assumption position.
+    /// Modes transform atomic predicates. `IfBelow` leaves outlives relations unqualified;
+    /// quantifiers preserve the current polarity, while the premise of an implication flips
+    /// between goal and assumption position.
     pub fn apply_goal(&self, wc: impl Upcast<Wc>) -> Wc {
         self.apply_at(wc.upcast(), ModePosition::Goal)
     }
@@ -218,6 +222,12 @@ impl Mode {
 
     fn apply_at(&self, wc: Wc, position: ModePosition) -> Wc {
         match wc {
+            Wc::Atomic(atomic @ AtomicPredicate::Relation(Relation::Outlives(_, _)))
+                if matches!(self, Mode::IfBelow(_)) =>
+            {
+                Wc::Atomic(atomic)
+            }
+
             Wc::Atomic(atomic) => Wc::Mode(self.clone(), atomic),
 
             Wc::ForAll(binder) => Wc::for_all(binder.map(|wc| self.apply_at(wc, position))),
@@ -374,6 +384,19 @@ mod tests {
         assert_eq!(
             mode.apply_goal(Wc::for_all(&binder)),
             Wc::for_all(binder.map(|goal| mode.apply_goal(goal))),
+        );
+    }
+
+    #[test]
+    fn if_below_is_the_identity_for_outlives_relations() {
+        let outlives = term::<Wc>("u32 : 'static");
+        let if_below = Mode::if_below(TraitId::new("Root"));
+
+        assert_eq!(if_below.apply_goal(&outlives), outlives);
+        assert_eq!(if_below.apply_assumption(&outlives), outlives);
+        assert_eq!(
+            Mode::Later.apply_goal(&outlives),
+            term::<Wc>("Later(u32 : 'static)"),
         );
     }
 
