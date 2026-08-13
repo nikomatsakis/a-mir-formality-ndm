@@ -4,7 +4,7 @@ use formality_core::test;
 #[test]
 fn early_normalization_reveals_value_inside_validation() {
     // While checking `Family for Z`, its where-clause supplies only a
-    // `IfBelow[Family]` view of `Y: Family`. That is enough to select the conditional
+    // `Partial[Family]` view of `Y: Family`. That is enough to select the conditional
     // `Family for X` impl and learn the value of `Family::Out`; learning the value does not
     // require a completed `Family` dictionary.
     //
@@ -139,7 +139,9 @@ fn associated_type_bound_cannot_validate_its_own_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: Later(X: Foo), assumptions: {Later(X: Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]
@@ -172,35 +174,11 @@ fn rust_135011_diverging_associated_type_cannot_supply_its_own_bound() {
         }
     }])
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<<!ty_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), via: IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:374:1: no applicable rules for prove_definition_value { definition: Later(!ty_1: MetaImpossible), goal_alias: <!ty_1 as MetaImpossible>::Assoc, assumptions: {for Later(<!ty_1 as MetaImpossible>::Assoc, <<!ty_1 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), Later(!ty_1: MetaImpossible), Later(!ty_1: MetaMetaImpossible)}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<<!ty_0 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), via: Later(!ty_0: MetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:374:1: no applicable rules for prove_definition_value { definition: Later(!ty_1: MetaMetaImpossible), goal_alias: <!ty_1 as MetaImpossible>::Assoc, assumptions: {for Later(<!ty_1 as MetaImpossible>::Assoc, <<!ty_1 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), Later(!ty_1: MetaImpossible), Later(!ty_1: MetaMetaImpossible)}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: Later(!ty_0: MetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: Later(!ty_0: MetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: MetaMetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<!ty_0 as MetaMetaImpossible>::Assoc), via: Later(!ty_0: MetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: Later(!ty_0: MetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: MetaMetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: MetaMetaImpossible, via: Later(!ty_0: MetaImpossible), assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: MetaMetaImpossible, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 4 }, trait_impl: impl MetaMetaImpossible for () { type Assoc = () ; } }, assumptions: {Later(!ty_0: MetaImpossible), IfBelow[MetaImpossible](!ty_0: MetaMetaImpossible)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_establish.rs:500:1: no applicable rules for prove_establish_goal { requirement: @ wf(<!ty_1 as MetaMetaImpossible>::Assoc), assumptions: {for Later(<!ty_1 as MetaImpossible>::Assoc, <<!ty_1 as MetaMetaImpossible>::Assoc as MetaImpossible>::Assoc), Later(!ty_1: MetaImpossible), Later(!ty_1: MetaMetaImpossible)}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -243,9 +221,8 @@ fn conditional_associated_type_bound_cannot_validate_its_own_impl() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: Later(X: MyTrait), assumptions: {X: MyTrait, Later(X: MyTrait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Ord, via: X: MyTrait, assumptions: {X: MyTrait, Later(X: MyTrait)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]
@@ -327,15 +304,12 @@ fn impl_wf_is_checked_for_every_header_substitution() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<!ty_0>), via: Later((): Family<!ty_0>), assumptions: {Later((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:374:1: no applicable rules for prove_definition_value { definition: Later((): Family<!ty_1>), goal_alias: <() as Family<!ty_1>>::Output, assumptions: {for Later(<() as Family<!ty_1>>::Output, NeedsRequired<!ty_1>), Later((): Family<!ty_1>)}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Required, via: Later((): Family<!ty_0>), assumptions: {Later((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {Later((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Required, via: Later((): Family<!ty_0>), assumptions: {Later((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {Later((): Family<!ty_0>)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: !ty_0: Required, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 1 }, trait_impl: impl Required for u32 { } }, assumptions: {}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
 }
 
 #[test]
@@ -400,11 +374,10 @@ fn associated_type_value_must_be_well_formed() {
     }])
     .skip_execute()
     .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(NeedsRequired<Ground>), via: Later((): Foo), assumptions: {Later((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
+        crates/formality-rust/src/prove/prove/prove/prove_normalize.rs:374:1: no applicable rules for prove_definition_value { definition: Later((): Foo), goal_alias: <() as Foo>::Bar, assumptions: {for Later(<() as Foo>::Bar, NeedsRequired<Ground>), Later((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Required, via: Later((): Foo), assumptions: {Later((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Ground: Required, via: Later((): Foo), assumptions: {Later((): Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]
@@ -423,7 +396,9 @@ fn unused_invalid_associated_type_impl_is_rejected() {
             type Output = Bad;
         }
     }])
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later((): Family), assumptions: {Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]
@@ -456,7 +431,9 @@ fn associated_type_projection_requires_a_valid_impl() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later(X: Foo), assumptions: {Later(X: Foo)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]
@@ -567,7 +544,9 @@ fn validation_antecedent_does_not_leak_to_sibling_requirement() {
         }
     }])
     .skip_execute()
-    .err(expect_test::expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later((): Family), assumptions: {Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    .err(expect_test::expect![[r#"
+        the rule "assumption" at (prove_wc.rs) failed because
+          expression evaluated to an empty collection: `assumptions`"#]]);
 }
 
 #[test]
@@ -609,9 +588,9 @@ fn validation_antecedent_does_not_leak_to_impl_where_clause() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later((): Family), assumptions: {for Later(<() as Family>::Introduce, ()), Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later((): Family), assumptions: {for Later(<() as Family>::Introduce, ()), Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later(<() as Family>::Introduce, ()), assumptions: {for Later(<() as Family>::Introduce, ()), Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: Bad: Required, via: Later(<() as Family>::Introduce, ()), assumptions: {for Later(<() as Family>::Introduce, ()), Later((): Family)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: true } }"#]]);
 }
 
 #[test]

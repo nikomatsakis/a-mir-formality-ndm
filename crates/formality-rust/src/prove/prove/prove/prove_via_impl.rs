@@ -1,7 +1,7 @@
-use crate::grammar::{ExistentialVar, Mode, Parameter, TraitImplBoundData, TraitRef, Wcs};
+use crate::grammar::{ExistentialVar, Parameter, TraitImplBoundData, TraitRef, Wc, Wcs};
 use crate::prove::prove::decls::{ImplCandidate, ImplId, Program};
 use crate::prove::prove::prove::{impl_contract, match_impl_candidate, prove_after};
-use crate::prove::prove::{Constrained, Constraints, Env};
+use crate::prove::prove::{partial, Constrained, Constraints, Env};
 use formality_core::{judgment_fn, To};
 
 use super::prove_match_impl::MatchedImpl;
@@ -58,32 +58,43 @@ judgment_fn! {
             (match_impl_candidate(
                 decls,
                 env,
-                (assumptions, Mode::Later.apply_assumption(requested_trait_ref)),
+                (assumptions, Wc::later(requested_trait_ref)),
                 requested_trait_ref,
                 candidate,
             ) => Constrained(
                 MatchedImpl { impl_variables, trait_impl, .. },
                 c,
             ))!
-            (impl_contract(trait_impl) => (impl_header, conditions, definitions))
+            (impl_contract(trait_impl) => (
+                TraitRef {
+                    trait_id: impl_trait_id,
+                    parameters: _,
+                },
+                conditions,
+                definitions,
+            ))
+            (partial(
+                decls,
+                impl_trait_id,
+                conditions,
+            ) => partial_conditions)
 
             // `prove_impl_wf` certifies a constructor
             //
-            //     IfBelow[ImplTrait](conditions) -> Implemented(impl_header).
+            //     Partial[ImplTrait](conditions) -> Implemented(impl_header).
             //
-            // If the application-scoped `Later(requested_trait_ref)` handle establishes those
-            // inputs, composing the two gives `Later(Header) -> Implemented(Header)`. Löb
-            // induction closes that guarded cycle and yields the completed evidence returned by
-            // this rule.
+            // `Partial` is the same translation here as in impl well-formedness. If the
+            // application-scoped `Later(requested_trait_ref)` handle establishes that translated
+            // input contract, the checked constructor produces the completed dictionary.
             (prove_after(
                 decls,
                 c,
                 (
                     assumptions,
-                    Mode::Later.apply_assumption(requested_trait_ref),
-                    Mode::Later.apply_assumptions(definitions),
+                    Wc::later(requested_trait_ref),
+                    definitions,
                 ),
-                Mode::if_below(&impl_header.trait_id).apply_goals(conditions),
+                partial_conditions,
             ) => c)
 
             // Snapshot everything learned about the impl before removing its fresh variables.

@@ -11,15 +11,15 @@
 //! particular, if `C < A` and `C ->* D`, then `A ->* C ->* D`. Moreover,
 //! `D ->* A` would imply `C ->* A`, contradicting `C < A`; hence `D < A`.
 //!
-//! This closure property is what permits `IfBelow[A](B: C)` to be used as
+//! This closure property is what permits `Partial[A](B: C)` to translate to
 //! complete evidence for `B: C` when `C < A`: every dictionary reachable from
 //! the `C` dictionary is also below `A`. Any new way of projecting trait
 //! evidence must therefore be reflected in the edges constructed by this
 //! module.
 
 use crate::grammar::{
-    AssociatedTyBoundData, CrateItem, Fallible, Mode, Trait, TraitBoundData, TraitId,
-    TraitImplBoundData, TraitRef, Ty, Variable, WhereBound, WhereClause,
+    AssociatedTyBoundData, CrateItem, Fallible, Trait, TraitBoundData, TraitId, TraitImplBoundData,
+    TraitRef, Ty, Variable, WhereBound, WhereClause,
 };
 use crate::prove::prove::{as_associated_ty, trait_header_clause, Program, TraitHeaderClause};
 use crate::prove::ToWcs;
@@ -135,72 +135,6 @@ judgment_fn! {
 }
 
 judgment_fn! {
-    /// A provisional `source` dictionary may expose its `result` supertrait at `upto`.
-    pub(crate) fn can_project_supertrait(
-        program: Program,
-        upto: Mode,
-        source: TraitId,
-        result: TraitId,
-    ) => () {
-        debug(program, upto, source, result)
-
-        (
-            (trait_less_than(program, source, root) => ())
-            (trait_less_than(program, result, root) => ())
-            -------------------------------------------- ("lower trait")
-            (can_project_supertrait(
-                program,
-                Mode::IfBelow(root),
-                source,
-                result,
-            ) => ())
-        )
-    }
-}
-
-judgment_fn! {
-    /// A provisional dictionary may expose an associated-type-bound dictionary at `upto`.
-    /// The owner must be strictly earlier: the root's own bound dictionaries are being built.
-    pub(crate) fn can_project_associated_bound(
-        program: Program,
-        upto: Mode,
-        owner: TraitId,
-        result: TraitId,
-    ) => () {
-        debug(program, upto, owner, result)
-
-        (
-            (trait_less_than(program, owner, root) => ())
-            (trait_less_than(program, result, root) => ())
-            -------------------------------------------- ("completed lower trait")
-            (can_project_associated_bound(
-                program,
-                Mode::IfBelow(root),
-                owner,
-                result,
-            ) => ())
-        )
-    }
-}
-
-judgment_fn! {
-    /// An outlives field follows the same construction frontier as a supertrait field.
-    pub(crate) fn can_project_outlives(
-        program: Program,
-        upto: Mode,
-        owner: TraitId,
-    ) => () {
-        debug(program, upto, owner)
-
-        (
-            (trait_less_than(program, owner, root) => ())
-            -------------------------------------------- ("lower trait")
-            (can_project_outlives(program, Mode::IfBelow(root), owner) => ())
-        )
-    }
-}
-
-judgment_fn! {
     /// Traits transitively reachable by one or more dependency edges.
     pub(crate) fn trait_reachable(
         program: Program,
@@ -219,128 +153,6 @@ judgment_fn! {
             (trait_edge(program, intermediate) => target)
             -------------------------------------------- ("transitive")
             (trait_reachable(program, source) => target)
-        )
-    }
-}
-
-fn is_trait_less_than(program: &Program, lower: &TraitId, upper: &TraitId) -> bool {
-    trait_less_than(program, lower, upper).is_proven()
-}
-
-judgment_fn! {
-    /// `lower` is not strictly below `upper` in the program's immutable trait-order graph.
-    ///
-    /// This negative premise is stratified: the trait order depends only on declarations and does
-    /// not depend on validation evidence.
-    fn trait_not_less_than(
-        program: Program,
-        lower: TraitId,
-        upper: TraitId,
-    ) => () {
-        debug(program, lower, upper)
-
-        (
-            (if !is_trait_less_than(program, lower, upper))
-            -------------------------------------------- ("not less than")
-            (trait_not_less_than(program, lower, upper) => ())
-        )
-    }
-}
-
-judgment_fn! {
-    /// Evidence at `validation` contains a complete dictionary for `subject`.
-    pub(crate) fn validation_evidence_is_complete(
-        program: Program,
-        validation: Mode,
-        subject: TraitId,
-    ) => () {
-        debug(program, validation, subject)
-
-        (
-            (trait_less_than(program, subject, root) => ())
-            -------------------------------------------- ("strictly below")
-            (validation_evidence_is_complete(
-                program,
-                Mode::IfBelow(root),
-                subject,
-            ) => ())
-        )
-    }
-}
-
-judgment_fn! {
-    /// Evidence for `subject` at `available` contains every field required at `required`.
-    pub(crate) fn validation_evidence_suffices(
-        program: Program,
-        available: Mode,
-        required: Mode,
-        subject: TraitId,
-    ) => () {
-        debug(program, available, required, subject)
-
-        (
-            (if available == required)
-            -------------------------------------------- ("equal")
-            (validation_evidence_suffices(program, available, required, subject) => ())
-        )
-
-        // `Later(P)` promises that complete evidence for `P` will eventually exist. It can
-        // therefore satisfy an `IfBelow` goal that exposes no fields of `P` at this cutoff. The
-        // converse does not hold: opaque `IfBelow` evidence does not promise eventual completion.
-        (
-            (trait_not_less_than(program, subject, required) => ())
-            -------------------------------------------- ("later to opaque if-below")
-            (validation_evidence_suffices(
-                program,
-                Mode::Later,
-                Mode::IfBelow(required),
-                subject,
-            ) => ())
-        )
-
-        (
-            (trait_less_than(program, required, available) => ())
-            -------------------------------------------- ("ordered if-below")
-            (validation_evidence_suffices(program, Mode::IfBelow(available), Mode::IfBelow(required), subject) => ())
-        )
-
-        // When neither cutoff exposes fields of `subject`, an `IfBelow` assumption may be
-        // rerooted. This preserves its conditional nature; in particular, it does not produce
-        // `Later(subject)`.
-        (
-            (trait_not_less_than(program, subject, available) => ())
-            (trait_not_less_than(program, subject, required) => ())
-            -------------------------------------------- ("opaque if-below")
-            (validation_evidence_suffices(
-                program,
-                Mode::IfBelow(available),
-                Mode::IfBelow(required),
-                subject,
-            ) => ())
-        )
-
-    }
-}
-
-judgment_fn! {
-    /// Conservative frontier comparison for validated propositions with no subject trait.
-    ///
-    /// Unlike trait evidence, these propositions have no dictionary whose observable fields can
-    /// be compared. Keep them rooted at the frontier where they were established: identical
-    /// frontiers are interchangeable. This is intentionally incomplete for facts that might
-    /// happen to be observationally fieldless (such as equality across unrelated roots), but it
-    /// cannot expose evidence at a different construction frontier.
-    pub(crate) fn validation_frontier_suffices(
-        _program: Program,
-        available: Mode,
-        required: Mode,
-    ) => () {
-        debug(available, required)
-
-        (
-            (if available == required)!
-            -------------------------------------------- ("equal")
-            (validation_frontier_suffices(_program, available, required) => ())
         )
     }
 }

@@ -1,16 +1,9 @@
-use crate::grammar::{
-    AssociatedTyValue, AssociatedTyValueBoundData, Mode, Relation, TraitImpl, TraitImplBoundData,
-    TraitRef, Wc,
-};
+use crate::grammar::{TraitImpl, TraitImplBoundData, TraitRef, Wc};
 use crate::prove::prove::decls::Program;
-use crate::prove::prove::prove::prove;
-use crate::prove::prove::{
-    trait_requirement, AssociatedTyRequirement, AssociatedTyRequirementData, TraitRequirement,
-    TraitRequirementBoundData,
-};
+use crate::prove::prove::{partial, trait_requirements};
 use formality_core::judgment_fn;
 
-use super::{constraints::Constraints, env::Env, impl_contract};
+use super::{env::Env, impl_contract, prove_establish};
 
 judgment_fn! {
     /// Prove that an impl declaration satisfies every requirement imposed by its trait.
@@ -19,10 +12,11 @@ judgment_fn! {
     /// The impl binder is instantiated universally. The impl header is available as `Later`
     /// evidence while checking the dictionary body: it is the guarded recursive handle to the
     /// dictionary currently being constructed. Completing this closed judgment discharges that
-    /// handle and certifies a constructor from `IfBelow[ImplTrait](ImplConditions)` to ordinary,
-    /// completed evidence for the impl header. `Later` never becomes an ordinary trait
-    /// assumption. Impl application introduces its own branch-local `Later` handle when tying the
-    /// fixed point around this certified constructor.
+    /// handle and certifies a constructor from `Partial[ImplTrait](ImplConditions)` to ordinary,
+    /// completed evidence for the impl header. `Partial` is a translation, not a proposition: it
+    /// exposes completed dictionary fields strictly below the impl trait and otherwise supplies
+    /// only guarded `Later` handles. Impl application proves exactly this same translated input
+    /// contract.
     ///
     /// Program checking establishes this judgment for every impl. Selection and projection
     /// normalization repeat it defensively because lower-level solver entry points can be invoked
@@ -34,127 +28,38 @@ judgment_fn! {
         debug(trait_impl, program)
 
         (
-            (let (env, impl_data @ TraitImplBoundData { trait_id, .. }) =
+            (let (env, impl_data @ TraitImplBoundData { .. }) =
                 Env::default().instantiate_universally(binder))
-            (let TraitRef { parameters, .. } = impl_data.trait_ref())
-            (let trait_def = program.trait_def(trait_id))
-            (trait_requirement(trait_def) => requirements)
+            (impl_contract(impl_data) => (
+                impl_header @ TraitRef {
+                    trait_id: impl_trait_id,
+                    parameters: _,
+                },
+                conditions,
+                definitions,
+            ))
+            (partial(
+                program,
+                impl_trait_id,
+                conditions,
+            ) => partial_conditions)
+            (let trait_def = program.trait_def(impl_trait_id))
+            (trait_requirements(trait_def) => requirements)
             (for_all(requirement in requirements)
-                (let TraitRequirement { binder: requirement_binder } = requirement)
-                (let requirement =
-                    requirement_binder.instantiate_with(parameters)?)
-                (validate_impl_requirement(
+                (prove_establish(
                     program,
                     env,
-                    impl_data,
+                    impl_header,
+                    (
+                        Wc::later(impl_header),
+                        definitions,
+                        partial_conditions,
+                    ),
                     requirement,
                 ) => c)
                 (if c.unconditionally_true()))
             ----------------------------- ("requirements")
             (prove_impl_wf(program, TraitImpl { binder, safety: _ }) => ())
-        )
-    }
-}
-
-judgment_fn! {
-    /// Validate one instantiated requirement of an impl declaration.
-    fn validate_impl_requirement(
-        program: Program,
-        env: Env,
-        trait_impl: TraitImplBoundData,
-        requirement: TraitRequirementBoundData,
-    ) => Constraints {
-        debug(trait_impl, requirement, env, program)
-
-        (
-            (impl_contract(trait_impl) => (impl_header, conditions, _definitions))
-            (prove(
-                program,
-                env,
-                (
-                    Mode::Later.apply_assumption(impl_header),
-                    Mode::if_below(&impl_header.trait_id).apply_assumptions(conditions),
-                ),
-                Mode::Later.apply_goal(Wc::for_all(supertrait)),
-            ) => c)
-            ----------------------------- ("supertrait")
-            (validate_impl_requirement(
-                program,
-                env,
-                trait_impl,
-                TraitRequirementBoundData::Supertrait(supertrait),
-            ) => c)
-        )
-
-        (
-            (impl_contract(trait_impl) => (impl_header, conditions, _definitions))
-            (prove(
-                program,
-                env,
-                (
-                    Mode::Later.apply_assumption(impl_header),
-                    Mode::if_below(&impl_header.trait_id).apply_assumptions(conditions),
-                ),
-                Wc::for_all(outlives),
-            ) => c)
-            ----------------------------- ("outlives")
-            (validate_impl_requirement(
-                program,
-                env,
-                trait_impl,
-                TraitRequirementBoundData::Outlives(outlives),
-            ) => c)
-        )
-
-        (
-            // Universally instantiate the associated type's parameters. These variables are
-            // independent of the universally instantiated impl parameters already in `env`.
-            (let (env, gat_subst) = env.universal_substitution(associated_binder))
-
-            // Instantiate this impl's associated value with the same GAT arguments.
-            (AssociatedTyValue { binder: value_binder, .. } in
-                trait_impl.assoc_ty_value(associated_id))
-            (if value_binder.kinds() == associated_binder.kinds())!
-            (let AssociatedTyValueBoundData {
-                where_clauses: _,
-                ty: impl_ty,
-            } = value_binder.instantiate_with(gat_subst)?)
-
-            // Substitute that value into the bounds promised by the trait and instantiate the
-            // declaration-side GAT conditions with the same arguments.
-            (let AssociatedTyRequirementData {
-                where_clauses: trait_gat_wc,
-                value_bounds,
-            } = associated_binder.instantiate_with(gat_subst)?)
-            (let gat_goals = value_bounds.instantiate_with((impl_ty,))?)
-
-            (impl_contract(trait_impl) => (impl_header, impl_wc, _definitions))
-
-            // A GAT contract is a function from the impl where-clauses and declaration-side GAT
-            // conditions to the value's WF and promised bounds. The impl where-clauses remain
-            // ranked assumptions; the GAT conditions are ordinary inputs to that function.
-            // Supertrait and outlives facts established while checking the impl can be derived
-            // again from these same premises when they are needed here.
-            (prove(
-                program,
-                env,
-                (
-                    Mode::Later.apply_assumption(impl_header),
-                    Mode::if_below(&impl_header.trait_id).apply_assumptions(impl_wc),
-                    trait_gat_wc,
-                ),
-                Mode::Later.apply_goals((Relation::well_formed(impl_ty), gat_goals)),
-            ) => c)
-            ----------------------------- ("associated type")
-            (validate_impl_requirement(
-                program,
-                env,
-                trait_impl,
-                AssociatedTyRequirement {
-                    id: associated_id,
-                    binder: associated_binder,
-                },
-            ) => c.pop_subst(gat_subst))
         )
     }
 }
@@ -242,6 +147,34 @@ mod tests {
 
         assert!(!impl_wf(&program, "A"));
         assert!(!impl_wf(&program, "B"));
+    }
+
+    #[test]
+    fn associated_bound_cannot_use_its_own_implication_input() {
+        let crates = term::<Crates>(
+            "[
+                crate test {
+                    trait Ord {}
+                    trait MyTrait {
+                        type Gat: [Ord] where Self: MyTrait;
+                    }
+                    struct X {}
+                    struct Bad {}
+                    impl MyTrait for X {
+                        type Gat = Bad where X: MyTrait;
+                    }
+                    fn require_ord<T>(value: T) -> () where T: Ord { trusted }
+                    fn main() -> () {
+                        let bad: Bad = Bad {};
+                        require_ord::<Bad>(bad);
+                    }
+                }
+            ]",
+        );
+        let program = crates.to_prove_decls();
+
+        assert!(!impl_wf(&program, "MyTrait"));
+        assert!(!crate::check::check_all_crates(crates).is_proven());
     }
 
     #[test]

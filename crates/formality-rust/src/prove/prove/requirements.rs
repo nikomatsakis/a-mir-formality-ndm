@@ -16,8 +16,9 @@ use super::{
 
 /// A semantic requirement declared by a trait.
 ///
-/// The outer binder binds `Self` and the trait's explicit parameters. Requirements retain their
-/// category so impl validation does not have to recover it from a flattened where-clause.
+/// The outer binder binds `Self` and the trait's explicit parameters. Impl well-formedness
+/// establishes this structured form directly. [`prove_via_trait_requirement`] lowers the selected
+/// field only when ordinary proof search applies a completed dictionary.
 #[term]
 pub struct TraitRequirement {
     pub binder: Binder<TraitRequirementBoundData>,
@@ -275,7 +276,7 @@ judgment_fn! {
     /// Returning one set makes a trait with no requirements a successful empty result while
     /// preserving failures from classifying or constructing any individual requirement. Method
     /// where-clauses are intentionally not considered here.
-    pub fn trait_requirement(
+    pub fn trait_requirements(
         trait_def: Trait,
     ) => Set<TraitRequirement> {
         debug(trait_def)
@@ -290,7 +291,7 @@ judgment_fn! {
             ) => header_requirements)
             (associated_ty_requirements(variables, trait_items) => associated_ty_requirements)
             ----------------------------- ("trait requirements")
-            (trait_requirement(Trait {
+            (trait_requirements(Trait {
                 safety: _,
                 id: _,
                 binder,
@@ -575,7 +576,7 @@ mod tests {
     use formality_macros::test;
 
     fn requirements_for(trait_def: impl Upcast<Trait>) -> Set<TraitRequirement> {
-        trait_requirement(trait_def).into_singleton().unwrap().0
+        trait_requirements(trait_def).into_singleton().unwrap().0
     }
 
     #[test]

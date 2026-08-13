@@ -451,9 +451,9 @@ fn move_out_of_shared_ref() {
                     }
                 }
             }]).err(expect_test::expect![[r#"
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <&?lt_0 Datum as Derefable>::Target: Copy, via: @ wf(?lt_0), assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: <&?lt_0 Datum as Derefable>::Target: Copy, via: @ wf(?lt_0), assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <&?lt_0 Datum as Derefable>::Target: Copy, via: @ wf(?lt_1), assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: <&?lt_0 Datum as Derefable>::Target: Copy, via: @ wf(?lt_1), assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: <&?lt_0 Datum as Derefable>::Target: Copy, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 1 }, trait_impl: impl Copy for () { } }, assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
@@ -509,9 +509,9 @@ fn move_out_of_mut_ref() {
                     }
                 }
             }]).err(expect_test::expect![[r#"
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <&mut ?lt_0 Datum as Derefable>::Target: Copy, via: @ wf(?lt_0), assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: <&mut ?lt_0 Datum as Derefable>::Target: Copy, via: @ wf(?lt_0), assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: <&mut ?lt_0 Datum as Derefable>::Target: Copy, via: @ wf(?lt_1), assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: <&mut ?lt_0 Datum as Derefable>::Target: Copy, via: @ wf(?lt_1), assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: <&mut ?lt_0 Datum as Derefable>::Target: Copy, candidate: ImplCandidate { id: ImplId { crate_index: 0, item_index: 1 }, trait_impl: impl Copy for () { } }, assumptions: {@ wf(?lt_0), @ wf(?lt_1)}, env: Env { variables: [?lt_0, ?lt_1], bias: Soundness, pending: [], allow_pending_outlives: true } }
 
@@ -966,11 +966,11 @@ fn undeclared_universal_region_relationship() {
                     }
                 }
             }]).err(expect_test::expect![[r#"
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !lt_1 : !lt_2, via: @ wf(?lt_0), assumptions: {@ wf(?lt_0)}, env: Env { variables: [!lt_1, !lt_2, ?lt_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: !lt_1 : !lt_2, via: @ wf(?lt_0), assumptions: {@ wf(?lt_0)}, env: Env { variables: [!lt_1, !lt_2, ?lt_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_1, b: !lt_2, assumptions: {@ wf(?lt_0)}, env: Env { variables: [!lt_1, !lt_2, ?lt_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !lt_1 : !lt_2, via: @ wf(?lt_0), assumptions: {@ wf(?lt_0)}, env: Env { variables: [!lt_1, !lt_2, ?lt_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: !lt_1 : !lt_2, via: @ wf(?lt_0), assumptions: {@ wf(?lt_0)}, env: Env { variables: [!lt_1, !lt_2, ?lt_0], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_1, b: !lt_2, assumptions: {@ wf(?lt_0)}, env: Env { variables: [!lt_1, !lt_2, ?lt_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
@@ -1057,11 +1057,11 @@ fn undeclared_transitive_universal_region_relationship() {
                     return v1;
                 }
             }]).err(expect_test::expect![[r#"
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !lt_0 : !lt_2, via: !lt_0 : !lt_1, assumptions: {!lt_0 : !lt_1}, env: Env { variables: [!lt_0, !lt_1, !lt_2], bias: Soundness, pending: [], allow_pending_outlives: false } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: !lt_0 : !lt_2, via: !lt_0 : !lt_1, assumptions: {!lt_0 : !lt_1}, env: Env { variables: [!lt_0, !lt_1, !lt_2], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_0, b: !lt_2, assumptions: {!lt_0 : !lt_1}, env: Env { variables: [!lt_0, !lt_1, !lt_2], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
-                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !lt_0 : !lt_2, via: !lt_0 : !lt_1, assumptions: {!lt_0 : !lt_1}, env: Env { variables: [!lt_0, !lt_1, !lt_2], bias: Soundness, pending: [], allow_pending_outlives: false } }
+                crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: !lt_0 : !lt_2, via: !lt_0 : !lt_1, assumptions: {!lt_0 : !lt_1}, env: Env { variables: [!lt_0, !lt_1, !lt_2], bias: Soundness, pending: [], allow_pending_outlives: false } }
 
                 crates/formality-rust/src/prove/prove/prove/prove_outlives.rs:8:1: no applicable rules for prove_outlives { a: !lt_0, b: !lt_2, assumptions: {!lt_0 : !lt_1}, env: Env { variables: [!lt_0, !lt_1, !lt_2], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }

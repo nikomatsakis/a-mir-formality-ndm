@@ -1,6 +1,6 @@
 use crate::grammar::{
-    AtomicPredicate, NegTraitImpl, NegTraitImplBoundData, Predicate, Relation, Trait,
-    TraitBoundData, TraitRef, Wc, WcData, Wcs,
+    Mode, NegTraitImpl, NegTraitImplBoundData, Predicate, Relation, Trait, TraitBoundData,
+    TraitRef, Wc, WcData, Wcs,
 };
 use formality_core::judgment_fn;
 
@@ -15,44 +15,17 @@ use crate::prove::prove::{
         prove_eq::prove_eq,
         prove_outlives::prove_outlives,
         prove_sub::prove_sub,
-        prove_validate::prove_validate,
         prove_via_assumption::prove_via_assumption,
         prove_via_impl::prove_via_impl,
         prove_wf::prove_wf,
     },
-    requirements::{prove_via_trait_requirement, trait_requirement},
-    validation_evidence_suffices, validation_frontier_suffices,
+    requirements::{prove_via_trait_requirement, trait_requirements},
 };
 
 use super::constraints::{Constrained, Constraints};
 
-fn has_unconditional_proof_from_assumptions(decls: &Program, assumptions: &Wcs, goal: &Wc) -> bool {
-    assumptions
-        .iter()
-        .any(|assumption| match (&assumption, goal) {
-            (Wc::Mode(assumption_validation, assumption_goal), Wc::Mode(goal_validation, goal))
-                if assumption_goal == goal =>
-            {
-                match assumption_goal {
-                    AtomicPredicate::Predicate(Predicate::IsImplemented(trait_ref)) => {
-                        validation_evidence_suffices(
-                            decls,
-                            assumption_validation,
-                            goal_validation,
-                            &trait_ref.trait_id,
-                        )
-                        .is_proven()
-                    }
-
-                    _ => {
-                        validation_frontier_suffices(decls, assumption_validation, goal_validation)
-                            .is_proven()
-                    }
-                }
-            }
-
-            _ => &assumption == goal,
-        })
+fn has_unconditional_proof_from_assumptions(assumptions: &Wcs, goal: &Wc) -> bool {
+    assumptions.iter().any(|assumption| &assumption == goal)
 }
 
 judgment_fn! {
@@ -81,7 +54,7 @@ judgment_fn! {
         // derivation can improve it. This cut would not be valid if the result were more
         // restrictive.
         trivial(
-            has_unconditional_proof_from_assumptions(&decls, &assumptions, &goal)
+            has_unconditional_proof_from_assumptions(&assumptions, &goal)
             => Constraints::none(env)
         )
         cut(Constraints::unconditionally_true)
@@ -101,13 +74,13 @@ judgment_fn! {
         )
 
         (
-            (prove_validate(decls, env, assumptions, validation, validate_goal) => c)
+            (prove_wc(decls, env, assumptions, later_goal) => c)
             --- ("mode")
             (prove_wc(
                 decls,
                 env,
                 assumptions,
-                WcData::Mode(validation, validate_goal),
+                WcData::Mode(Mode::Later, later_goal),
             ) => c)
         )
 
@@ -125,19 +98,14 @@ judgment_fn! {
                 env,
                 assumptions,
                 a,
-                validation.apply_goal(goal),
+                Wc::later(goal),
             ) => c)!
-            ----------------------------- ("validation assumption")
-            (prove_wc(
-                decls,
-                env,
-                assumptions,
-                Wc::Mode(validation, goal),
-            ) => c)
+            ----------------------------- ("later assumption")
+            (prove_wc(decls, env, assumptions, Wc::Mode(Mode::Later, goal)) => c)
         )
 
-        // Prove an ordinary trait goal with a concrete impl. Validation goals enter the ordinary
-        // solver through `prove_validate`'s `verify_x(G) :- G` rule.
+        // Prove an ordinary trait goal with a concrete impl. A complete ordinary proof also
+        // establishes a `Later` goal through the mode rule above.
         (
             (candidate in decls.raw_trait_impls_for(trait_id))!
             (prove_via_impl(
@@ -216,7 +184,7 @@ judgment_fn! {
         // consequences to the assumptions eagerly.
         (
             (trait_def in decls.traits())
-            (trait_requirement(trait_def) => requirements)
+            (trait_requirements(trait_def) => requirements)
             (requirement in requirements)
             (prove_via_trait_requirement(
                 decls,

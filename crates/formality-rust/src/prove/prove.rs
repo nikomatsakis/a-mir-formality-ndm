@@ -12,11 +12,13 @@ use crate::rust::FormalityLang;
 
 mod db;
 mod decls;
+mod partial;
 mod prove;
 mod requirements;
 mod trait_order;
 
 pub use decls::*;
+pub(crate) use partial::partial;
 pub use prove::combinators;
 pub use prove::prove;
 pub(crate) use prove::prove_fully_normalize_parameter;
@@ -27,10 +29,7 @@ pub(crate) use prove::{prove_via_impl, ProvedImpl};
 pub use prove::{Bias, Env, MaxUniverse, Universe};
 pub use prove::{Constrained, Constraints};
 pub use requirements::*;
-pub(crate) use trait_order::{
-    can_project_associated_bound, can_project_outlives, can_project_supertrait,
-    validation_evidence_is_complete, validation_evidence_suffices, validation_frontier_suffices,
-};
+pub(crate) use trait_order::trait_less_than;
 
 #[cfg(test)]
 mod test;

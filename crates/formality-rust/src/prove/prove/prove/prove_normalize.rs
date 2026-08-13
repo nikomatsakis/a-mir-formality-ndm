@@ -17,6 +17,7 @@ use crate::prove::prove::{
 };
 
 use super::constraints::Constraints;
+use super::prove_establish::prove_establish_goals;
 
 fn associated_ty_parts<'a>(
     decls: &Program,
@@ -113,14 +114,14 @@ judgment_fn! {
 
         (
             (definition in assumptions)!
-            (prove_normalize_via_later_alias_eq(
+            (prove_normalize_via(
                 decls,
                 env,
                 assumptions,
                 definition,
                 a,
             ) => normalized)
-            ----------------------------- ("normalize value via later definition")
+            ----------------------------- ("normalize value via definition")
             (prove_normalize_for_validation(
                 decls,
                 env,
@@ -188,7 +189,7 @@ judgment_fn! {
             (prove_after(
                 decls,
                 c,
-                (assumptions, Mode::Later.apply_assumption(trait_impl.trait_ref())),
+                (assumptions, Wc::later(trait_impl.trait_ref())),
                 gat_where_clauses,
             ) => c)
 
@@ -334,13 +335,23 @@ judgment_fn! {
                 via_ty,
                 goal_alias,
             ) => Constrained(ty, c))
-            (let (_, gat_where_clauses) = decls.associated_ty_requirements(via_alias)?)
-            (prove_after(
+            (let (
+                TraitRef {
+                    trait_id,
+                    parameters: _,
+                },
+                gat_where_clauses,
+            ) = decls.associated_ty_requirements(via_alias)?)
+            (let (assumptions, gat_where_clauses) =
+                c.substitution().apply((assumptions, gat_where_clauses)))
+            (prove_establish_goals(
                 decls,
-                c,
+                c.env(),
+                trait_id,
                 assumptions,
-                Mode::Later.apply_goals(gat_where_clauses),
-            ) => c)
+                gat_where_clauses,
+            ) => c2)
+            (let c = c.seq(c2))
             (let ty = c.substitution().apply(ty))
             ----------------------------- ("later alias-eq")
             (prove_normalize_via_later_alias_eq(
@@ -361,8 +372,73 @@ judgment_fn! {
 }
 
 judgment_fn! {
-    /// Use an associated-type equality as an oriented normalization witness.
-    fn prove_normalize_via_alias_eq(
+    /// Read the value fixed by one provisional impl definition.
+    ///
+    /// Unlike ordinary normalization, this judgment may return the projection itself. Impl WF
+    /// still has to establish that selected value's well-formedness and bounds, but an exact
+    /// recursive definition is meaningful even though repeatedly normalizing it would not make
+    /// progress.
+    pub(super) fn prove_definition_value(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        definition: Wc,
+        goal_alias: AliasTy,
+    ) => Constrained<Parameter> {
+        debug(definition, goal_alias, assumptions, env)
+
+        (
+            (select_alias_eq_value(
+                decls,
+                env,
+                assumptions,
+                via_alias,
+                via_ty,
+                goal_alias,
+            ) => value)
+            ----------------------------- ("later definition")
+            (prove_definition_value(
+                decls,
+                env,
+                assumptions,
+                WcData::Mode(
+                    Mode::Later,
+                    crate::grammar::AtomicPredicate::Predicate(Predicate::AliasEq(
+                        via_alias,
+                        via_ty,
+                    )),
+                ),
+                goal_alias @ AliasTy { .. },
+            ) => value)
+        )
+
+        (
+            (let (env, subst) = env.existential_substitution(binder))
+            (let definition = binder.instantiate_with(subst)?)
+            (prove_definition_value(
+                decls,
+                env,
+                assumptions,
+                definition,
+                goal_alias,
+            ) => Constrained(value, c))
+            (let c = c.pop_subst(subst))
+            (assert c.env().encloses(value))
+            ----------------------------- ("forall")
+            (prove_definition_value(
+                decls,
+                env,
+                assumptions,
+                WcData::ForAll(binder),
+                goal_alias,
+            ) => Constrained(value, c))
+        )
+    }
+}
+
+judgment_fn! {
+    /// Match an oriented associated-type equality and return its selected value.
+    fn select_alias_eq_value(
         _decls: Program,
         env: Env,
         assumptions: Wcs,
@@ -381,7 +457,43 @@ judgment_fn! {
                 goal_alias,
             ) => c)
             (let ty = c.substitution().apply(via_ty))
-            (let goal = c.substitution().apply(TyData::alias_ty(goal_alias)))
+            ----------------------------- ("alias-eq")
+            (select_alias_eq_value(
+                decls,
+                env,
+                assumptions,
+                via_alias,
+                via_ty,
+                goal_alias,
+            ) => Constrained(ty, c))
+        )
+    }
+}
+
+judgment_fn! {
+    /// Use an associated-type equality as an oriented normalization witness.
+    fn prove_normalize_via_alias_eq(
+        _decls: Program,
+        env: Env,
+        assumptions: Wcs,
+        via_alias: AliasTy,
+        via_ty: Ty,
+        goal_alias: AliasTy,
+    ) => Constrained<Parameter> {
+        debug(via_alias, via_ty, goal_alias, assumptions, env)
+
+        (
+            (select_alias_eq_value(
+                decls,
+                env,
+                assumptions,
+                via_alias,
+                via_ty,
+                goal_alias,
+            ) => Constrained(ty, c))
+            (let goal = c
+                .substitution()
+                .apply(TyData::alias_ty(goal_alias).to_parameter()))
             (if goal != ty)!
             ----------------------------- ("alias-eq")
             (prove_normalize_via_alias_eq(

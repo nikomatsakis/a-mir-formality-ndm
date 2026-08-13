@@ -102,7 +102,7 @@ fn drop_impl_extra_where_clause() {
         the rule "assumption" at (prove_wc.rs) failed because
           expression evaluated to an empty collection: `assumptions`
 
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_0: Clone, via: Later(MyStruct<!ty_0>: Drop), assumptions: {Later(MyStruct<!ty_0>: Drop)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
+        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: !ty_0: Clone, via: Later(MyStruct<!ty_0>: Drop), assumptions: {Later(MyStruct<!ty_0>: Drop)}, env: Env { variables: [!ty_0], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]])
 }
 
 /// Drop impl for a concrete instantiation (not generic enough).

@@ -85,7 +85,7 @@ judgment_fn! {
 mod test {
     use std::sync::Arc;
 
-    use crate::grammar::{Mode, Parameter, TraitId, Wc};
+    use crate::grammar::{Parameter, Relation, Wc};
     use crate::prove::prove::decls::Program;
     use crate::rust::term;
     use formality_macros::test;
@@ -114,21 +114,14 @@ mod test {
     }
 
     #[test]
-    fn subtyping_alias_can_use_a_sufficient_validated_input() {
-        let program = normalization_decls();
-        let alias = term::<Parameter>("<u32 as Family>::Output");
-        let target = term::<Parameter>("bool");
-
-        let from_validation = prove_sub(
-            &program,
+    fn subtyping_alias_can_use_an_ordinary_input() {
+        let from_ordinary = prove_sub(
+            normalization_decls(),
             (),
-            Mode::if_below(TraitId::new("Family")).apply_assumption(term::<Wc>("u32: Marker")),
-            &alias,
-            &target,
+            term::<Wc>("u32: Marker"),
+            term::<Parameter>("<u32 as Family>::Output"),
+            term::<Parameter>("bool"),
         );
-        assert!(from_validation.is_proven());
-
-        let from_ordinary = prove_sub(program, (), term::<Wc>("u32: Marker"), alias, target);
         assert!(from_ordinary.is_proven());
     }
 
@@ -137,13 +130,13 @@ mod test {
         let result = prove_sub(
             continuation_decls(),
             (),
-            Mode::if_below(TraitId::new("Family")).apply_assumption(term::<Wc>("u32 = bool")),
+            Wc::later(term::<Relation>("u32 = bool")),
             term::<Parameter>("<u32 as Family>::Output"),
             term::<Parameter>("bool"),
         );
 
         // Normalizing the alias yields `u32`, but the remaining `u32 <: bool` goal receives the
-        // caller's assumptions unchanged. The wrapped equality therefore cannot discharge the
+        // caller's assumptions unchanged. The guarded equality therefore cannot discharge the
         // ordinary subtyping goal.
         assert!(!result.is_proven());
     }

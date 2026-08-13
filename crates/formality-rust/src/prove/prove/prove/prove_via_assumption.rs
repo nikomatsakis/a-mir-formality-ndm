@@ -1,8 +1,7 @@
-use crate::grammar::{AtomicPredicate, Mode, Predicate, Relation, TraitRef, Wc, Wcs};
+use crate::grammar::{AtomicPredicate, Mode, Predicate, TraitRef, Wc, Wcs};
 use crate::prove::prove::{
     decls::Program,
-    prove::{constraints::Constraints, env::Env, prove_after::prove_after, prove_validate},
-    validation_evidence_is_complete, validation_evidence_suffices, validation_frontier_suffices,
+    prove::{constraints::Constraints, env::Env, prove_after::prove_after},
 };
 use formality_core::judgment_fn;
 
@@ -39,67 +38,6 @@ judgment_fn! {
                 assumptions,
                 Wc::Mode(via_validation, via),
                 Wc::Mode(goal_validation, goal),
-            ) => c)
-        )
-
-        // Validated trait evidence can be used as ordinary evidence once the subject trait is
-        // complete at that validation frontier. For example, `IfBelow[A](B: C)` is complete when
-        // `C < A`. This also makes every dictionary projectable from `C` available: the trait
-        // dependency graph overapproximates projection, and the traits below `A` are closed under
-        // its edges (see the module-level invariant in `trait_order`).
-        (
-            (validation_evidence_is_complete(
-                decls,
-                validation,
-                via_trait_id,
-            ) => ())!
-            (prove_via_assumption(
-                decls,
-                env,
-                assumptions,
-                via_trait_ref,
-                goal_trait_ref,
-            ) => c)
-            ----------------------------- ("completed validation evidence")
-            (prove_via_assumption(
-                decls,
-                env,
-                assumptions,
-                Wc::Mode(
-                    validation,
-                    AtomicPredicate::Predicate(Predicate::IsImplemented(
-                        via_trait_ref @ TraitRef {
-                            trait_id: via_trait_id,
-                            parameters: _,
-                        },
-                    )),
-                ),
-                goal_trait_ref @ TraitRef { .. },
-            ) => c)
-        )
-
-        // `IfBelow` is the identity transformation for outlives relations. A partial trait
-        // assumption can therefore establish an ordinary outlives goal when that field is
-        // available at its frontier. The validation root comes from the assumption itself;
-        // an unrelated or insufficiently constructed trait cannot satisfy the projection.
-        (
-            (prove_validate::prove_validate(
-                decls,
-                env,
-                assumptions,
-                Mode::if_below(root),
-                Relation::outlives(a, b),
-            ) => c)
-            ----------------------------- ("partial outlives requirement")
-            (prove_via_assumption(
-                decls,
-                env,
-                assumptions,
-                Wc::Mode(
-                    Mode::IfBelow(root),
-                    AtomicPredicate::Predicate(Predicate::IsImplemented(TraitRef { .. })),
-                ),
-                Relation::Outlives(a, b),
             ) => c)
         )
 
@@ -167,17 +105,8 @@ judgment_fn! {
     ) => Constraints {
         debug(goal_validation, goal, via_validation, via, assumptions, env)
 
-        // Validation strength is indexed by the trait inside the proposition. `Later(P)` can
-        // satisfy an `IfBelow` goal that exposes no fields of `P`, and two such opaque `IfBelow`
-        // frontiers can be rerooted. Neither conversion turns `IfBelow(P)` into `Later(P)`.
         (
-            (if &goal_trait_ref.trait_id == via_trait_id)!
-            (validation_evidence_suffices(
-                decls,
-                via_validation,
-                goal_validation,
-                via_trait_id,
-            ) => ())
+            (if via_validation == goal_validation)!
             (prove_via_assumption(
                 decls,
                 env,
@@ -193,7 +122,7 @@ judgment_fn! {
                 via_validation,
                 goal_validation,
                 via_trait_ref @ TraitRef {
-                    trait_id: via_trait_id,
+                    trait_id: _,
                     parameters: _,
                 },
                 goal_trait_ref @ TraitRef { .. },
@@ -201,11 +130,7 @@ judgment_fn! {
         )
 
         (
-            (validation_frontier_suffices(
-                decls,
-                via_validation,
-                goal_validation,
-            ) => ())
+            (if via_validation == goal_validation)!
             (prove_via_assumption(
                 decls,
                 env,
@@ -232,11 +157,7 @@ judgment_fn! {
         )
 
         (
-            (validation_frontier_suffices(
-                decls,
-                via_validation,
-                goal_validation,
-            ) => ())
+            (if via_validation == goal_validation)!
             (prove_via_assumption(
                 decls,
                 env,

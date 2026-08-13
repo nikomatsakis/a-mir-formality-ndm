@@ -6,7 +6,7 @@ use formality_core::{
 
 use crate::{grammar::WhereClause, prove::ToWcs};
 
-use super::{Binder, Parameter, Predicate, Relation, TraitId, TraitRef};
+use super::{Binder, Parameter, Predicate, Relation, TraitRef};
 
 #[term($set)]
 #[derive(Default)]
@@ -145,11 +145,7 @@ impl DowncastTo<()> for Wcs {
     }
 }
 
-/// The index in a modal `Mode(P)` judgment that describes how much of the
-/// proposition `P` must be (or has been, for assumptions) proven.
-///
-/// Alternatively, it can be viewed as describing what parts of the dictionary
-/// for `P` are initialized/accessible.
+/// A guarded proposition used while constructing an impl dictionary.
 #[term]
 pub enum Mode {
     /// Evidence that `P` will hold after the current guarded dictionary construction completes.
@@ -161,94 +157,6 @@ pub enum Mode {
     /// judgment that introduces it.
     #[grammar(Later)]
     Later,
-
-    /// `IfBelow[Root](P)` means that `P` holds completely when it refers to a trait
-    /// `T < Root`. If `T = Root`, the impl header has been matched but its trait
-    /// requirements have not yet been established. If `T` is unrelated to `Root`,
-    /// it exposes no fields of `P`; unlike `Later(P)`, it does not promise that complete
-    /// evidence for `P` will eventually exist.
-    ///
-    /// For example, assuming `trait A: B` and `trait B: C`,
-    /// then the predicates
-    ///
-    /// * `IfBelow[A](T: A)` establishes the selected impl header at this frontier, without
-    ///   promising completion or establishing its trait requirements.
-    /// * `IfBelow[A](T: B)` says that `T: B` and all its trait requirements are established.
-    /// * `IfBelow[C](T: A)` exposes no fields of the `A` dictionary and does not promise that it
-    ///   will eventually be completed.
-    ///
-    /// Outlives relations have no partially constructed dictionary. Applying `IfBelow` to an
-    /// outlives relation is therefore the identity operation.
-    #[grammar(IfBelow[$v0])]
-    IfBelow(TraitId),
-}
-
-#[derive(Copy, Clone)]
-enum ModePosition {
-    Goal,
-    Assumption,
-}
-
-impl Mode {
-    /// Interpret `wc` as a goal at this dictionary-construction frontier.
-    ///
-    /// Modes transform atomic predicates. `IfBelow` leaves outlives relations unqualified;
-    /// quantifiers preserve the current polarity, while the premise of an implication flips
-    /// between goal and assumption position.
-    pub fn apply_goal(&self, wc: impl Upcast<Wc>) -> Wc {
-        self.apply_at(wc.upcast(), ModePosition::Goal)
-    }
-
-    /// Interpret `wc` as an assumption at this dictionary-construction frontier.
-    pub fn apply_assumption(&self, wc: impl Upcast<Wc>) -> Wc {
-        self.apply_at(wc.upcast(), ModePosition::Assumption)
-    }
-
-    /// Interpret every clause in `wcs` as a goal at this frontier.
-    pub fn apply_goals(&self, wcs: impl Upcast<Wcs>) -> Wcs {
-        self.apply_wcs_at(wcs.upcast(), ModePosition::Goal)
-    }
-
-    /// Interpret every clause in `wcs` as an assumption at this frontier.
-    pub fn apply_assumptions(&self, wcs: impl Upcast<Wcs>) -> Wcs {
-        self.apply_wcs_at(wcs.upcast(), ModePosition::Assumption)
-    }
-
-    fn apply_wcs_at(&self, wcs: Wcs, position: ModePosition) -> Wcs {
-        wcs.into_iter()
-            .map(|wc| self.apply_at(wc, position))
-            .collect()
-    }
-
-    fn apply_at(&self, wc: Wc, position: ModePosition) -> Wc {
-        match wc {
-            Wc::Atomic(atomic @ AtomicPredicate::Relation(Relation::Outlives(_, _)))
-                if matches!(self, Mode::IfBelow(_)) =>
-            {
-                Wc::Atomic(atomic)
-            }
-
-            Wc::Atomic(atomic) => Wc::Mode(self.clone(), atomic),
-
-            Wc::ForAll(binder) => Wc::for_all(binder.map(|wc| self.apply_at(wc, position))),
-
-            Wc::Implies(conditions, consequence) => match position {
-                ModePosition::Goal => Wc::implies(
-                    self.apply_wcs_at(conditions, ModePosition::Assumption),
-                    self.apply_at((*consequence).clone(), ModePosition::Goal),
-                ),
-
-                ModePosition::Assumption => Wc::implies(
-                    self.apply_wcs_at(conditions, ModePosition::Goal),
-                    self.apply_at((*consequence).clone(), ModePosition::Assumption),
-                ),
-            },
-
-            Wc::Mode(_, _) => {
-                panic!("cannot apply a mode to a where-clause that is already mode-qualified")
-            }
-        }
-    }
 }
 
 /// An atomic proposition to which a proof mode can be attached.
@@ -277,13 +185,15 @@ pub enum Wc {
     #[grammar(if $v0 $v1)]
     Implies(Wcs, Arc<Wc>),
 
-    /// Prove (or assume) an atomic proposition at one dictionary-construction frontier.
-    ///
-    /// This constructor is internal to Rust's well-formedness semantics. Use
-    /// [`Mode::apply_goal`] or [`Mode::apply_assumption`] to apply a frontier to a compound
-    /// where-clause in the corresponding logical position.
+    /// An atomic proposition that will hold once the guarded construction finishes.
     #[grammar($v0($v1))]
     Mode(Mode, AtomicPredicate),
+}
+
+impl Wc {
+    pub fn later(atomic: impl Upcast<AtomicPredicate>) -> Wc {
+        Wc::Mode(Mode::Later, atomic.upcast())
+    }
 }
 
 /// Temporary alias for migration -- allows `WcData::Variant` to still compile.
@@ -321,90 +231,14 @@ cast_impl!((TraitRef) <: (Wc) <: (Wcs));
 
 #[cfg(test)]
 mod tests {
-    use super::{Mode, TraitId, Wc};
+    use super::{TraitRef, Wc};
     use crate::rust::term;
 
     #[test]
-    fn modes_use_constructor_notation() {
-        let atom = term::<Wc>("u32: Debug");
-        let cases = [
-            ("Later(u32: Debug)", Mode::Later.apply_goal(&atom)),
-            (
-                "IfBelow[Root](u32: Debug)",
-                Mode::if_below(TraitId::new("Root")).apply_goal(&atom),
-            ),
-        ];
-
-        for (text, expected) in cases {
-            let parsed = term::<Wc>(text);
-            assert_eq!(parsed, expected);
-            assert_eq!(format!("{parsed:?}"), text);
-        }
-    }
-
-    #[test]
-    fn mode_application_distributes_through_implication() {
-        let mode = Mode::if_below(TraitId::new("Root"));
-        let condition = term::<Wc>("u32: Debug");
-        let consequence = term::<Wc>("u32: Clone");
-        let implication = Wc::implies(&condition, &consequence);
-
-        assert_eq!(
-            mode.apply_goal(implication),
-            Wc::implies(
-                mode.apply_assumption(condition),
-                mode.apply_goal(consequence),
-            ),
-        );
-    }
-
-    #[test]
-    fn mode_application_to_an_assumption_flips_implication_positions() {
-        let mode = Mode::if_below(TraitId::new("Root"));
-        let condition = term::<Wc>("u32: Debug");
-        let consequence = term::<Wc>("u32: Clone");
-        let implication = Wc::implies(&condition, &consequence);
-
-        assert_eq!(
-            mode.apply_assumption(implication),
-            Wc::implies(
-                mode.apply_goal(condition),
-                mode.apply_assumption(consequence),
-            ),
-        );
-    }
-
-    #[test]
-    fn mode_application_distributes_through_binder() {
-        let mode = Mode::if_below(TraitId::new("Root"));
-        let Wc::ForAll(binder) = term::<Wc>("for<'a> 'a : 'a") else {
-            unreachable!()
-        };
-
-        assert_eq!(
-            mode.apply_goal(Wc::for_all(&binder)),
-            Wc::for_all(binder.map(|goal| mode.apply_goal(goal))),
-        );
-    }
-
-    #[test]
-    fn if_below_is_the_identity_for_outlives_relations() {
-        let outlives = term::<Wc>("u32 : 'static");
-        let if_below = Mode::if_below(TraitId::new("Root"));
-
-        assert_eq!(if_below.apply_goal(&outlives), outlives);
-        assert_eq!(if_below.apply_assumption(&outlives), outlives);
-        assert_eq!(
-            Mode::Later.apply_goal(&outlives),
-            term::<Wc>("Later(u32 : 'static)"),
-        );
-    }
-
-    #[test]
-    #[should_panic(expected = "cannot apply a mode")]
-    fn applying_a_mode_twice_is_rejected() {
-        let mode = Mode::if_below(TraitId::new("Root"));
-        let once = mode.apply_goal(term::<Wc>("u32: Debug"));
-        mode.apply_goal(once);
+    fn later_uses_constructor_notation() {
+        let atom = term::<TraitRef>("u32: Debug");
+        let parsed = term::<Wc>("Later(u32: Debug)");
+        assert_eq!(parsed, Wc::later(atom));
+        assert_eq!(format!("{parsed:?}"), "Later(u32: Debug)");
     }
 }

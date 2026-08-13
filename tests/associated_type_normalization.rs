@@ -108,20 +108,9 @@ fn mutual_alias_cycle_has_no_codegen_normal_form() {
             let value: <() as First>::Output;
         }
     }])
-    .err(expect_test::expect![[r#"
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<() as Second>::Output), via: IfBelow[First]((): Second), assumptions: {Later((): First), IfBelow[First]((): Second)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: @ wf(<() as Second>::Output), via: Later((): First), assumptions: {Later((): First), IfBelow[First]((): Second)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: (): Second, via: IfBelow[First]((): Second), assumptions: {Later((): First), IfBelow[First]((): Second)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: (): Second, via: Later((): First), assumptions: {Later((): First), IfBelow[First]((): Second)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: (): Second, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl Second for () where () : First { type Output = <() as First>::Output ; } }, assumptions: {Later((): First), IfBelow[First]((): Second)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: (): Second, via: IfBelow[First]((): Second), assumptions: {Later((): First), IfBelow[First]((): Second)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: (): Second, via: Later((): First), assumptions: {Later((): First), IfBelow[First]((): Second)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }
-
-        crates/formality-rust/src/prove/prove/prove/prove_via_impl.rs:45:1: no applicable rules for prove_via_impl { requested_trait_ref: (): Second, candidate: ImplCandidate { id: ImplId { crate_index: 1, item_index: 3 }, trait_impl: impl Second for () where () : First { type Output = <() as First>::Output ; } }, assumptions: {Later((): First), IfBelow[First]((): Second)}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }"#]]);
+    .codegen_err(expect_test::expect![[r#"
+        the rule "function" at (mod.rs) failed because
+          the rule "alias" at (prove_fully_normalize.rs) failed because
+            cyclic proof attempt: `prove_fully_normalize_ty { ty: <() as First>::Output, assumptions: {}, env: Env { variables: [], bias: Soundness, pending: [], allow_pending_outlives: false } }`"#]])
+    .ok();
 }

@@ -31,7 +31,7 @@ fn not_partial_eq_implies_eq() {
     let goal: Wc = term("for<T> if {T: PartialEq} T: Eq");
     prove(decls(), (), (), goal)
     .assert_err(
-    expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_1: Eq, via: !ty_1: PartialEq, assumptions: {!ty_1: PartialEq}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: !ty_1: Eq, via: !ty_1: PartialEq, assumptions: {!ty_1: PartialEq}, env: Env { variables: [!ty_1], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }
 
 #[test]
@@ -39,5 +39,5 @@ fn universals_not_eq() {
     let goal: Wc = term("for<T, U> if {T: Eq} U: PartialEq");
     prove(decls(), (), (), goal)
     .assert_err(
-    expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:9:1: no applicable rules for prove_via_assumption { goal: !ty_2: PartialEq, via: !ty_1: Eq, assumptions: {!ty_1: Eq}, env: Env { variables: [!ty_1, !ty_2], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
+    expect!["crates/formality-rust/src/prove/prove/prove/prove_via_assumption.rs:8:1: no applicable rules for prove_via_assumption { goal: !ty_2: PartialEq, via: !ty_1: Eq, assumptions: {!ty_1: Eq}, env: Env { variables: [!ty_1, !ty_2], bias: Soundness, pending: [], allow_pending_outlives: false } }"]);
 }

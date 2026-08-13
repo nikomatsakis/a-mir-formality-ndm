@@ -91,7 +91,7 @@ fn mode_metadata_size_wc(wc: &Wc) -> usize {
 mod tests {
     use super::proof_search_size;
     use crate::{
-        grammar::{Mode, TraitId, Wc, Wcs},
+        grammar::{TraitRef, Wc, Wcs},
         rust::term,
     };
     use formality_core::Upcast;
@@ -99,27 +99,24 @@ mod tests {
     #[test]
     fn overflow_size_discounts_but_still_charges_opaque_assumptions() {
         let proposition = term::<Wc>("Vec<u32>: Debug");
-        let second_proposition = term::<Wc>("Vec<Vec<u32>>: Debug");
         let goal: Wcs = proposition.clone().upcast();
         let empty = Wcs::t();
-        let later_assumption: Wcs = Mode::Later.apply_assumption(&proposition).upcast();
+        let later_assumption: Wcs = Wc::later(term::<TraitRef>("Vec<u32>: Debug")).upcast();
         let larger_later_assumption: Wcs =
-            Mode::Later.apply_assumption(&second_proposition).upcast();
+            Wc::later(term::<TraitRef>("Vec<Vec<u32>>: Debug")).upcast();
         let two_later_assumptions: Wcs = (
-            Mode::Later.apply_assumption(&proposition),
-            Mode::Later.apply_assumption(second_proposition),
+            Wc::later(term::<TraitRef>("Vec<u32>: Debug")),
+            Wc::later(term::<TraitRef>("Vec<Vec<u32>>: Debug")),
         )
             .upcast();
-        let ranked_assumption: Wcs = Mode::if_below(TraitId::new("Root"))
-            .apply_assumption(&proposition)
-            .upcast();
-        let later_goal: Wcs = Mode::Later.apply_goal(&proposition).upcast();
+        let full_assumption: Wcs = proposition.upcast();
+        let later_goal: Wcs = Wc::later(term::<TraitRef>("Vec<u32>: Debug")).upcast();
 
         let baseline = proof_search_size(&empty, &goal);
         let opaque_size = proof_search_size(&later_assumption, &goal);
         let larger_opaque_size = proof_search_size(&larger_later_assumption, &goal);
         let two_opaque_size = proof_search_size(&two_later_assumptions, &goal);
-        let full_size = proof_search_size(&ranked_assumption, &goal);
+        let full_size = proof_search_size(&full_assumption, &goal);
 
         assert!(baseline < opaque_size);
         assert!(opaque_size < full_size);
@@ -129,10 +126,9 @@ mod tests {
     }
 
     #[test]
-    fn overflow_size_still_observes_growth_inside_validation() {
-        let mode = Mode::if_below(TraitId::new("Root"));
-        let shallow: Wcs = mode.apply_goal(term::<Wc>("u32: Debug")).upcast();
-        let deep: Wcs = mode.apply_goal(term::<Wc>("Vec<u32>: Debug")).upcast();
+    fn overflow_size_still_observes_growth_inside_later() {
+        let shallow: Wcs = Wc::later(term::<TraitRef>("u32: Debug")).upcast();
+        let deep: Wcs = Wc::later(term::<TraitRef>("Vec<u32>: Debug")).upcast();
 
         assert!(proof_search_size(&Wcs::t(), &deep) > proof_search_size(&Wcs::t(), &shallow));
     }

@@ -1,17 +1,28 @@
 use crate::grammar::{
-    AliasTy, AssociatedTyValue, AssociatedTyValueBoundData, AtomicPredicate, Binder, ImplItem,
-    Parameter, Predicate, TraitId, TraitImplBoundData, TraitRef, Wc, Wcs, WhereClause,
+    AliasTy, AssociatedTyValue, AssociatedTyValueBoundData, Binder, ImplItem, Parameter, Predicate,
+    TraitId, TraitImplBoundData, TraitRef, Wc, Wcs, WhereClause,
 };
 use formality_core::{judgment_fn, Cons};
+use std::collections::BTreeSet;
+
+fn associated_type_values_are_unique(impl_items: &[ImplItem]) -> bool {
+    let mut ids = BTreeSet::new();
+    impl_items
+        .iter()
+        .filter_map(|item| match item {
+            ImplItem::AssociatedTyValue(value) => Some(&value.id),
+            ImplItem::Fn(_) => None,
+        })
+        .all(|id| ids.insert(id))
+}
 
 judgment_fn! {
     /// Extract the implication represented by an instantiated impl declaration.
     ///
     /// Impl well-formedness assumes the returned conditions while checking the constructor body.
     /// Impl application proves those same conditions before invoking the constructor. The returned
-    /// definitions are the impl's oriented associated-type equalities; application exposes them as
-    /// `Later` facts while it proves the conditions. Each caller applies its own validation
-    /// frontier and logical polarity.
+    /// definitions are the impl's oriented associated-type equalities, guarded by `Later` because
+    /// their selected values are fixed before their well-formedness and bounds are established.
     pub(crate) fn impl_contract(
         trait_impl: TraitImplBoundData,
     ) => (TraitRef, Vec<WhereClause>, Wcs) {
@@ -19,6 +30,7 @@ judgment_fn! {
 
         (
             (let header @ TraitRef { trait_id, parameters } = trait_impl.trait_ref())
+            (if associated_type_values_are_unique(impl_items))!
             (impl_definitions(trait_id, parameters, impl_items) => definitions)
             ----------------------------- ("impl contract")
             (impl_contract(
@@ -63,9 +75,7 @@ judgment_fn! {
                 gat_parameters.len(),
                 (trait_parameters, gat_parameters),
             ))
-            (let definition = Wc::Atomic(AtomicPredicate::Predicate(
-                Predicate::alias_eq(alias, ty),
-            )))
+            (let definition = Wc::later(Predicate::alias_eq(alias, ty)))
             (let definition = Wc::for_all(Binder::new(gat_parameters, definition)))
             (impl_definitions(trait_id, trait_parameters, rest) => definitions)
             ----------------------------- ("associated type")
